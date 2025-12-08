@@ -4,13 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import RazorpayScriptLoader from '@/components/loader/RazorpayScriptLoader';
-import { MobilePatientOnboarding, MobilePaymentSuccess } from '@/components/onboarding/shared';
-import {
-  MobileCenterSelection,
-  MobileSessionDetails,
-  MobileBookingConfirmation,
-  MobileBookingConfirmed,
-} from '@/components/onboarding/regular';
+import { MobilePatientOnboarding } from '@/components/onboarding/shared';
 
 type BookingStep =
   | 'patient-onboarding'
@@ -280,41 +274,7 @@ function BookPageContent() {
             />
           )}
 
-          {currentStep === 'center-selection' && (
-            <MobileCenterSelection
-              selectedCenterId={bookingData.centerId}
-              onCenterSelect={(centerId) => updateBookingData({ centerId })}
-              onNext={goToNextStep}
-              patientId={bookingData.patientId}
-            />
-          )}
 
-          {currentStep === 'session-details' && (
-            <MobileSessionDetails
-              bookingData={bookingData}
-              onUpdateData={updateBookingData}
-              onNext={goToNextStep}
-            />
-          )}
-
-          {currentStep === 'booking-confirmation' && (
-            <MobileBookingConfirmation
-              bookingData={bookingData}
-              onUpdateData={updateBookingData}
-              onNext={goToNextStep}
-            />
-          )}
-
-          {currentStep === 'payment-success' && (
-            <MobilePaymentSuccess
-              bookingData={bookingData}
-              onNext={goToNextStep}
-            />
-          )}
-
-          {currentStep === 'booking-confirmed' && (
-            <MobileBookingConfirmed bookingData={bookingData} />
-          )}
         </div>
       </div>
     </>
