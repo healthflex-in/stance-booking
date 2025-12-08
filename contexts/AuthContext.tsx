@@ -3,7 +3,7 @@
 import React from 'react';
 import { Analytics } from 'firebase/analytics';
 import { useRouter, usePathname } from 'next/navigation';
-import { StanceHealthLoader } from '@/components/loader';
+import StanceHealthLoader from '../components/loader/StanceHealthLoader';
 import { useMutation } from '@apollo/client';
 import { LOGOUT } from '@/gql/queries';
 import { clearAuthData, getCurrentUser, getCurrentToken } from '@/utils/auth-utils';
