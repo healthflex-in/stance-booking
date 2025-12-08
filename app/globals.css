@@ -1,15 +1,35 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    @apply text-primary;
+  }
+  
+  h1, h2, h3, h4, h5, h6, p, span, div {
+    @apply text-primary;
+  }
+}
 
 :root {
   --background: #ffffff;
   --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --primary: #203A37;
+  --primary-dark: #132321;
+  --primary-light: #FCFAF1;
+  --accent: #DDFE71;
+  --accent-hover: rgba(221, 248, 132, 0.837);
+  --accent-shadow: #DDFE7133;
+  --accent-bg: #DDFE7114;
+  --text-primary: #2F2F32;
+  --text-secondary: #636365;
+  --divider: #E4E4E6;
+  --divider-light: #E4E4E633;
+  --success: #537E23;
+  --error: #E12929;
+  --active: #F3EFFF;
+  --inactive: #F2F4F4;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -20,7 +40,91 @@
 }
 
 body {
-  background: var(--background);
   color: var(--foreground);
+  background: var(--background);
   font-family: Arial, Helvetica, sans-serif;
+  font-size: 14px;
+  line-height: 20px;
+  background-color: #f9fafb;
+}
+
+.bg-primary {
+  background-color: var(--primary);
+}
+
+.hover\:bg-primary-dark:hover {
+  background-color: var(--primary-dark);
+}
+
+.bg-accent {
+  background-color: var(--accent);
+}
+
+
+.bg-accent:hover {
+  background-color: var(--accent-hover);
+}
+
+.bg-active {
+  background-color: var(--active);
+}
+
+.bg-inactive {
+  background-color: var(--inactive);
+}
+
+.text-primary {
+  color: var(--text-primary);
+}
+
+.border-1 {
+  border-width: 1px;
+}
+
+.border-primary {
+  border-color: var(--primary);
+}
+
+.border-secondary {
+  border-color: var(--divider);
+}
+
+.hover\:text-primary-dark:hover {
+  color: var(--primary-dark);
+}
+
+.focus\:ring-primary:focus {
+  --tw-ring-color: var(--primary);
+}
+
+.focus\:border-primary:focus {
+  border-color: var(--primary);
+}
+
+.bg-primary-light {
+  background-color: var(--primary-light);
+}
+
+.hover\:bg-primary-light:hover {
+  background-color: var(--primary-light);
+}
+
+.bg-success {
+  background-color: var(--success);
+}
+
+.bg-error {
+  background-color: var(--error);
+}
+
+.text-success {
+  color: var(--success);
+}
+
+.text-error {
+  color: var(--error);
+}
+
+.text-secondary {
+  color: var(--text-secondary);
 }

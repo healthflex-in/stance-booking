@@ -1,0 +1,285 @@
+'use client';
+
+import React, { useState } from 'react';
+import { useQuery, useMutation } from '@apollo/client';
+import { useRouter } from 'next/navigation';
+import { MapPin, AlertCircle } from 'lucide-react';
+import { GET_CENTERS, GET_SERVICES, GET_USER, CREATE_APPOINTMENT } from '@/gql/queries';
+import { MobilePaymentProcessing } from '../shared';
+import { useContainerDetection } from '@/hooks/useContainerDetection';
+
+interface BookingData {
+  sessionType: 'online';
+  patientId: string;
+  centerId: string;
+  consultantId: string;
+  treatmentId: string;
+  treatmentPrice: number;
+  selectedDate: string;
+  selectedFullDate?: Date;
+  selectedTimeSlot: { startTime: string; endTime: string; displayTime: string };
+}
+
+interface NewUserOnlinePaymentConfirmationProps {
+  bookingData: BookingData;
+  onNext: () => void;
+}
+
+export default function NewUserOnlinePaymentConfirmation({
+  bookingData,
+  onNext,
+}: NewUserOnlinePaymentConfirmationProps) {
+  const router = useRouter();
+  const { isInDesktopContainer } = useContainerDetection();
+  const [paymentAmount, setPaymentAmount] = useState(bookingData.treatmentPrice.toString());
+  const [amountError, setAmountError] = useState('');
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+
+  const { data: centersData } = useQuery(GET_CENTERS);
+  const { data: servicesData } = useQuery(GET_SERVICES, {
+    variables: { centerId: [bookingData.centerId] },
+  });
+  const { data: userData } = useQuery(GET_USER, {
+    variables: { userId: bookingData.patientId },
+  });
+
+  const [createAppointment] = useMutation(CREATE_APPOINTMENT);
+
+  const currentCenter = centersData?.centers.find((c: any) => c._id === bookingData.centerId);
+  const currentService = servicesData?.services.find((s: any) => s._id === bookingData.treatmentId);
+  const patient = userData?.user;
+
+  const patientDetails = {
+    name: patient?.profileData ? `${patient.profileData.firstName} ${patient.profileData.lastName}` : '',
+    phone: patient?.phone || '',
+    email: patient?.email || '',
+  };
+
+  const validateAmount = (value: string) => {
+    const amount = parseFloat(value);
+    
+    if (isNaN(amount) || amount <= 0) {
+      setAmountError('Please enter a valid amount');
+      return false;
+    }
+    
+    if (amount < 100) {
+      setAmountError('Amount must be at least ₹100');
+      return false;
+    }
+    
+    if (amount > bookingData.treatmentPrice) {
+      setAmountError(`Amount cannot exceed service price ₹${bookingData.treatmentPrice}`);
+      return false;
+    }
+    
+    setAmountError('');
+    return true;
+  };
+
+  const handleAmountChange = (value: string) => {
+    setPaymentAmount(value);
+    if (value) {
+      validateAmount(value);
+    } else {
+      setAmountError('');
+    }
+  };
+
+  const handleProceedToPayment = async () => {
+    if (!validateAmount(paymentAmount)) {
+      return;
+    }
+
+    const amount = parseFloat(paymentAmount);
+    const isFullPayment = amount === bookingData.treatmentPrice;
+
+    try {
+      // Create appointment first
+      const appointmentResult = await createAppointment({
+        variables: {
+          input: {
+            patient: bookingData.patientId,
+            consultant: bookingData.consultantId,
+            center: bookingData.centerId,
+            treatment: bookingData.treatmentId,
+            medium: 'ONLINE',
+            visitType: 'FIRST_VISIT',
+            status: 'TOKEN_PENDING',
+            category: 'WEBSITE',
+            event: {
+              startTime: new Date(bookingData.selectedTimeSlot.startTime).getTime(),
+              endTime: new Date(bookingData.selectedTimeSlot.endTime).getTime(),
+            },
+          },
+        },
+      });
+
+      const appointmentId = appointmentResult.data.createAppointment._id;
+      sessionStorage.setItem('pendingAppointmentId', appointmentId);
+      sessionStorage.setItem('paymentType', isFullPayment ? 'invoice' : 'package');
+      sessionStorage.setItem('paymentAmount', amount.toString());
+
+      setIsProcessingPayment(true);
+    } catch (error) {
+      console.error('Error creating appointment:', error);
+      setAmountError('Failed to create appointment. Please try again.');
+    }
+  };
+
+  if (isProcessingPayment) {
+    return (
+      <MobilePaymentProcessing
+        amount={parseFloat(paymentAmount)}
+        patientDetails={patientDetails}
+        patientId={bookingData.patientId}
+        centerId={bookingData.centerId}
+        onPaymentSuccess={async (paymentId) => {
+          const appointmentId = sessionStorage.getItem('pendingAppointmentId');
+          const paymentType = sessionStorage.getItem('paymentType');
+          
+          // Payment successful - backend will handle invoice/package creation
+          console.log('Payment successful:', { appointmentId, paymentId, paymentType });
+          
+          sessionStorage.removeItem('pendingAppointmentId');
+          sessionStorage.removeItem('paymentType');
+          sessionStorage.removeItem('paymentAmount');
+          
+          setIsProcessingPayment(false);
+          onNext();
+        }}
+        onPaymentFailure={async (error) => {
+          setIsProcessingPayment(false);
+          
+          const appointmentId = sessionStorage.getItem('pendingAppointmentId');
+          if (appointmentId) {
+            sessionStorage.removeItem('pendingAppointmentId');
+            sessionStorage.removeItem('paymentType');
+            sessionStorage.removeItem('paymentAmount');
+          }
+
+          const errorMsg = typeof error === 'string' ? error : error?.description || error?.message || 'Payment failed';
+          router.push(`/onboarding-patient/failure?error=${encodeURIComponent(errorMsg)}`);
+        }}
+      />
+    );
+  }
+
+  const isFullPayment = parseFloat(paymentAmount) === bookingData.treatmentPrice;
+
+  return (
+    <div className={`${isInDesktopContainer ? 'h-full' : 'min-h-screen'} bg-gray-50 flex flex-col`}>
+      <div className="flex-1 overflow-y-auto">
+        <div className={`p-4 ${isInDesktopContainer ? 'pb-6' : 'pb-32'}`}>
+          {/* Patient Details */}
+          <div className="bg-white rounded-2xl border border-gray-200 p-4 mb-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Patient Details</h3>
+            <div className="space-y-3">
+              <div>
+                <span className="text-sm text-gray-600 font-medium block">Name</span>
+                <p className="text-sm font-medium text-gray-900">{patientDetails.name}</p>
+              </div>
+              <div>
+                <span className="text-sm text-gray-600 font-medium block">Phone</span>
+                <p className="text-sm font-medium text-gray-900">{patientDetails.phone}</p>
+              </div>
+              {patientDetails.email && (
+                <div>
+                  <span className="text-sm text-gray-600 font-medium block">Email</span>
+                  <p className="text-sm font-medium text-gray-900">{patientDetails.email}</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Session Details */}
+          <div className="bg-white rounded-2xl border border-gray-200 p-4 mb-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Session Details</h3>
+            <div className="space-y-4">
+              <div>
+                <span className="text-sm text-gray-600 font-medium block">Location</span>
+                <p className="text-sm font-bold text-gray-900">{currentCenter?.name}</p>
+                <p className="text-sm text-gray-500">Online Consultation</p>
+              </div>
+              <div>
+                <span className="text-sm text-gray-600 font-medium block">Date & Time</span>
+                <p className="text-sm font-medium text-gray-900">
+                  {bookingData.selectedDate}, {bookingData.selectedTimeSlot.displayTime}
+                </p>
+              </div>
+              <div>
+                <span className="text-sm text-gray-600 font-medium block">Service</span>
+                <p className="text-sm font-medium text-gray-900">{currentService?.name}</p>
+                <p className="text-sm text-gray-500">₹{bookingData.treatmentPrice}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Payment Amount */}
+          <div className="bg-white rounded-2xl border border-gray-200 p-4 mb-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Payment Amount</h3>
+            
+            <div className="mb-4">
+              <label className="text-sm text-gray-600 font-medium block mb-2">
+                Enter Amount (₹100 - ₹{bookingData.treatmentPrice})
+              </label>
+              <input
+                type="number"
+                value={paymentAmount}
+                onChange={(e) => handleAmountChange(e.target.value)}
+                min="100"
+                max={bookingData.treatmentPrice}
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Enter amount"
+              />
+              {amountError && (
+                <p className="text-red-600 text-sm mt-2">{amountError}</p>
+              )}
+            </div>
+
+            {/* Payment Type Indicator */}
+            {paymentAmount && !amountError && (
+              <div className={`p-3 rounded-xl ${isFullPayment ? 'bg-green-50 border border-green-200' : 'bg-blue-50 border border-blue-200'}`}>
+                <div className="flex items-start space-x-2">
+                  <AlertCircle className={`w-5 h-5 flex-shrink-0 mt-0.5 ${isFullPayment ? 'text-green-600' : 'text-blue-600'}`} />
+                  <div>
+                    <p className={`text-sm font-semibold ${isFullPayment ? 'text-green-900' : 'text-blue-900'}`}>
+                      {isFullPayment ? 'Full Payment - Invoice' : 'Partial Payment - Package'}
+                    </p>
+                    <p className={`text-xs mt-1 ${isFullPayment ? 'text-green-700' : 'text-blue-700'}`}>
+                      {isFullPayment 
+                        ? 'Paying full service amount. An invoice will be generated.'
+                        : 'Paying partial amount. A package will be created for future use.'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Non-refundable Notice */}
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-6">
+            <div className="flex items-start space-x-2">
+              <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+              <p className="text-xs text-amber-800">
+                This payment is non-refundable. Please review all details before proceeding.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Proceed Button */}
+      <div className={`${isInDesktopContainer ? 'flex-shrink-0' : 'fixed bottom-0 left-0 right-0'} bg-white border-t border-gray-200 p-4`}>
+        <button
+          onClick={handleProceedToPayment}
+          disabled={!paymentAmount || !!amountError}
+          className="w-full py-4 text-black font-semibold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          style={{ backgroundColor: paymentAmount && !amountError ? '#DDFE71' : '#9CA3AF' }}
+        >
+          Proceed to Payment
+        </button>
+      </div>
+    </div>
+  );
+}
