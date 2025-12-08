@@ -290,6 +290,15 @@ export default function MobilePatientOnboarding({
   const handleBookSlotsForLead = () => {
     // Continue with the booking flow using the lead user's ID
     if (leadUser?.id) {
+      // Set organization ID and center ID for existing users
+      const organizationId = '67fe35f25e42152fb5185a5e';
+      const finalCenterId = '67fe36545e42152fb5185a6c';
+      
+      localStorage.setItem('organizationId', organizationId);
+      localStorage.setItem('stance-organizationID', organizationId);
+      localStorage.setItem('centerId', finalCenterId);
+      localStorage.setItem('stance-centreID', finalCenterId);
+      
       onPatientCreated(leadUser.id, false);
       onNext(); // Continue to the next step in the booking flow
     }

@@ -14,7 +14,8 @@ export const MOBILE_BOOKING_CONFIG = {
  */
 export function isMobileBookingRoute(): boolean {
   if (typeof window === 'undefined') return false;
-  return window.location.pathname.includes('/onboarding-patient');
+  const path = window.location.pathname;
+  return path.includes('/onboarding-patient') || path.includes('/book') || path.includes('/book-prepaid');
 }
 
 /**

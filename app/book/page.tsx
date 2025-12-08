@@ -131,6 +131,15 @@ function BookPageContent() {
           <div className="w-full max-w-md space-y-4">
             <button
               onClick={() => {
+                // Set organization ID and center ID
+                const organizationId = '67fe35f25e42152fb5185a5e';
+                const finalCenterId = '67fe36545e42152fb5185a6c';
+                
+                localStorage.setItem('organizationId', organizationId);
+                localStorage.setItem('stance-organizationID', organizationId);
+                localStorage.setItem('centerId', finalCenterId);
+                localStorage.setItem('stance-centreID', finalCenterId);
+                
                 // Store patient data in session storage before routing
                 sessionStorage.setItem('patientId', bookingData.patientId);
                 sessionStorage.setItem('centerId', bookingData.centerId);
@@ -148,6 +157,15 @@ function BookPageContent() {
             </button>
             <button
               onClick={() => {
+                // Set organization ID and center ID
+                const organizationId = '67fe35f25e42152fb5185a5e';
+                const finalCenterId = '67fe36545e42152fb5185a6c';
+                
+                localStorage.setItem('organizationId', organizationId);
+                localStorage.setItem('stance-organizationID', organizationId);
+                localStorage.setItem('centerId', finalCenterId);
+                localStorage.setItem('stance-centreID', finalCenterId);
+                
                 // Store patient data in session storage before routing
                 sessionStorage.setItem('patientId', bookingData.patientId);
                 sessionStorage.setItem('centerId', bookingData.centerId);
