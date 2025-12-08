@@ -326,10 +326,7 @@ export const useAvailableSlots = ({
         centerConsultants = consultantIds && consultantIds.length > 0
           ? allConsultants.filter((c: any) => consultantIds.includes(c._id) && c.isActive === true)
           : allConsultants.filter((c: any) => 
-              c.isActive === true && (
-                c.profileData?.designation === 'Physiotherapist' ||
-                c.profileData?.designation === 'S&C Coach'
-              )
+              c.isActive === true && c.profileData?.designation === 'Physiotherapist'
             );
       }
       
