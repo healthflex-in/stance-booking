@@ -66,7 +66,7 @@ export default function ConsultantSelectionModal({
         <div className="flex-1 overflow-y-auto px-5 py-4">
           {consultants.length > 0 ? (
             <div className="space-y-2">
-              {consultants.map((consultant) => (
+              {consultants.map((consultant: any) => (
                 <button
                   key={consultant._id}
                   onClick={() => onSelect(consultant)}

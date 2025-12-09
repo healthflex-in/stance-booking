@@ -221,7 +221,6 @@ export default function NewBookingMain({
           endTimeRaw: selectedTimeSlot.endTimeRaw,
           displayTime: selectedTimeSlot.displayTime,
         },
-        selectedDate,
         selectedFullDate: currentSelectedDate,
       });
     }

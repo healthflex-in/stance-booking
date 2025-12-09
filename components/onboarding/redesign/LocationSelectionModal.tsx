@@ -78,7 +78,7 @@ export default function LocationSelectionModal({
             </div>
           ) : displayCenters.length > 0 ? (
             <div className="space-y-2">
-              {displayCenters.map((center) => (
+              {displayCenters.map((center: any) => (
                 <button
                   key={center._id}
                   onClick={() => onSelect(center)}

@@ -229,7 +229,7 @@ export default function ServiceSelectionModal({
             </div>
           ) : services.length > 0 ? (
             <div className="space-y-2">
-              {services.map((service) => (
+              {services.map((service: any) => (
                 <button
                   key={service.id}
                   onClick={() => onSelect(service)}
