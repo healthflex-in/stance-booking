@@ -2,9 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import RazorpayScriptLoader from '@/components/loader/RazorpayScriptLoader';
+import SimplifiedPatientOnboarding from '@/components/onboarding/redesign/SimplifiedPatientOnboarding';
 import {
-  SimplifiedPatientOnboarding,
   NewBookingMain,
   BookingConfirmation,
   BookingConfirmed,
@@ -33,17 +32,12 @@ interface BookingData {
     startTime: string;
     endTime: string;
     displayTime: string;
-    startTimeRaw?: string;
-    endTimeRaw?: string;
   };
   selectedFullDate?: Date;
   appointmentId?: string;
-  selectedCenter?: any;
-  selectedService?: any;
-  selectedConsultant?: any;
 }
 
-function BookPageContent() {
+export default function BookPrepaidNewPage() {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [currentStep, setCurrentStep] = useState<BookingStep>('patient-onboarding');
@@ -99,7 +93,6 @@ function BookPageContent() {
 
   const BookingContent = () => (
     <>
-      <RazorpayScriptLoader />
       {currentStep === 'patient-onboarding' && (
         <SimplifiedPatientOnboarding
           centerId={bookingData.centerId!}
@@ -142,8 +135,11 @@ function BookPageContent() {
         <div className="absolute inset-0 bg-black/20 backdrop-blur-sm" />
         
         <div className="absolute inset-0 flex items-center justify-center p-4">
-          <div className="w-full max-w-sm mx-auto bg-white rounded-2xl shadow-2xl overflow-hidden relative flex flex-col" style={{ height: '90vh', maxHeight: '90vh' }}>
-            <div className="flex-1 overflow-y-auto overflow-x-hidden relative">
+          <div
+            className="w-full max-w-sm mx-auto bg-white rounded-2xl shadow-2xl overflow-hidden relative"
+            style={{ height: '90vh' }}
+          >
+            <div className="h-full overflow-y-auto">
               <BookingContent />
             </div>
           </div>
@@ -155,14 +151,3 @@ function BookPageContent() {
   return <BookingContent />;
 }
 
-export default function BookPage() {
-  return (
-    <React.Suspense fallback={
-      <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      </div>
-    }>
-      <BookPageContent />
-    </React.Suspense>
-  );
-}
