@@ -13,6 +13,7 @@ interface ServiceSelectionModalProps {
   centerId: string;
   isNewUser: boolean;
   sessionType: 'in-person' | 'online';
+  isPrePaid?: boolean; // New prop to indicate prepaid flow
   onSelect: (service: { id: string; _id: string; name: string; duration: number; price: number; bookingAmount: number }) => void;
 }
 
@@ -23,6 +24,7 @@ export default function ServiceSelectionModal({
   centerId,
   isNewUser,
   sessionType,
+  isPrePaid = false,
   onSelect,
 }: ServiceSelectionModalProps) {
   const [services, setServices] = useState<any[]>([]);
@@ -106,10 +108,14 @@ export default function ServiceSelectionModal({
     console.log('Filtering with:', { isNewUser, sessionType, centerId });
 
     // Filter services based on exact requirements from user
+    // Regular flow:
     // Flow 2: New User : Online - allowOnlineBooking: true, allowOnlineDelivery: true, isNewUserService: true, isPrePaid: false
     // Flow 4: Repeat user - Online - allowOnlineBooking: true, allowOnlineDelivery: true, isNewUserService: false, isPrePaid: false
     // Flow 3: New User : In center - allowOnlineBooking: true, allowOnlineDelivery: false, isNewUserService: true, isPrePaid: false
     // Flow 5: Repeat user - In Center - allowOnlineBooking: true, allowOnlineDelivery: false, isNewUserService: false, isPrePaid: false
+    // Prepaid flow:
+    // New User Prepaid: allowOnlineBooking: true, allowOnlineDelivery: true, isNewUserService: true, isPrePaid: true
+    // Repeat User Prepaid: allowOnlineBooking: true, allowOnlineDelivery: true, isNewUserService: false, isPrePaid: true
     const filteredServices = servicesData.services.filter((service: any) => {
       console.log('Checking service:', {
         name: service.name,
@@ -117,6 +123,7 @@ export default function ServiceSelectionModal({
         allowOnlineDelivery: service.allowOnlineDelivery,
         isNewUserService: service.isNewUserService,
         isPrePaid: service.isPrePaid,
+        isPrePaidFlow: isPrePaid,
       });
 
       // Step 1: Must have allowOnlineBooking = true (REQUIRED for all flows)
@@ -126,11 +133,24 @@ export default function ServiceSelectionModal({
         return false;
       }
       
-      // Step 2: Must be non-prepaid for this flow (isPrePaid = false)
-      // Note: Prepaid services go through a different flow
-      if (service.isPrePaid) {
-        console.log(`  ❌ Rejected: isPrePaid is truthy (${service.isPrePaid})`);
-        return false;
+      // Step 2: Filter by prepaid status
+      if (isPrePaid) {
+        // Prepaid flow: must have isPrePaid = true
+        if (!service.isPrePaid) {
+          console.log(`  ❌ Rejected: isPrePaid flow but service.isPrePaid is falsy (${service.isPrePaid})`);
+          return false;
+        }
+        // Prepaid is always online, so allowOnlineDelivery must be true
+        if (!service.allowOnlineDelivery) {
+          console.log(`  ❌ Rejected: isPrePaid flow but allowOnlineDelivery is falsy (${service.allowOnlineDelivery})`);
+          return false;
+        }
+      } else {
+        // Regular flow: must be non-prepaid (isPrePaid = false)
+        if (service.isPrePaid) {
+          console.log(`  ❌ Rejected: regular flow but isPrePaid is truthy (${service.isPrePaid})`);
+          return false;
+        }
       }
       
       // Step 3: Filter by new/returning user
@@ -145,19 +165,21 @@ export default function ServiceSelectionModal({
         return false;
       }
       
-      // Step 4: Filter by session type - allowOnlineDelivery is boolean
-      // Online: allowOnlineDelivery must be truthy (true)
-      // In-center: allowOnlineDelivery must be falsy (false)
-      if (sessionType === 'online') {
-        if (!service.allowOnlineDelivery) {
-          console.log(`  ❌ Rejected: sessionType is online but allowOnlineDelivery is falsy (${service.allowOnlineDelivery})`);
-          return false;
-        }
-      } else {
-        // In-person: allowOnlineDelivery must be falsy
-        if (service.allowOnlineDelivery) {
-          console.log(`  ❌ Rejected: sessionType is in-person but allowOnlineDelivery is truthy (${service.allowOnlineDelivery})`);
-          return false;
+      // Step 4: Filter by session type (only for regular flow, prepaid is always online)
+      if (!isPrePaid) {
+        // Online: allowOnlineDelivery must be truthy (true)
+        // In-center: allowOnlineDelivery must be falsy (false)
+        if (sessionType === 'online') {
+          if (!service.allowOnlineDelivery) {
+            console.log(`  ❌ Rejected: sessionType is online but allowOnlineDelivery is falsy (${service.allowOnlineDelivery})`);
+            return false;
+          }
+        } else {
+          // In-person: allowOnlineDelivery must be falsy
+          if (service.allowOnlineDelivery) {
+            console.log(`  ❌ Rejected: sessionType is in-person but allowOnlineDelivery is truthy (${service.allowOnlineDelivery})`);
+            return false;
+          }
         }
       }
 

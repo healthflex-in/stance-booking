@@ -3,15 +3,15 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
+import { useMutation } from '@apollo/client';
+import { CREATE_APPOINTMENT } from '@/gql/queries';
 import {
-  RepeatUserIncenterCenterSelection,
-  RepeatUserIncenterConsultantSelection,
-  RepeatUserIncenterServiceSelection,
-  RepeatUserIncenterSlotSelection,
+  RepeatUserIncenterSessionDetails,
   RepeatUserIncenterBookingConfirmed,
 } from '@/components/onboarding/repeat-user-incenter';
+import { SlotAvailability } from '@/components/onboarding/redesign';
 
-type BookingStep = 'center-selection' | 'consultant-selection' | 'service-selection' | 'slot-selection' | 'booking-confirmed';
+type BookingStep = 'session-details' | 'slot-selection' | 'booking-confirmed';
 
 interface BookingData {
   patientId: string;
@@ -23,13 +23,14 @@ interface BookingData {
   selectedDate: string;
   selectedFullDate?: Date;
   selectedTimeSlot: { startTime: string; endTime: string; displayTime: string };
-  isNewUser: boolean;
+  sessionType: 'in-person';
+  appointmentId?: string;
 }
 
 export default function RepeatOfflinePage() {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
-  const [currentStep, setCurrentStep] = useState<BookingStep>('center-selection');
+  const [currentStep, setCurrentStep] = useState<BookingStep>('session-details');
   const [bookingData, setBookingData] = useState<BookingData>({
     patientId: '',
     centerId: process.env.NEXT_PUBLIC_DEFAULT_CENTER_ID || '67fe36545e42152fb5185a6c',
@@ -39,8 +40,10 @@ export default function RepeatOfflinePage() {
     treatmentDuration: 20,
     selectedDate: '',
     selectedTimeSlot: { startTime: '', endTime: '', displayTime: '' },
-    isNewUser: false,
+    sessionType: 'in-person',
   });
+
+  const [createAppointment] = useMutation(CREATE_APPOINTMENT);
 
   useEffect(() => {
     setMounted(true);
@@ -54,7 +57,11 @@ export default function RepeatOfflinePage() {
   }, []);
 
   const goToNextStep = () => {
-    const stepOrder: BookingStep[] = ['center-selection', 'consultant-selection', 'service-selection', 'slot-selection', 'booking-confirmed'];
+    const stepOrder: BookingStep[] = [
+      'session-details',
+      'slot-selection',
+      'booking-confirmed',
+    ];
     const currentIndex = stepOrder.indexOf(currentStep);
     if (currentIndex < stepOrder.length - 1) {
       setCurrentStep(stepOrder[currentIndex + 1]);
@@ -62,7 +69,11 @@ export default function RepeatOfflinePage() {
   };
 
   const goToPreviousStep = () => {
-    const stepOrder: BookingStep[] = ['center-selection', 'consultant-selection', 'service-selection', 'slot-selection', 'booking-confirmed'];
+    const stepOrder: BookingStep[] = [
+      'session-details',
+      'slot-selection',
+      'booking-confirmed',
+    ];
     const currentIndex = stepOrder.indexOf(currentStep);
     if (currentIndex > 0) {
       setCurrentStep(stepOrder[currentIndex - 1]);
@@ -75,18 +86,65 @@ export default function RepeatOfflinePage() {
     setBookingData((prev) => ({ ...prev, ...updates }));
   };
 
+  const handleSlotSelect = async (consultantId: string, slot: any) => {
+    const slotDate = new Date(slot.startTimeRaw);
+    updateBookingData({
+      consultantId,
+      selectedTimeSlot: {
+        startTime: new Date(slot.startTimeRaw).toISOString(),
+        endTime: new Date(slot.endTimeRaw).toISOString(),
+        displayTime: slot.displayTime
+      },
+      selectedDate: slotDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
+      selectedFullDate: slotDate,
+    });
+
+    // Create appointment immediately (no payment for repeat in-center)
+    try {
+      // Build input object - exactly like redesign
+      const input = {
+        patient: bookingData.patientId,
+        consultant: consultantId || null,
+        treatment: bookingData.treatmentId,
+        medium: 'IN_PERSON',
+        notes: '',
+        center: bookingData.centerId,
+        category: 'WEBSITE',
+        status: 'BOOKED',
+        visitType: 'FOLLOW_UP',
+        event: {
+          startTime: new Date(slot.startTimeRaw).getTime(),
+          endTime: new Date(slot.endTimeRaw).getTime(),
+        },
+      };
+
+      const appointmentResult = await createAppointment({
+        variables: { input },
+      });
+
+      const appointmentId = appointmentResult.data?.createAppointment?._id;
+      if (appointmentId) {
+        updateBookingData({ appointmentId });
+        goToNextStep();
+      } else {
+        throw new Error('Appointment creation failed - no ID returned');
+      }
+    } catch (error: any) {
+      console.error('Error creating appointment:', error);
+      alert(error.message || 'Failed to create appointment. Please try again.');
+    }
+  };
+
   const getStepTitle = () => {
     switch (currentStep) {
-      case 'center-selection': return 'Select Center';
-      case 'consultant-selection': return 'Select Consultant';
-      case 'service-selection': return 'Select Service';
-      case 'slot-selection': return 'Select Slot';
+      case 'session-details': return 'Session Details';
+      case 'slot-selection': return 'Slot Availability';
       case 'booking-confirmed': return 'Booking Confirmed';
       default: return 'Repeat User - In Center';
     }
   };
 
-  const canGoBack = currentStep !== 'center-selection' && currentStep !== 'booking-confirmed';
+  const canGoBack = currentStep !== 'session-details' && currentStep !== 'booking-confirmed';
 
   if (!mounted) {
     return (
@@ -114,52 +172,31 @@ export default function RepeatOfflinePage() {
       </div>
 
       <div className="flex-1 overflow-hidden">
-        {currentStep === 'center-selection' && (
-          <RepeatUserIncenterCenterSelection
-            selectedCenterId={bookingData.centerId}
-            onCenterSelect={(centerId) => updateBookingData({ centerId })}
-            onNext={goToNextStep}
-          />
-        )}
-
-        {currentStep === 'consultant-selection' && (
-          <RepeatUserIncenterConsultantSelection
+        {currentStep === 'session-details' && (
+          <RepeatUserIncenterSessionDetails
+            patientId={bookingData.patientId}
             centerId={bookingData.centerId}
-            onConsultantSelect={(consultantId) => {
-              updateBookingData({ consultantId });
-              goToNextStep();
-            }}
-          />
-        )}
-
-        {currentStep === 'service-selection' && (
-          <RepeatUserIncenterServiceSelection
-            centerId={bookingData.centerId}
-            onServiceSelect={(serviceId, serviceDuration, servicePrice) => {
-              updateBookingData({ treatmentId: serviceId, treatmentPrice: servicePrice, treatmentDuration: serviceDuration });
+            onBack={goToPreviousStep}
+            onContinue={(data) => {
+              updateBookingData({
+                centerId: data.centerId,
+                treatmentId: data.serviceId,
+                treatmentDuration: data.serviceDuration,
+                treatmentPrice: data.servicePrice,
+              });
               goToNextStep();
             }}
           />
         )}
 
         {currentStep === 'slot-selection' && (
-          <RepeatUserIncenterSlotSelection
+          <SlotAvailability
             centerId={bookingData.centerId}
             serviceDuration={bookingData.treatmentDuration}
-            onSlotSelect={(consultantId, slot) => {
-              const slotDate = new Date(slot.startTimeRaw);
-              updateBookingData({
-                consultantId,
-                selectedTimeSlot: {
-                  startTime: new Date(slot.startTimeRaw).toISOString(),
-                  endTime: new Date(slot.endTimeRaw).toISOString(),
-                  displayTime: slot.displayTime
-                },
-                selectedDate: slotDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
-                selectedFullDate: slotDate,
-              });
-              goToNextStep();
-            }}
+            sessionType="in-person"
+            isNewUser={false}
+            onSlotSelect={handleSlotSelect}
+            onBack={goToPreviousStep}
           />
         )}
 

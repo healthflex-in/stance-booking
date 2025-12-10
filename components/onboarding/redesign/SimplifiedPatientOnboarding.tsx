@@ -7,10 +7,11 @@ import { User } from 'lucide-react';
 import { CREATE_PATIENT, PATIENT_EXISTS, PATIENT_BY_PHONE, GET_CENTERS } from '@/gql/queries';
 import { useContainerDetection } from '@/hooks/useContainerDetection';
 import { useMobileFlowAnalytics } from '@/services/mobile-analytics';
+import SessionTypeSelectionModal from './SessionTypeSelectionModal';
 
 interface SimplifiedPatientOnboardingProps {
   centerId: string;
-  onComplete: (patientId: string, isNewUser: boolean) => void;
+  onComplete: (patientId: string, isNewUser: boolean, sessionType: 'in-person' | 'online') => void;
   onBack?: () => void;
 }
 
@@ -36,6 +37,9 @@ export default function SimplifiedPatientOnboarding({
 }: SimplifiedPatientOnboardingProps) {
   const { isInDesktopContainer } = useContainerDetection();
   const [isPhoneVerified, setIsPhoneVerified] = useState(false);
+  const [sessionType, setSessionType] = useState<'in-person' | 'online'>('in-person');
+  const [isNewUser, setIsNewUser] = useState(false);
+  const [showSessionTypeModal, setShowSessionTypeModal] = useState(false);
   const [formData, setFormData] = useState<FormData>({
     phone: '',
     firstName: '',
@@ -135,7 +139,7 @@ export default function SimplifiedPatientOnboarding({
         localStorage.setItem('stance-centreID', patientCenter._id);
       }
       
-      onComplete(data.createPatient._id, true);
+      onComplete(data.createPatient._id, true, sessionType);
     },
     onError: (error) => {
       toast.error(error.message || 'Failed to create patient');
@@ -162,11 +166,15 @@ export default function SimplifiedPatientOnboarding({
         
         const patient = patientData?.patientByPhone;
         if (patient) {
-          toast.success('Welcome back!');
-          onComplete(patient._id, false);
+          // Repeat user - show session type modal
+          setIsNewUser(false);
+          setIsPhoneVerified(true);
+          setShowSessionTypeModal(true);
           return;
         }
       } else {
+        // New user - show form
+        setIsNewUser(true);
         setIsPhoneVerified(true);
         toast.success('Phone number verified! Please fill in your details.');
       }
@@ -176,6 +184,36 @@ export default function SimplifiedPatientOnboarding({
     } finally {
       setIsVerifying(false);
     }
+  };
+
+  const handleRepeatUserContinueWithSessionType = async (selectedSessionType: 'in-person' | 'online') => {
+    // Get patient details for repeat user
+    try {
+      const { data: patientData } = await getPatientByPhone({
+        variables: { phone: formData.phone },
+      });
+      
+      const patient = patientData?.patientByPhone;
+      if (patient) {
+        console.log('Repeat user continuing:', { patientId: patient._id, sessionType: selectedSessionType, isNewUser: false });
+        onComplete(patient._id, false, selectedSessionType);
+      } else {
+        toast.error('Patient not found. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error getting patient:', error);
+      toast.error('Error getting patient details. Please try again.');
+    }
+  };
+
+  const handleRepeatUserContinue = async () => {
+    // Validate session type is selected
+    if (!sessionType) {
+      toast.error('Please select a session type');
+      return;
+    }
+
+    await handleRepeatUserContinueWithSessionType(sessionType);
   };
 
   const handleCallNow = () => {
@@ -204,6 +242,11 @@ export default function SimplifiedPatientOnboarding({
   };
 
   const handleContinue = async () => {
+    // Validate session type is selected
+    if (!sessionType) {
+      toast.error('Please select a session type');
+      return;
+    }
     if (!isPhoneVerified) {
       await handlePhoneVerification();
       return;
@@ -248,58 +291,60 @@ export default function SimplifiedPatientOnboarding({
     }
   };
 
-  const renderForm = () => (
-    <div className="space-y-6">
-      {/* Phone Number - Always visible */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Phone Number *
-        </label>
-        <div className="relative">
-          <input
-            type="tel"
-            value={formData.phone}
-            onChange={(e) => {
-              const digitsOnly = e.target.value.replace(/\D/g, '');
-              updateFormData('phone', digitsOnly);
-              if (digitsOnly.length > 0 && !trackedFields.phone) {
-                mobileAnalytics.trackPhoneNumberEntered(centerId);
-                setTrackedFields(prev => ({ ...prev, phone: true }));
-              }
-              if (isPhoneVerified) {
-                setIsPhoneVerified(false);
-              }
+  const renderPhoneInput = () => (
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-2">
+        Phone Number *
+      </label>
+      <div className="relative">
+        <input
+          type="tel"
+          value={formData.phone}
+          onChange={(e) => {
+            const digitsOnly = e.target.value.replace(/\D/g, '');
+            updateFormData('phone', digitsOnly);
+            if (digitsOnly.length > 0 && !trackedFields.phone) {
+              mobileAnalytics.trackPhoneNumberEntered(centerId);
+              setTrackedFields(prev => ({ ...prev, phone: true }));
+            }
+            if (isPhoneVerified) {
+              setIsPhoneVerified(false);
+              setIsNewUser(false); // Reset when phone changes
+            }
+          }}
+          disabled={isPhoneVerified}
+          className={`w-full p-3 pr-20 border-2 rounded-xl ${
+            formErrors.phone ? 'border-red-300' : isPhoneVerified ? 'border-green-300 bg-green-50' : 'border-gray-200'
+          } focus:border-blue-500 outline-none ${isPhoneVerified ? 'cursor-not-allowed' : ''}`}
+          placeholder="10-digit mobile number"
+          maxLength={10}
+        />
+        {formData.phone.length === 10 && !isPhoneVerified && (
+          <button
+            onClick={() => {
+              mobileAnalytics.trackPhoneVerificationClicked(formData.phone, centerId);
+              handlePhoneVerification();
             }}
-            disabled={isPhoneVerified}
-            className={`w-full p-3 pr-20 border-2 rounded-xl ${
-              formErrors.phone ? 'border-red-300' : isPhoneVerified ? 'border-green-300 bg-green-50' : 'border-gray-200'
-            } focus:border-blue-500 outline-none ${isPhoneVerified ? 'cursor-not-allowed' : ''}`}
-            placeholder="10-digit mobile number"
-            maxLength={10}
-          />
-          {formData.phone.length === 10 && !isPhoneVerified && (
-            <button
-              onClick={() => {
-                mobileAnalytics.trackPhoneVerificationClicked(formData.phone, centerId);
-                handlePhoneVerification();
-              }}
-              disabled={isVerifying}
-              className="absolute right-2 top-1/2 transform -translate-y-1/2 px-2 py-1 rounded text-xs font-medium text-black transition-all disabled:bg-gray-400 disabled:cursor-not-allowed"
-              style={{ backgroundColor: isVerifying ? '#9CA3AF' : '#DDFE71' }}
-            >
-              {isVerifying ? 'Verifying...' : 'Verify'}
-            </button>
-          )}
-        </div>
-        {formErrors.phone && (
-          <p className="text-red-500 text-xs mt-1">{formErrors.phone}</p>
-        )}
-        {isPhoneVerified && (
-          <p className="text-green-600 text-xs mt-1">✓ Phone number verified</p>
+            disabled={isVerifying}
+            className="absolute right-2 top-1/2 transform -translate-y-1/2 px-2 py-1 rounded text-xs font-medium text-black transition-all disabled:bg-gray-400 disabled:cursor-not-allowed"
+            style={{ backgroundColor: isVerifying ? '#9CA3AF' : '#DDFE71' }}
+          >
+            {isVerifying ? 'Verifying...' : 'Verify'}
+          </button>
         )}
       </div>
+      {formErrors.phone && (
+        <p className="text-red-500 text-xs mt-1">{formErrors.phone}</p>
+      )}
+      {isPhoneVerified && (
+        <p className="text-green-600 text-xs mt-1">✓ Phone number verified</p>
+      )}
+    </div>
+  );
 
-      {/* Other fields - Disabled until phone is verified */}
+  const renderForm = () => (
+    <>
+      {/* Other form fields */}
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -452,7 +497,7 @@ export default function SimplifiedPatientOnboarding({
           placeholder="Add any additional information about the patient..."
         />
       </div>
-    </div>
+    </>
   );
 
   return (
@@ -499,9 +544,54 @@ export default function SimplifiedPatientOnboarding({
             </p>
           </div>
 
-          {/* Form Content */}
+          {/* Form Content - Always visible, phone first, then session type, then rest of form */}
           <div className="mb-6">
-            {renderForm()}
+            <div className="space-y-6">
+              {/* Phone Number - First */}
+              {renderPhoneInput()}
+              
+              {/* Session Type Selection - Second, shown after phone verification for new users */}
+              {isPhoneVerified && isNewUser && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Session Type *
+                  </label>
+                  <div className="bg-white rounded-xl p-1 border border-gray-200 flex">
+                    <button
+                      type="button"
+                      onClick={() => setSessionType('in-person')}
+                      className={`flex-1 py-2 px-3 rounded-lg font-medium text-xs transition-all ${
+                        sessionType === 'in-person'
+                          ? 'text-black shadow-sm'
+                          : 'text-gray-600 hover:text-gray-900'
+                      }`}
+                      style={{
+                        backgroundColor: sessionType === 'in-person' ? '#DDFE71' : 'transparent'
+                      }}
+                    >
+                      In Person
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSessionType('online')}
+                      className={`flex-1 py-2 px-3 rounded-lg font-medium text-xs transition-all ${
+                        sessionType === 'online'
+                          ? 'text-black shadow-sm'
+                          : 'text-gray-600 hover:text-gray-900'
+                      }`}
+                      style={{
+                        backgroundColor: sessionType === 'online' ? '#DDFE71' : 'transparent'
+                      }}
+                    >
+                      Online
+                    </button>
+                  </div>
+                </div>
+              )}
+              
+              {/* Rest of form fields - Always visible, disabled until phone verified */}
+              {renderForm()}
+            </div>
           </div>
 
           {/* Error Message */}
@@ -541,17 +631,29 @@ export default function SimplifiedPatientOnboarding({
           </div>
         ) : (
           <div className="flex space-x-3">
-            <button
-              onClick={() => {
-                mobileAnalytics.trackContinueButtonClicked('patient_onboarding', centerId, formData.phone);
-                handleContinue();
-              }}
-              disabled={creating}
-              className="flex-1 py-4 rounded-2xl text-sm text-black transition-all disabled:bg-gray-400 disabled:cursor-not-allowed"
-              style={{ backgroundColor: creating ? '#9CA3AF' : '#DDFE71' }}
-            >
-              {creating ? 'Creating Profile...' : 'Continue'}
-            </button>
+            {isNewUser ? (
+              <button
+                onClick={() => {
+                  mobileAnalytics.trackContinueButtonClicked('patient_onboarding', centerId, formData.phone);
+                  handleContinue();
+                }}
+                disabled={creating}
+                className="flex-1 py-4 rounded-2xl text-sm text-black transition-all disabled:bg-gray-400 disabled:cursor-not-allowed"
+                style={{ backgroundColor: creating ? '#9CA3AF' : '#DDFE71' }}
+              >
+                {creating ? 'Creating Profile...' : 'Continue'}
+              </button>
+            ) : (
+              <button
+                onClick={() => {
+                  handleRepeatUserContinue();
+                }}
+                className="flex-1 py-4 rounded-2xl text-sm text-black transition-all"
+                style={{ backgroundColor: '#DDFE71' }}
+              >
+                Continue
+              </button>
+            )}
             <button
               onClick={() => {
                 mobileAnalytics.trackCallNowClicked(centerId, 'patient_onboarding');
@@ -565,6 +667,17 @@ export default function SimplifiedPatientOnboarding({
           </div>
         )}
       </div>
+
+      {/* Session Type Selection Modal for Repeat Users */}
+      <SessionTypeSelectionModal
+        isOpen={showSessionTypeModal}
+        onClose={() => setShowSessionTypeModal(false)}
+        onSelect={(selectedSessionType) => {
+          setSessionType(selectedSessionType);
+          handleRepeatUserContinueWithSessionType(selectedSessionType);
+        }}
+        selectedSessionType={sessionType}
+      />
     </div>
   );
 }

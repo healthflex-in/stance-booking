@@ -9,7 +9,7 @@ import { MobilePaymentProcessing } from '../shared';
 import { useContainerDetection } from '@/hooks/useContainerDetection';
 
 interface BookingData {
-  sessionType: 'online';
+  sessionType: 'online' | 'in-person';
   patientId: string;
   centerId: string;
   consultantId: string;
@@ -103,7 +103,7 @@ export default function NewUserOnlinePaymentConfirmation({
             consultant: bookingData.consultantId,
             center: bookingData.centerId,
             treatment: bookingData.treatmentId,
-            medium: 'ONLINE',
+            medium: bookingData.sessionType === 'online' ? 'ONLINE' : 'IN_PERSON',
             visitType: 'FIRST_VISIT',
             status: 'TOKEN_PENDING',
             category: 'WEBSITE',
@@ -199,7 +199,9 @@ export default function NewUserOnlinePaymentConfirmation({
               <div>
                 <span className="text-sm text-gray-600 font-medium block">Location</span>
                 <p className="text-sm font-bold text-gray-900">{currentCenter?.name}</p>
-                <p className="text-sm text-gray-500">Online Consultation</p>
+                <p className="text-sm text-gray-500">
+                  {bookingData.sessionType === 'online' ? 'Online Consultation' : 'In Person Consultation'}
+                </p>
               </div>
               <div>
                 <span className="text-sm text-gray-600 font-medium block">Date & Time</span>

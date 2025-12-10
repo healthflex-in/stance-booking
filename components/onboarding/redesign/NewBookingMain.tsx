@@ -1,19 +1,11 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useQuery } from '@apollo/client';
-import { ArrowLeft, PartyPopper } from 'lucide-react';
+import { MapPin, Clock, ChevronRight } from 'lucide-react';
 import { GET_CENTERS, GET_CONSULTANTS } from '@/gql/queries';
 import { useAvailableSlots } from '@/hooks/useAvailableSlots';
 import { useContainerDetection } from '@/hooks/useContainerDetection';
-import {
-  SessionTypeCard,
-  SessionDetailItem,
-  DateSelector,
-  TimeSlotButton,
-  PrimaryButton,
-  InfoBanner,
-} from '@/components/ui-atoms';
 import LocationSelectionModal from './LocationSelectionModal';
 import ServiceSelectionModal from './ServiceSelectionModal';
 import ConsultantSelectionModal from './ConsultantSelectionModal';
@@ -33,6 +25,7 @@ interface DateOption {
   month: string;
   slots: number | string;
   fullDate: Date;
+  isToday?: boolean;
 }
 
 export default function NewBookingMain({
@@ -52,6 +45,7 @@ export default function NewBookingMain({
   const [availableDates, setAvailableDates] = useState<DateOption[]>([]);
   const [currentSelectedDate, setCurrentSelectedDate] = useState<Date | null>(null);
   const [dateSlots, setDateSlots] = useState<{ [key: string]: any[] }>({});
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   // Modal states
   const [showLocationModal, setShowLocationModal] = useState(false);
@@ -132,11 +126,13 @@ export default function NewBookingMain({
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const dates: DateOption[] = [];
     const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
     for (let i = 0; i < 14; i++) {
       const dateObj = new Date(today);
       dateObj.setDate(today.getDate() + i);
       const dayOfWeek = dateObj.getDay();
+      const isToday = i === 0;
 
       dates.push({
         id: i,
@@ -145,6 +141,7 @@ export default function NewBookingMain({
         month: months[dateObj.getMonth()],
         slots: 'Loading...',
         fullDate: new Date(dateObj),
+        isToday,
       });
     }
 
@@ -229,132 +226,285 @@ export default function NewBookingMain({
   const currentTimeSlots = selectedDate ? (dateSlots[selectedDate] || []) : [];
   const canProceed = selectedService && selectedTimeSlot;
 
+  // Find current center
+  const currentCenter = centersData?.centers.find((center: any) => center._id === (selectedCenter?._id || centerId));
+
   return (
-    <div className={`${isInDesktopContainer ? 'h-full relative' : 'min-h-screen'} flex flex-col bg-gray-50`}>
-      {/* Header */}
-      <div className="flex items-center px-4 py-3 flex-shrink-0 sticky top-0 z-10 bg-white border-b border-gray-200 shadow-sm">
-        <button 
-          onClick={onBack} 
-          className="p-2 -ml-2 mr-2 hover:bg-gray-100 rounded-lg transition-colors"
-        >
-          <ArrowLeft className="w-5 h-5 text-gray-700" />
-        </button>
-        <h1 className="text-lg font-semibold text-gray-900">Book Appointment</h1>
-      </div>
-
+    <div className={`${isInDesktopContainer ? 'h-full' : 'min-h-screen'} bg-gray-50 flex flex-col`}>
       {/* Scrollable Content */}
-      <div className={`px-4 py-5 ${isInDesktopContainer ? 'pb-6' : 'pb-32'}`}>
-        {/* Session Type */}
-        <div className="mb-6">
-          <h2 className="text-lg font-medium text-[#1C1A4B] mb-4">Session type</h2>
-          <div className="bg-white rounded-[16px] border border-[rgba(28,26,75,0.06)] p-4">
-            <div className="grid grid-cols-2 gap-4">
-              <SessionTypeCard
-                image="/doc2.png"
-                label="In Person"
-                selected={sessionType === 'in-person'}
-                onSelect={() => setSessionType('in-person')}
-              />
-              <SessionTypeCard
-                image="/doc.png"
-                label="Online"
-                selected={sessionType === 'online'}
-                onSelect={() => setSessionType('online')}
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Session Details */}
-        <div className="mb-6">
-          <h2 className="text-lg font-medium text-[#1C1A4B] mb-4">Session details</h2>
-          <div className="bg-white rounded-[16px] border border-[rgba(28,26,75,0.06)] px-4">
-            <SessionDetailItem
-              label="Location"
-              value={selectedCenter?.name || 'Stance, HSR layout'}
-              onClick={() => setShowLocationModal(true)}
-            />
-            <SessionDetailItem
-              label="Service"
-              value={selectedService?.name || 'Select service'}
-              onClick={() => setShowServiceModal(true)}
-            />
-            {!isNewUser && (
-              <SessionDetailItem
-                label="Consultant"
-                value={selectedConsultant ? `Dr. ${selectedConsultant.profileData?.firstName} ${selectedConsultant.profileData?.lastName}` : 'Any available'}
-                onClick={() => setShowConsultantModal(true)}
-              />
-            )}
-          </div>
-        </div>
-
-        {/* Visit Details */}
-        {selectedService && (
+      <div className="flex-1 overflow-y-auto">
+        <div className={`p-4 ${isInDesktopContainer ? 'pb-6' : 'pb-32'}`}>
+          {/* Location Section */}
           <div className="mb-6">
-            <h2 className="text-lg font-medium text-[#1C1A4B] mb-4">Visit details</h2>
-            
-            {/* Date Selection */}
-            <div className="mb-4">
-              <DateSelector
-                dates={availableDates}
-                selectedDate={selectedDate}
-                onDateSelect={handleDateSelect}
-                isLoading={slotsLoading}
-              />
+            <div className="bg-white rounded-2xl p-4 border border-gray-200">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center">
+                    <MapPin className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-gray-900">Location</h3>
+                    <p className="text-sm font-bold text-gray-900">
+                      {currentCenter?.name || selectedCenter?.name || 'Loading...'}
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      {currentCenter?.address || selectedCenter?.address ? 
+                        `${(currentCenter?.address || selectedCenter?.address)?.street || ''}, ${(currentCenter?.address || selectedCenter?.address)?.city || ''}, ${(currentCenter?.address || selectedCenter?.address)?.state || ''}`.replace(/^,\s*|,\s*$/g, '') : 
+                        'Address not available'}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowLocationModal(true)}
+                  className="p-2 hover:bg-gray-50 rounded-lg transition-colors"
+                >
+                  <ChevronRight className="w-5 h-5 text-blue-500" />
+                </button>
+              </div>
             </div>
-
-            {/* Time Slots */}
-            {selectedDate && (
-              <>
-                {slotsLoading ? (
-                  <div className="flex justify-center py-8">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#132644]"></div>
-                  </div>
-                ) : currentTimeSlots.length > 0 ? (
-                  <div className="grid grid-cols-2 gap-3">
-                    {currentTimeSlots.map((slot: any, index: number) => {
-                      // Check if this slot is selected - compare by startTime or startTimeRaw
-                      const isSelected = selectedTimeSlot && (
-                        (selectedTimeSlot.startTime && slot.startTime && selectedTimeSlot.startTime === slot.startTime) ||
-                        (selectedTimeSlot.startTimeRaw && slot.startTimeRaw && selectedTimeSlot.startTimeRaw === slot.startTimeRaw) ||
-                        (selectedTimeSlot.displayTime && slot.displayTime && selectedTimeSlot.displayTime === slot.displayTime)
-                      );
-                      
-                      return (
-                        <TimeSlotButton
-                          key={`${slot.startTime || slot.startTimeRaw || slot.displayTime}-${index}`}
-                          time={slot.displayTime || 'Select time'}
-                          selected={!!isSelected}
-                          onSelect={() => setSelectedTimeSlot(slot)}
-                        />
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="text-center py-8 text-[rgba(28,26,75,0.6)] text-sm">
-                    No slots available for this date
-                  </div>
-                )}
-              </>
-            )}
           </div>
-        )}
 
-        {/* Info Banner */}
-        {selectedService && (
-          <InfoBanner
-            message="We charge INR 99 to ensure your booking. It will be adjusted in your final payment."
-            icon={<PartyPopper className="w-3 h-3 text-[#1C1A4B]" />}
-          />
-        )}
+          {/* Session Type Display */}
+          <div className="mb-6">
+            <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4">
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                  {sessionType === 'online' ? '💻' : '🏥'}
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-medium text-blue-900">
+                    {sessionType === 'online' ? 'Online Session' : 'In-Person Session'}
+                  </h3>
+                  <p className="text-sm text-blue-700">
+                    {sessionType === 'online'
+                      ? 'Video consultation from your home'
+                      : 'Visit our center for treatment'}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setSessionType(sessionType === 'online' ? 'in-person' : 'online')}
+                  className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+                >
+                  Change
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Service Selection */}
+          {!selectedService && (
+            <div className="mb-6">
+              <div className="bg-white rounded-2xl p-4 border border-gray-200">
+                <button
+                  onClick={() => setShowServiceModal(true)}
+                  className="w-full text-left"
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-semibold text-gray-900 mb-1">Service</h3>
+                      <p className="text-sm text-gray-500">Select a service</p>
+                    </div>
+                    <ChevronRight className="w-5 h-5 text-gray-400" />
+                  </div>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {selectedService && (
+            <div className="mb-6">
+              <div className="bg-white rounded-2xl p-4 border border-gray-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-semibold text-gray-900 mb-1">Service</h3>
+                    <p className="text-sm font-medium text-gray-900">{selectedService.name}</p>
+                  </div>
+                  <button
+                    onClick={() => setShowServiceModal(true)}
+                    className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+                  >
+                    Change
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Consultant Selection (for returning users) */}
+          {!isNewUser && !selectedConsultant && (
+            <div className="mb-6">
+              <div className="bg-white rounded-2xl p-4 border border-gray-200">
+                <button
+                  onClick={() => setShowConsultantModal(true)}
+                  className="w-full text-left"
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-semibold text-gray-900 mb-1">Consultant</h3>
+                      <p className="text-sm text-gray-500">Any available</p>
+                    </div>
+                    <ChevronRight className="w-5 h-5 text-gray-400" />
+                  </div>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {!isNewUser && selectedConsultant && (
+            <div className="mb-6">
+              <div className="bg-white rounded-2xl p-4 border border-gray-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-semibold text-gray-900 mb-1">Consultant</h3>
+                    <p className="text-sm font-medium text-gray-900">
+                      Dr. {selectedConsultant.profileData?.firstName} {selectedConsultant.profileData?.lastName}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setShowConsultantModal(true)}
+                    className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+                  >
+                    Change
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Visit Details Section */}
+          {selectedService && (
+            <div className="mb-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                Visit details
+              </h3>
+
+              {/* Date Selection */}
+              <div className="mb-4">
+                <div
+                  ref={scrollContainerRef}
+                  className="flex overflow-x-auto space-x-3 pb-2"
+                  style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                >
+                  {availableDates.map((dateOption) => {
+                    const dateKey = `${dateOption.day}, ${dateOption.date} ${dateOption.month}`;
+                    const isCurrentDate = selectedDate === dateKey;
+                    const isDisabled = Boolean((slotsLoading) && !isCurrentDate);
+                    
+                    return (
+                      <button
+                        key={`date-${dateOption.fullDate.getTime()}`}
+                        onClick={() => handleDateSelect(dateOption)}
+                        disabled={isDisabled}
+                        className={`flex-shrink-0 p-3 rounded-xl border-2 transition-all text-center min-w-[120px] ${
+                          isCurrentDate
+                            ? 'border-blue-500 bg-blue-50'
+                            : isDisabled
+                            ? 'border-gray-200 bg-gray-100 cursor-not-allowed opacity-50'
+                            : 'border-gray-200 bg-white hover:border-gray-300'
+                        }`}
+                      >
+                        <div
+                          className={`text-sm font-medium mb-1 ${
+                            isCurrentDate
+                              ? 'text-blue-700'
+                              : dateOption.isToday
+                              ? 'text-blue-600'
+                              : 'text-gray-900'
+                          }`}
+                        >
+                          {dateOption.day}, {dateOption.date} {dateOption.month}
+                        </div>
+                        <div
+                          className={`text-xs ${
+                            typeof dateOption.slots === 'number' && dateOption.slots === 0
+                              ? 'text-red-500'
+                              : dateOption.slots === 'Loading...'
+                              ? 'text-blue-600'
+                              : isCurrentDate
+                              ? 'text-blue-600'
+                              : dateOption.isToday
+                              ? 'text-blue-500'
+                              : typeof dateOption.slots === 'number' && dateOption.slots > 0
+                              ? 'text-blue-600'
+                              : 'text-gray-500'
+                          }`}
+                        >
+                          {typeof dateOption.slots === 'number'
+                            ? dateOption.slots === 0 
+                              ? '0 slots'
+                              : `${dateOption.slots} slots`
+                            : dateOption.slots}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Time Slots Selection */}
+              {selectedDate && (
+                <div className="mb-6">
+                  <h4 className="text-base font-medium text-gray-900 mb-3">
+                    Available time slots
+                  </h4>
+                  
+                  {slotsLoading ? (
+                    <div className="py-8">
+                      <div className="flex justify-center">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                      </div>
+                    </div>
+                  ) : currentTimeSlots.length > 0 ? (
+                    <div className="grid grid-cols-2 gap-3">
+                      {currentTimeSlots.map((slot: any, index: number) => {
+                        const isSelected = selectedTimeSlot && (
+                          (selectedTimeSlot.startTime && slot.startTime && selectedTimeSlot.startTime === slot.startTime) ||
+                          (selectedTimeSlot.startTimeRaw && slot.startTimeRaw && selectedTimeSlot.startTimeRaw === slot.startTimeRaw) ||
+                          (selectedTimeSlot.displayTime && slot.displayTime && selectedTimeSlot.displayTime === slot.displayTime)
+                        );
+                        
+                        return (
+                          <button
+                            key={`slot-${index}-${slot.startTime || slot.startTimeRaw || slot.displayTime}`}
+                            onClick={() => setSelectedTimeSlot(slot)}
+                            className={`p-3 rounded-xl border-2 text-sm font-medium transition-all ${
+                              isSelected
+                                ? 'border-blue-500 bg-blue-50 text-blue-700'
+                                : slot.isAvailable
+                                ? 'border-gray-200 bg-white text-gray-900 hover:border-gray-300'
+                                : 'border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed'
+                            }`}
+                          >
+                            {slot.displayTime || 'Select time'}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-8">
+                      <Clock className="w-12 h-12 text-red-300 mb-3" />
+                      <span className="text-red-500 font-medium">No available time slots for this date</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Bottom Button */}
-      <div className={`${isInDesktopContainer ? 'flex-shrink-0' : 'fixed bottom-0 left-0 right-0'} bg-white border-t border-[#D3D3D3] p-4`}>
-        <PrimaryButton onClick={handleContinue} disabled={!canProceed}>
-          Proceed to Confirm
-        </PrimaryButton>
+      {/* Continue Button */}
+      <div className={`${isInDesktopContainer ? 'flex-shrink-0' : 'fixed bottom-0 left-0 right-0'} bg-white border-t border-gray-200 p-4`}>
+        <button
+          onClick={handleContinue}
+          disabled={!canProceed}
+          className={`w-full py-4 rounded-2xl font-semibold text-black transition-all ${
+            canProceed ? '' : 'bg-gray-300 cursor-not-allowed'
+          }`}
+          style={{ backgroundColor: canProceed ? '#DDFE71' : '#D1D5DB' }}
+        >
+          Continue
+        </button>
       </div>
 
       {/* Modals */}
@@ -362,6 +512,7 @@ export default function NewBookingMain({
         isOpen={showLocationModal}
         onClose={() => setShowLocationModal(false)}
         centers={filteredCenters}
+        sessionType={sessionType}
         onSelect={(center) => {
           setSelectedCenter(center);
           setShowLocationModal(false);
@@ -397,4 +548,3 @@ export default function NewBookingMain({
     </div>
   );
 }
-

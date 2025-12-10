@@ -6,6 +6,7 @@ interface PrimaryButtonProps {
   disabled?: boolean;
   fullWidth?: boolean;
   type?: 'button' | 'submit';
+  variant?: 'default' | 'primary';
 }
 
 export default function PrimaryButton({
@@ -14,7 +15,10 @@ export default function PrimaryButton({
   disabled = false,
   fullWidth = true,
   type = 'button',
+  variant = 'default',
 }: PrimaryButtonProps) {
+  const isPrimaryVariant = variant === 'primary';
+  
   return (
     <button
       onClick={onClick}
@@ -22,7 +26,17 @@ export default function PrimaryButton({
       type={type}
       className={`${
         fullWidth ? 'w-full' : ''
-      } h-[40px] bg-[#132644] text-white rounded-[10px] text-sm font-medium transition-all hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed`}
+      } py-4 rounded-2xl font-semibold text-black transition-all ${
+        disabled ? 'opacity-50 cursor-not-allowed' : ''
+      }`}
+      style={{
+        backgroundColor: disabled 
+          ? '#D1D5DB' 
+          : isPrimaryVariant 
+            ? '#DDFE71' 
+            : '#132644',
+        color: isPrimaryVariant ? 'black' : 'white'
+      }}
     >
       {children}
     </button>
