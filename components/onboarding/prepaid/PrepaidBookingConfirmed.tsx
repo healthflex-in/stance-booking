@@ -17,6 +17,7 @@ interface PrepaidBookingConfirmedProps {
     selectedTimeSlot: string | { startTime: string; endTime: string; displayTime: string };
     selectedDate: string;
     isNewUser: boolean;
+    appointmentId?: string;
   };
 }
 
@@ -54,13 +55,23 @@ export default function PrepaidBookingConfirmed({ bookingData }: PrepaidBookingC
       creationInProgress: creationInProgress.current,
       patientId: bookingData.patientId,
       consultantId: bookingData.consultantId,
+      appointmentId: bookingData.appointmentId,
       userLoading,
       consultantLoading,
       hasUserData: !!userData,
       hasConsultantData: !!consultantData,
     });
     
-    if (!appointmentCreated && !creationInProgress.current && bookingData.patientId && bookingData.consultantId && !userLoading && !consultantLoading && userData && consultantData) {
+    // Skip appointment creation if already created (appointmentId provided)
+    if (bookingData.appointmentId) {
+      console.log('✅ Appointment already created, skipping creation. AppointmentId:', bookingData.appointmentId);
+      setAppointmentCreated(true);
+      setIsCreating(false);
+      return;
+    }
+
+    // Only create appointment if appointmentId is NOT provided (fallback for old flow)
+    if (!appointmentCreated && !creationInProgress.current && bookingData.patientId && bookingData.consultantId && !bookingData.appointmentId && !userLoading && !consultantLoading && userData && consultantData) {
       creationInProgress.current = true;
       console.log('✅ All conditions met, creating appointment...');
       
@@ -73,24 +84,25 @@ export default function PrepaidBookingConfirmed({ bookingData }: PrepaidBookingC
           const startTime = new Date(timeSlot.startTime).getTime();
           const endTime = new Date(timeSlot.endTime).getTime();
 
-          await createAppointment({
-            variables: {
-              input: {
-                patient: bookingData.patientId,
-                consultant: bookingData.consultantId,
-                center: bookingData.centerId,
-                treatment: bookingData.treatmentId,
-                medium: 'ONLINE',
-                visitType: bookingData.isNewUser ? 'FIRST_VISIT' : 'FOLLOW_UP',
-                status: 'PRE_PAID',
-                category: 'WEBSITE',
-                isPrepaid: true,
-                event: {
-                  startTime,
-                  endTime,
-                },
-              },
+          // Build input object - exactly like redesign
+          const input = {
+            patient: bookingData.patientId,
+            consultant: bookingData.consultantId || null,
+            treatment: bookingData.treatmentId,
+            medium: 'ONLINE',
+            notes: '',
+            center: bookingData.centerId,
+            category: 'WEBSITE',
+            status: 'BOOKED',
+            visitType: bookingData.isNewUser ? 'FIRST_VISIT' : 'FOLLOW_UP',
+            event: {
+              startTime,
+              endTime,
             },
+          };
+
+          await createAppointment({
+            variables: { input },
           });
 
           setAppointmentCreated(true);

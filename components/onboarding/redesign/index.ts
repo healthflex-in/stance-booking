@@ -5,4 +5,7 @@ export { default as ConsultantSelectionModal } from './ConsultantSelectionModal'
 export { default as BookingConfirmation } from './BookingConfirmation';
 export { default as BookingConfirmed } from './BookingConfirmed';
 export { default as SimplifiedPatientOnboarding } from './SimplifiedPatientOnboarding';
+export { default as SessionDetails } from './SessionDetails';
+export { default as SlotAvailability } from './SlotAvailability';
+export { default as SessionTypeSelectionModal } from './SessionTypeSelectionModal';
 

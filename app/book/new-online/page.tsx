@@ -5,18 +5,16 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 
 import { MobilePatientOnboarding } from '@/components/onboarding/shared';
+import { SessionDetails } from '@/components/onboarding/redesign';
 import {
-  NewUserOnlineCenterSelection,
-  NewUserOnlineServiceSelection,
-  NewUserOnlineSlotSelection,
   NewUserOnlinePaymentConfirmation,
   NewUserOnlineBookingConfirmed,
 } from '@/components/onboarding/new-user-online';
+import { SlotAvailability } from '@/components/onboarding/redesign';
 
 type BookingStep =
   | 'patient-onboarding'
-  | 'center-selection'
-  | 'service-selection'
+  | 'session-details'
   | 'slot-selection'
   | 'payment-confirmation'
   | 'booking-confirmed';
@@ -60,13 +58,13 @@ export default function NewOnlinePage() {
     const storedCenterId = sessionStorage.getItem('centerId');
     
     if (storedPatientId && storedCenterId) {
-      // Patient already created, skip to center selection
+      // Patient already created, skip to session details
       setBookingData(prev => ({
         ...prev,
         patientId: storedPatientId,
         centerId: storedCenterId,
       }));
-      setCurrentStep('center-selection');
+      setCurrentStep('session-details');
       
       // Clear session storage
       sessionStorage.removeItem('patientId');
@@ -77,8 +75,7 @@ export default function NewOnlinePage() {
   const goToNextStep = () => {
     const stepOrder: BookingStep[] = [
       'patient-onboarding',
-      'center-selection',
-      'service-selection',
+      'session-details',
       'slot-selection',
       'payment-confirmation',
       'booking-confirmed',
@@ -92,8 +89,7 @@ export default function NewOnlinePage() {
   const goToPreviousStep = () => {
     const stepOrder: BookingStep[] = [
       'patient-onboarding',
-      'center-selection',
-      'service-selection',
+      'session-details',
       'slot-selection',
       'payment-confirmation',
       'booking-confirmed',
@@ -114,12 +110,10 @@ export default function NewOnlinePage() {
     switch (currentStep) {
       case 'patient-onboarding':
         return 'New User - Online';
-      case 'center-selection':
-        return 'Select Center';
-      case 'service-selection':
-        return 'Select Service';
+      case 'session-details':
+        return 'Session Details';
       case 'slot-selection':
-        return 'Select Slot';
+        return 'Slot Availability';
       case 'payment-confirmation':
         return 'Payment';
       case 'booking-confirmed':
@@ -174,23 +168,20 @@ export default function NewOnlinePage() {
             />
           )}
 
-          {currentStep === 'center-selection' && (
-            <NewUserOnlineCenterSelection
-              selectedCenterId={bookingData.centerId}
-              onCenterSelect={(centerId) => updateBookingData({ centerId })}
-              onNext={goToNextStep}
-            />
-          )}
-
-          {currentStep === 'service-selection' && (
-            <NewUserOnlineServiceSelection
-              centerId={bookingData.centerId}
+          {currentStep === 'session-details' && (
+            <SessionDetails
               patientId={bookingData.patientId}
-              onServiceSelect={(serviceId, serviceDuration, servicePrice) => {
-                updateBookingData({ 
-                  treatmentId: serviceId, 
-                  treatmentPrice: servicePrice,
-                  treatmentDuration: serviceDuration
+              centerId={bookingData.centerId}
+              isNewUser={bookingData.isNewUser}
+              defaultSessionType="online"
+              onBack={goToPreviousStep}
+              onContinue={(data) => {
+                updateBookingData({
+                  sessionType: data.sessionType as 'online', // new-online route only supports online
+                  centerId: data.centerId,
+                  treatmentId: data.serviceId,
+                  treatmentDuration: data.serviceDuration,
+                  treatmentPrice: data.servicePrice,
                 });
                 goToNextStep();
               }}
@@ -198,9 +189,11 @@ export default function NewOnlinePage() {
           )}
 
           {currentStep === 'slot-selection' && (
-            <NewUserOnlineSlotSelection
+            <SlotAvailability
               centerId={bookingData.centerId}
               serviceDuration={bookingData.treatmentDuration}
+              sessionType={bookingData.sessionType}
+              isNewUser={bookingData.isNewUser}
               onSlotSelect={(consultantId, slot) => {
                 const slotDate = new Date(slot.startTimeRaw);
                 updateBookingData({
@@ -215,6 +208,7 @@ export default function NewOnlinePage() {
                 });
                 goToNextStep();
               }}
+              onBack={goToPreviousStep}
             />
           )}
 

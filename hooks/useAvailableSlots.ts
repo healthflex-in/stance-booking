@@ -17,6 +17,7 @@ interface UseAvailableSlotsParams {
   isReturningUser?: boolean;
   consultantIds?: string[];
   preFilteredConsultants?: any[];
+  allConsultantsForLookup?: any[]; // All consultants for name lookup when "Any available" is selected
 }
 
 interface UseAvailableSlotsReturn {
@@ -120,7 +121,8 @@ export const useAvailableSlots = ({
   consultantId = null,
   isReturningUser = false,
   consultantIds = [],
-  preFilteredConsultants = []
+  preFilteredConsultants = [],
+  allConsultantsForLookup = []
 }: UseAvailableSlotsParams): UseAvailableSlotsReturn => {
   const [availableSlots, setAvailableSlots] = useState<TimeSlot[]>([]);
   const [loading, setLoading] = useState(false);
@@ -286,20 +288,46 @@ export const useAvailableSlots = ({
 
       // Use pre-filtered consultants if provided, otherwise fetch all
       let centerConsultants: any[] = [];
+      let allConsultantsForLookupFinal: any[] = []; // All consultants for name lookup
       let centerAppointmentsData: any;
       let centerAvailabilityData: any;
 
       if (preFilteredConsultants && preFilteredConsultants.length > 0) {
-        // Use pre-filtered consultants - skip GET_CONSULTANTS query
+        // Use pre-filtered consultants for slot generation
         centerConsultants = preFilteredConsultants;
         
-        const [appointmentsData, availabilityData] = await Promise.all([
-          centerAppointmentsPromise,
-          centerAvailabilityPromise
-        ]);
-        
-        centerAppointmentsData = appointmentsData;
-        centerAvailabilityData = availabilityData;
+        // Use provided allConsultantsForLookup if available, otherwise fetch all
+        if (allConsultantsForLookup && allConsultantsForLookup.length > 0) {
+          allConsultantsForLookupFinal = allConsultantsForLookup;
+          
+          const [appointmentsData, availabilityData] = await Promise.all([
+            centerAppointmentsPromise,
+            centerAvailabilityPromise
+          ]);
+          
+          centerAppointmentsData = appointmentsData;
+          centerAvailabilityData = availabilityData;
+        } else {
+          // Also fetch ALL consultants for name lookup (in case slots come from consultants not in filtered list)
+          const consultantsPromise = client.query({
+            query: GET_CONSULTANTS,
+            variables: {
+              userType: 'CONSULTANT',
+              centerId: [centerId],
+              pagination: { limit: 100, direction: 'FORWARD' }
+            }
+          });
+          
+          const [appointmentsData, availabilityData, consultantsData] = await Promise.all([
+            centerAppointmentsPromise,
+            centerAvailabilityPromise,
+            consultantsPromise
+          ]);
+          
+          centerAppointmentsData = appointmentsData;
+          centerAvailabilityData = availabilityData;
+          allConsultantsForLookupFinal = consultantsData.data?.users?.data || [];
+        }
       } else {
         // Fetch consultants from API
         const consultantsPromise = client.query({
@@ -321,6 +349,7 @@ export const useAvailableSlots = ({
         centerAvailabilityData = availabilityData;
 
         const allConsultants = consultantsData.data?.users?.data || [];
+        allConsultantsForLookupFinal = allConsultants;
         
         // Filter consultants based on provided IDs or default criteria
         centerConsultants = consultantIds && consultantIds.length > 0
@@ -517,7 +546,7 @@ export const useAvailableSlots = ({
         // For first-time users, generate slots for each Physiotherapist consultant individually
         // Only show slots when the specific consultant is actually available
         for (const consultant of centerConsultants) {
-          const consultantName = `${consultant.profileData?.firstName} ${consultant.profileData?.lastName}`;
+          const consultantName = `${consultant.profileData?.firstName || ''} ${consultant.profileData?.lastName || ''}`.trim() || 'Consultant';
           
           console.log('\n' + '─'.repeat(50));
           console.log(`👨⚕️ ANALYZING: ${consultantName.toUpperCase()}`);
@@ -821,8 +850,14 @@ export const useAvailableSlots = ({
         console.log('\n✅ AVAILABLE BOOKING SLOTS:');
         const slotsByConsultant = new Map();
         uniqueSlots.forEach(slot => {
-          const consultant = centerConsultants.find((c:any) => c._id === slot.consultantId);
-          const consultantName = consultant ? `${consultant.profileData?.firstName} ${consultant.profileData?.lastName}` : 'Unknown';
+          // First try to find in centerConsultants, then in allConsultantsForLookupFinal
+          let consultant = centerConsultants.find((c:any) => c._id === slot.consultantId);
+          if (!consultant && allConsultantsForLookupFinal.length > 0) {
+            consultant = allConsultantsForLookupFinal.find((c:any) => c._id === slot.consultantId);
+          }
+          const consultantName = consultant 
+            ? `${consultant.profileData?.firstName || ''} ${consultant.profileData?.lastName || ''}`.trim() || 'Consultant'
+            : 'Unknown Consultant';
           
           if (!slotsByConsultant.has(consultantName)) {
             slotsByConsultant.set(consultantName, []);

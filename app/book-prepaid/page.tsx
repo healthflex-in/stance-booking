@@ -3,21 +3,19 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
+import { useMutation } from '@apollo/client';
+import { CREATE_APPOINTMENT } from '@/gql/queries';
 
 import { MobilePatientOnboarding } from '@/components/onboarding/shared';
+import { SessionDetails } from '@/components/onboarding/redesign';
 import {
   PrepaidBookingConfirmed,
-  PrepaidCenterSelection,
-  PrepaidConsultantSelection,
-  PrepaidServiceSelection,
-  PrepaidSlotSelection,
 } from '@/components/onboarding/prepaid';
+import { SlotAvailability } from '@/components/onboarding/redesign';
 
 type BookingStep =
   | 'patient-onboarding'
-  | 'center-selection'
-  | 'consultant-selection'
-  | 'service-selection'
+  | 'session-details'
   | 'slot-selection'
   | 'booking-confirmed';
 
@@ -35,12 +33,14 @@ interface BookingData {
   centerId: string;
   assessmentType?: 'in-person' | 'online';
   isNewUser: boolean;
+  appointmentId?: string;
 }
 
 export default function BookPrepaidPage() {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [currentStep, setCurrentStep] = useState<BookingStep>('patient-onboarding');
+  const [createAppointment] = useMutation(CREATE_APPOINTMENT);
   const [bookingData, setBookingData] = useState<BookingData>({
     sessionType: 'online',
     location: '',
@@ -63,40 +63,26 @@ export default function BookPrepaidPage() {
   const goToNextStep = () => {
     const stepOrder: BookingStep[] = [
       'patient-onboarding',
-      'center-selection',
-      'consultant-selection',
-      'service-selection',
+      'session-details',
       'slot-selection',
       'booking-confirmed',
     ];
     const currentIndex = stepOrder.indexOf(currentStep);
     if (currentIndex < stepOrder.length - 1) {
-      // Skip consultant selection for new users
-      if (currentStep === 'center-selection' && bookingData.isNewUser) {
-        setCurrentStep('service-selection');
-      } else {
-        setCurrentStep(stepOrder[currentIndex + 1]);
-      }
+      setCurrentStep(stepOrder[currentIndex + 1]);
     }
   };
 
   const goToPreviousStep = () => {
     const stepOrder: BookingStep[] = [
       'patient-onboarding',
-      'center-selection',
-      'consultant-selection',
-      'service-selection',
+      'session-details',
       'slot-selection',
       'booking-confirmed',
     ];
     const currentIndex = stepOrder.indexOf(currentStep);
     if (currentIndex > 0) {
-      // Skip consultant selection for new users when going back
-      if (currentStep === 'service-selection' && bookingData.isNewUser) {
-        setCurrentStep('center-selection');
-      } else {
-        setCurrentStep(stepOrder[currentIndex - 1]);
-      }
+      setCurrentStep(stepOrder[currentIndex - 1]);
     } else {
       router.push('/book');
     }
@@ -110,14 +96,10 @@ export default function BookPrepaidPage() {
     switch (currentStep) {
       case 'patient-onboarding':
         return 'Pre-Paid Services';
-      case 'center-selection':
-        return 'Select Center';
-      case 'consultant-selection':
-        return 'Select Consultant';
-      case 'service-selection':
-        return 'Select Duration';
+      case 'session-details':
+        return 'Session Details';
       case 'slot-selection':
-        return 'Select Slot';
+        return 'Slot Availability';
       case 'booking-confirmed':
         return 'Booking Confirmed';
       default:
@@ -170,34 +152,21 @@ export default function BookPrepaidPage() {
             />
           )}
 
-          {currentStep === 'center-selection' && (
-            <PrepaidCenterSelection
-              selectedCenterId={bookingData.centerId}
-              onCenterSelect={(centerId) => updateBookingData({ centerId })}
-              onNext={goToNextStep}
-            />
-          )}
-
-          {currentStep === 'consultant-selection' && (
-            <PrepaidConsultantSelection
-              centerId={bookingData.centerId}
-              onConsultantSelect={(consultantId) => {
-                updateBookingData({ consultantId });
-                goToNextStep();
-              }}
-            />
-          )}
-
-          {currentStep === 'service-selection' && (
-            <PrepaidServiceSelection
-              centerId={bookingData.centerId}
+          {currentStep === 'session-details' && (
+            <SessionDetails
               patientId={bookingData.patientId}
+              centerId={bookingData.centerId}
               isNewUser={bookingData.isNewUser}
-              onServiceSelect={(serviceId, serviceDuration, servicePrice) => {
-                updateBookingData({ 
-                  treatmentId: serviceId, 
-                  treatmentPrice: servicePrice,
-                  treatmentDuration: serviceDuration
+              defaultSessionType="online"
+              isPrePaid={true}
+              onBack={goToPreviousStep}
+              onContinue={(data) => {
+                updateBookingData({
+                  sessionType: data.sessionType,
+                  centerId: data.centerId,
+                  treatmentId: data.serviceId,
+                  treatmentDuration: data.serviceDuration,
+                  treatmentPrice: data.servicePrice,
                 });
                 goToNextStep();
               }}
@@ -205,11 +174,12 @@ export default function BookPrepaidPage() {
           )}
 
           {currentStep === 'slot-selection' && (
-            <PrepaidSlotSelection
+            <SlotAvailability
               centerId={bookingData.centerId}
               serviceDuration={bookingData.treatmentDuration}
-              consultantId={bookingData.isNewUser ? undefined : bookingData.consultantId}
-              onSlotSelect={(consultantId, slot) => {
+              sessionType="online"
+              isNewUser={bookingData.isNewUser}
+              onSlotSelect={async (consultantId, slot) => {
                 const slotDate = new Date(slot.startTimeRaw);
                 updateBookingData({
                   consultantId,
@@ -221,7 +191,41 @@ export default function BookPrepaidPage() {
                   selectedDate: slotDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
                   selectedFullDate: slotDate,
                 });
-                goToNextStep();
+
+                // Create appointment immediately (no payment for prepaid)
+                try {
+                  // Build input object - exactly like redesign
+                  const input = {
+                    patient: bookingData.patientId,
+                    consultant: consultantId || null,
+                    treatment: bookingData.treatmentId,
+                    medium: 'ONLINE',
+                    notes: '',
+                    center: bookingData.centerId,
+                    category: 'WEBSITE',
+                    status: 'BOOKED',
+                    visitType: bookingData.isNewUser ? 'FIRST_VISIT' : 'FOLLOW_UP',
+                    event: {
+                      startTime: new Date(slot.startTimeRaw).getTime(),
+                      endTime: new Date(slot.endTimeRaw).getTime(),
+                    },
+                  };
+
+                  const appointmentResult = await createAppointment({
+                    variables: { input },
+                  });
+
+                  const appointmentId = appointmentResult.data?.createAppointment?._id;
+                  if (appointmentId) {
+                    updateBookingData({ appointmentId });
+                    goToNextStep();
+                  } else {
+                    throw new Error('Appointment creation failed - no ID returned');
+                  }
+                } catch (error: any) {
+                  console.error('Error creating appointment:', error);
+                  alert(error.message || 'Failed to create appointment. Please try again.');
+                }
               }}
               onBack={goToPreviousStep}
             />

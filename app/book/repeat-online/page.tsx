@@ -4,14 +4,13 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import {
-  RepeatUserOnlineCenterSelection,
-  RepeatUserOnlineConsultantSelection,
-  RepeatUserOnlineServiceSelection,
-  RepeatUserOnlineSlotSelection,
+  RepeatUserOnlineSessionDetails,
+  RepeatUserOnlinePaymentConfirmation,
   RepeatUserOnlineBookingConfirmed,
 } from '@/components/onboarding/repeat-user-online';
+import { SlotAvailability } from '@/components/onboarding/redesign';
 
-type BookingStep = 'center-selection' | 'consultant-selection' | 'service-selection' | 'slot-selection' | 'booking-confirmed';
+type BookingStep = 'session-details' | 'slot-selection' | 'payment-confirmation' | 'booking-confirmed';
 
 interface BookingData {
   patientId: string;
@@ -23,13 +22,14 @@ interface BookingData {
   selectedDate: string;
   selectedFullDate?: Date;
   selectedTimeSlot: { startTime: string; endTime: string; displayTime: string };
-  isNewUser: boolean;
+  sessionType: 'online';
+  appointmentId?: string;
 }
 
 export default function RepeatOnlinePage() {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
-  const [currentStep, setCurrentStep] = useState<BookingStep>('center-selection');
+  const [currentStep, setCurrentStep] = useState<BookingStep>('session-details');
   const [bookingData, setBookingData] = useState<BookingData>({
     patientId: '',
     centerId: process.env.NEXT_PUBLIC_DEFAULT_CENTER_ID || '67fe36545e42152fb5185a6c',
@@ -39,7 +39,7 @@ export default function RepeatOnlinePage() {
     treatmentDuration: 20,
     selectedDate: '',
     selectedTimeSlot: { startTime: '', endTime: '', displayTime: '' },
-    isNewUser: false,
+    sessionType: 'online',
   });
 
   useEffect(() => {
@@ -54,7 +54,12 @@ export default function RepeatOnlinePage() {
   }, []);
 
   const goToNextStep = () => {
-    const stepOrder: BookingStep[] = ['center-selection', 'consultant-selection', 'service-selection', 'slot-selection', 'booking-confirmed'];
+    const stepOrder: BookingStep[] = [
+      'session-details',
+      'slot-selection',
+      'payment-confirmation',
+      'booking-confirmed',
+    ];
     const currentIndex = stepOrder.indexOf(currentStep);
     if (currentIndex < stepOrder.length - 1) {
       setCurrentStep(stepOrder[currentIndex + 1]);
@@ -62,7 +67,12 @@ export default function RepeatOnlinePage() {
   };
 
   const goToPreviousStep = () => {
-    const stepOrder: BookingStep[] = ['center-selection', 'consultant-selection', 'service-selection', 'slot-selection', 'booking-confirmed'];
+    const stepOrder: BookingStep[] = [
+      'session-details',
+      'slot-selection',
+      'payment-confirmation',
+      'booking-confirmed',
+    ];
     const currentIndex = stepOrder.indexOf(currentStep);
     if (currentIndex > 0) {
       setCurrentStep(stepOrder[currentIndex - 1]);
@@ -77,16 +87,15 @@ export default function RepeatOnlinePage() {
 
   const getStepTitle = () => {
     switch (currentStep) {
-      case 'center-selection': return 'Select Center';
-      case 'consultant-selection': return 'Select Consultant';
-      case 'service-selection': return 'Select Service';
-      case 'slot-selection': return 'Select Slot';
+      case 'session-details': return 'Session Details';
+      case 'slot-selection': return 'Slot Availability';
+      case 'payment-confirmation': return 'Payment';
       case 'booking-confirmed': return 'Booking Confirmed';
       default: return 'Repeat User - Online';
     }
   };
 
-  const canGoBack = currentStep !== 'center-selection' && currentStep !== 'booking-confirmed';
+  const canGoBack = currentStep !== 'session-details' && currentStep !== 'booking-confirmed';
 
   if (!mounted) {
     return (
@@ -114,38 +123,29 @@ export default function RepeatOnlinePage() {
       </div>
 
       <div className="flex-1 overflow-hidden">
-        {currentStep === 'center-selection' && (
-          <RepeatUserOnlineCenterSelection
-            selectedCenterId={bookingData.centerId}
-            onCenterSelect={(centerId) => updateBookingData({ centerId })}
-            onNext={goToNextStep}
-          />
-        )}
-
-        {currentStep === 'consultant-selection' && (
-          <RepeatUserOnlineConsultantSelection
+        {currentStep === 'session-details' && (
+          <RepeatUserOnlineSessionDetails
+            patientId={bookingData.patientId}
             centerId={bookingData.centerId}
-            onConsultantSelect={(consultantId) => {
-              updateBookingData({ consultantId });
-              goToNextStep();
-            }}
-          />
-        )}
-
-        {currentStep === 'service-selection' && (
-          <RepeatUserOnlineServiceSelection
-            centerId={bookingData.centerId}
-            onServiceSelect={(serviceId, serviceDuration, servicePrice) => {
-              updateBookingData({ treatmentId: serviceId, treatmentPrice: servicePrice, treatmentDuration: serviceDuration });
+            onBack={goToPreviousStep}
+            onContinue={(data) => {
+              updateBookingData({
+                centerId: data.centerId,
+                treatmentId: data.serviceId,
+                treatmentDuration: data.serviceDuration,
+                treatmentPrice: data.servicePrice,
+              });
               goToNextStep();
             }}
           />
         )}
 
         {currentStep === 'slot-selection' && (
-          <RepeatUserOnlineSlotSelection
+          <SlotAvailability
             centerId={bookingData.centerId}
             serviceDuration={bookingData.treatmentDuration}
+            sessionType="online"
+            isNewUser={false}
             onSlotSelect={(consultantId, slot) => {
               const slotDate = new Date(slot.startTimeRaw);
               updateBookingData({
@@ -160,8 +160,21 @@ export default function RepeatOnlinePage() {
               });
               goToNextStep();
             }}
+            onBack={goToPreviousStep}
           />
         )}
+
+            {currentStep === 'payment-confirmation' && (
+              <RepeatUserOnlinePaymentConfirmation
+                bookingData={bookingData}
+                onNext={(appointmentId?: string) => {
+                  if (appointmentId) {
+                    updateBookingData({ appointmentId });
+                  }
+                  goToNextStep();
+                }}
+              />
+            )}
 
         {currentStep === 'booking-confirmed' && (
           <RepeatUserOnlineBookingConfirmed bookingData={bookingData} />

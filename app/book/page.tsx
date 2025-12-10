@@ -2,17 +2,20 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { ArrowLeft } from 'lucide-react';
 import RazorpayScriptLoader from '@/components/loader/RazorpayScriptLoader';
 import {
   SimplifiedPatientOnboarding,
-  NewBookingMain,
+  SessionDetails,
+  SlotAvailability,
   BookingConfirmation,
   BookingConfirmed,
 } from '@/components/onboarding/redesign';
 
 type BookingStep =
   | 'patient-onboarding'
-  | 'booking-main'
+  | 'session-details'
+  | 'slot-selection'
   | 'booking-confirmation'
   | 'booking-confirmed';
 
@@ -55,9 +58,30 @@ function BookPageContent() {
     setMounted(true);
   }, []);
 
-  const handlePatientOnboardingComplete = (patientId: string, isNewUser: boolean) => {
-    setBookingData((prev) => ({ ...prev, patientId, isNewUser }));
-    setCurrentStep('booking-main');
+  const handlePatientOnboardingComplete = (patientId: string, isNewUser: boolean, sessionType: 'in-person' | 'online') => {
+    console.log('handlePatientOnboardingComplete called:', { patientId, isNewUser, sessionType });
+    // Store patientId and centerId in session storage
+    sessionStorage.setItem('patientId', patientId);
+    sessionStorage.setItem('centerId', bookingData.centerId || '');
+    
+    // Redirect to appropriate route based on user type and session type
+    if (isNewUser) {
+      if (sessionType === 'online') {
+        console.log('Redirecting to /book/new-online');
+        router.push('/book/new-online');
+      } else {
+        console.log('Redirecting to /book/new-offline');
+        router.push('/book/new-offline');
+      }
+    } else {
+      if (sessionType === 'online') {
+        console.log('Redirecting to /book/repeat-online');
+        router.push('/book/repeat-online');
+      } else {
+        console.log('Redirecting to /book/repeat-offline');
+        router.push('/book/repeat-offline');
+      }
+    }
   };
 
   const handleBookingConfirm = (data: any) => {
@@ -77,7 +101,8 @@ function BookPageContent() {
   const handleBack = () => {
     const stepOrder: BookingStep[] = [
       'patient-onboarding',
-      'booking-main',
+      'session-details',
+      'slot-selection',
       'booking-confirmation',
       'booking-confirmed',
     ];
@@ -88,6 +113,25 @@ function BookPageContent() {
       router.push('/');
     }
   };
+
+  const getStepTitle = () => {
+    switch (currentStep) {
+      case 'patient-onboarding':
+        return 'Stance Health';
+      case 'session-details':
+        return 'Session Details';
+      case 'slot-selection':
+        return 'Slot Availability';
+      case 'booking-confirmation':
+        return 'Booking Confirmation';
+      case 'booking-confirmed':
+        return 'Booking Confirmed';
+      default:
+        return 'Book Appointment';
+    }
+  };
+
+  const canGoBack = currentStep !== 'patient-onboarding' && currentStep !== 'booking-confirmed';
 
   if (!mounted) {
     return (
@@ -100,38 +144,99 @@ function BookPageContent() {
   const BookingContent = () => (
     <>
       <RazorpayScriptLoader />
-      {currentStep === 'patient-onboarding' && (
-        <SimplifiedPatientOnboarding
-          centerId={bookingData.centerId!}
-          onComplete={handlePatientOnboardingComplete}
-          onBack={() => router.push('/')}
-        />
-      )}
+      <div className="h-full bg-gray-50 flex flex-col">
+        {/* Mobile Header - Only show for booking steps, not patient onboarding */}
+        {currentStep !== 'patient-onboarding' && (
+          <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between flex-shrink-0">
+            {canGoBack && (
+              <button
+                onClick={handleBack}
+                className="p-2 -ml-2 rounded-lg hover:bg-gray-100 transition-colors"
+              >
+                <ArrowLeft className="w-6 h-6 text-gray-700" />
+              </button>
+            )}
+            <h1 className="text-lg font-semibold text-gray-900 flex-1 text-center ml-6">
+              {getStepTitle()}
+            </h1>
+            <div className="w-10" /> {/* Spacer for centering */}
+          </div>
+        )}
 
-      {currentStep === 'booking-main' && (
-        <NewBookingMain
-          centerId={bookingData.centerId!}
-          patientId={bookingData.patientId!}
-          isNewUser={bookingData.isNewUser!}
-          onConfirm={handleBookingConfirm}
-          onBack={handleBack}
-        />
-      )}
+        {/* Step Content */}
+        <div className="flex-1 overflow-hidden">
+          {currentStep === 'patient-onboarding' && (
+            <SimplifiedPatientOnboarding
+              centerId={bookingData.centerId!}
+              onComplete={handlePatientOnboardingComplete}
+              onBack={() => router.push('/')}
+            />
+          )}
 
-      {currentStep === 'booking-confirmation' && (
-        <BookingConfirmation
-          bookingData={bookingData}
-          onBack={handleBack}
-          onConfirm={handlePaymentComplete}
-        />
-      )}
+          {currentStep === 'session-details' && (
+            <SessionDetails
+              patientId={bookingData.patientId!}
+              centerId={bookingData.centerId!}
+              isNewUser={bookingData.isNewUser!}
+              defaultSessionType="in-person"
+              onBack={handleBack}
+              onContinue={(data) => {
+                setBookingData((prev) => ({
+                  ...prev,
+                  sessionType: data.sessionType,
+                  centerId: data.centerId,
+                  treatmentId: data.serviceId,
+                  treatmentDuration: data.serviceDuration,
+                  treatmentPrice: data.servicePrice,
+                }));
+                setCurrentStep('slot-selection');
+              }}
+            />
+          )}
 
-      {currentStep === 'booking-confirmed' && (
-        <BookingConfirmed
-          bookingData={bookingData}
-          onGoHome={handleGoHome}
-        />
-      )}
+          {currentStep === 'slot-selection' && (
+            <SlotAvailability
+              centerId={bookingData.centerId!}
+              serviceDuration={bookingData.treatmentDuration || 45}
+              sessionType={bookingData.sessionType || 'in-person'}
+              isNewUser={bookingData.isNewUser!}
+              onSlotSelect={(consultantId, slot) => {
+                const slotDate = new Date(slot.startTimeRaw);
+                setBookingData((prev) => ({
+                  ...prev,
+                  consultantId,
+                  selectedTimeSlot: {
+                    startTime: new Date(slot.startTimeRaw).toISOString(),
+                    endTime: new Date(slot.endTimeRaw).toISOString(),
+                    displayTime: slot.displayTime,
+                    startTimeRaw: slot.startTimeRaw,
+                    endTimeRaw: slot.endTimeRaw,
+                  },
+                  selectedDate: slotDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
+                  selectedFullDate: slotDate,
+                }));
+                setCurrentStep('booking-confirmation');
+              }}
+              onBack={handleBack}
+            />
+          )}
+
+          {currentStep === 'booking-confirmation' && (
+            <BookingConfirmation
+              bookingData={bookingData}
+              onBack={handleBack}
+              onConfirm={handlePaymentComplete}
+            />
+          )}
+
+          {currentStep === 'booking-confirmed' && (
+            <BookingConfirmed
+              bookingData={bookingData}
+              onGoHome={handleGoHome}
+            />
+          )}
+        </div>
+      </div>
     </>
   );
 

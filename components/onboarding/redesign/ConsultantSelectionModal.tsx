@@ -10,7 +10,8 @@ interface ConsultantSelectionModalProps {
   consultants: any[];
   sessionType: 'in-person' | 'online';
   centerId: string;
-  onSelect: (consultant: any) => void;
+  onSelect: (consultant: any | null) => void;
+  selectedConsultant?: any | null;
 }
 
 export default function ConsultantSelectionModal({
@@ -20,6 +21,7 @@ export default function ConsultantSelectionModal({
   sessionType,
   centerId,
   onSelect,
+  selectedConsultant = null,
 }: ConsultantSelectionModalProps) {
   const { isInDesktopContainer } = useContainerDetection();
 
@@ -66,29 +68,73 @@ export default function ConsultantSelectionModal({
         <div className="flex-1 overflow-y-auto px-5 py-4">
           {consultants.length > 0 ? (
             <div className="space-y-2">
-              {consultants.map((consultant: any) => (
-                <button
-                  key={consultant._id}
-                  onClick={() => onSelect(consultant)}
-                  className="w-full bg-white rounded-xl border border-gray-200 p-3 text-left hover:bg-gray-50 hover:border-gray-300 transition-all"
-                  type="button"
-                >
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-purple-50 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <UserCircle className="w-5 h-5 text-purple-600" />
+              {/* "Any available" option */}
+              <button
+                onClick={() => onSelect(null)}
+                className={`w-full rounded-xl border p-3 text-left transition-all ${
+                  selectedConsultant === null
+                    ? 'border-blue-500 bg-blue-50'
+                    : 'border-gray-200 bg-white hover:bg-gray-50 hover:border-gray-300'
+                }`}
+                type="button"
+              >
+                <div className="flex items-center space-x-3">
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                    selectedConsultant === null ? 'bg-blue-100' : 'bg-gray-100'
+                  }`}>
+                    <UserCircle className={`w-5 h-5 ${
+                      selectedConsultant === null ? 'text-blue-600' : 'text-gray-600'
+                    }`} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium text-gray-900 mb-0.5">
+                      Any available
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium text-gray-900 mb-0.5">
-                        Dr. {consultant.profileData?.firstName}{' '}
-                        {consultant.profileData?.lastName}
-                      </div>
-                      <div className="text-xs text-gray-500 line-clamp-1">
-                        {consultant.profileData?.designation || consultant.profileData?.bio || 'Senior Musculoskeletal & Sports Physiotherapist'}
-                      </div>
+                    <div className="text-xs text-gray-500 line-clamp-1">
+                      First available consultant for your session
                     </div>
                   </div>
-                </button>
-              ))}
+                </div>
+              </button>
+
+              {/* Consultant List */}
+              {consultants.map((consultant: any) => {
+                const isSelected = selectedConsultant?._id === consultant._id;
+                return (
+                  <button
+                    key={consultant._id}
+                    onClick={() => onSelect(consultant)}
+                    className={`w-full rounded-xl border p-3 text-left transition-all ${
+                      isSelected
+                        ? 'border-blue-500 bg-blue-50'
+                        : 'border-gray-200 bg-white hover:bg-gray-50 hover:border-gray-300'
+                    }`}
+                    type="button"
+                  >
+                    <div className="flex items-center space-x-3">
+                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                        isSelected ? 'bg-blue-100' : 'bg-purple-50'
+                      }`}>
+                        <UserCircle className={`w-5 h-5 ${
+                          isSelected ? 'text-blue-600' : 'text-purple-600'
+                        }`} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-gray-900 mb-0.5">
+                          {consultant.profileData?.firstName || consultant.profileData?.lastName ? (
+                            <>Dr. {consultant.profileData?.firstName || ''} {consultant.profileData?.lastName || ''}</>
+                          ) : (
+                            <>Consultant</>
+                          )}
+                        </div>
+                        <div className="text-xs text-gray-500 line-clamp-1">
+                          {consultant.profileData?.designation || consultant.profileData?.bio || 'Senior Musculoskeletal & Sports Physiotherapist'}
+                        </div>
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           ) : (
             <div className="text-center py-12 text-gray-500">
