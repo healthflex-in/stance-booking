@@ -6,8 +6,9 @@ import { useRouter } from 'next/navigation';
 import { MapPin, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { GET_CENTERS, GET_SERVICES, GET_USER, CREATE_APPOINTMENT } from '@/gql/queries';
-import { MobilePaymentProcessing } from '../shared';
+import RepeatUserOnlinePaymentProcessing from './RepeatUserOnlinePaymentProcessing';
 import { useContainerDetection } from '@/hooks/useContainerDetection';
+import { Button } from '@/components/ui-atoms';
 
 interface BookingData {
   sessionType: 'online';
@@ -123,11 +124,13 @@ export default function RepeatUserOnlinePaymentConfirmation({
 
   if (isProcessingPayment) {
     return (
-      <MobilePaymentProcessing
+      <RepeatUserOnlinePaymentProcessing
         amount={bookingData.treatmentPrice}
         patientDetails={patientDetails}
         patientId={bookingData.patientId}
         centerId={bookingData.centerId}
+        consultantId={bookingData.consultantId}
+        treatmentId={bookingData.treatmentId}
         onPaymentSuccess={handlePaymentSuccess}
         onPaymentFailure={handlePaymentFailure}
       />
@@ -207,13 +210,14 @@ export default function RepeatUserOnlinePaymentConfirmation({
 
       {/* Proceed Button */}
       <div className={`${isInDesktopContainer ? 'flex-shrink-0' : 'fixed bottom-0 left-0 right-0'} bg-white border-t border-gray-200 p-4`}>
-        <button
+        <Button
           onClick={handleProceedToPayment}
-          className="w-full py-4 text-black font-semibold rounded-xl transition-all"
-          style={{ backgroundColor: '#DDFE71' }}
+          fullWidth
+          variant="primary"
+          size="lg"
         >
           Proceed to Payment
-        </button>
+        </Button>
       </div>
     </div>
   );

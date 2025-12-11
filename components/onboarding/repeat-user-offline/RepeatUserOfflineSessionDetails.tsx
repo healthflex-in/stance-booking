@@ -9,19 +9,19 @@ import { PrimaryButton } from '@/components/ui-atoms';
 import LocationSelectionModal from '@/components/onboarding/redesign/LocationSelectionModal';
 import ServiceSelectionModal from '@/components/onboarding/redesign/ServiceSelectionModal';
 
-interface RepeatUserIncenterSessionDetailsProps {
+interface RepeatUserOfflineSessionDetailsProps {
   patientId: string;
   centerId: string;
   onBack: () => void;
   onContinue: (data: { centerId: string; serviceId: string; serviceDuration: number; servicePrice: number }) => void;
 }
 
-export default function RepeatUserIncenterSessionDetails({
+export default function RepeatUserOfflineSessionDetails({
   patientId,
   centerId,
   onBack,
   onContinue,
-}: RepeatUserIncenterSessionDetailsProps) {
+}: RepeatUserOfflineSessionDetailsProps) {
   const { isInDesktopContainer } = useContainerDetection();
   const [selectedCenter, setSelectedCenter] = useState<any>(null);
   const [selectedService, setSelectedService] = useState<any>(null);

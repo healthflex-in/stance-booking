@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useMutation, useLazyQuery, useQuery } from '@apollo/client';
 import { toast } from 'sonner';
 import { User } from 'lucide-react';
+import { StanceHealthLoader } from '@/components/loader/StanceHealthLoader';
 import { CREATE_PATIENT, PATIENT_EXISTS, PATIENT_BY_PHONE, GET_CENTERS } from '@/gql/queries';
 import { useContainerDetection } from '@/hooks/useContainerDetection';
 import { useMobileFlowAnalytics } from '@/services/mobile-analytics';
@@ -40,6 +41,8 @@ export default function SimplifiedPatientOnboarding({
   const [sessionType, setSessionType] = useState<'in-person' | 'online'>('in-person');
   const [isNewUser, setIsNewUser] = useState(false);
   const [showSessionTypeModal, setShowSessionTypeModal] = useState(false);
+  const [isNavigating, setIsNavigating] = useState(false);
+  const [selectedCenterId, setSelectedCenterId] = useState(centerId);
   const [formData, setFormData] = useState<FormData>({
     phone: '',
     firstName: '',
@@ -187,7 +190,7 @@ export default function SimplifiedPatientOnboarding({
   };
 
   const handleRepeatUserContinueWithSessionType = async (selectedSessionType: 'in-person' | 'online') => {
-    // Get patient details for repeat user
+    setIsNavigating(true);
     try {
       const { data: patientData } = await getPatientByPhone({
         variables: { phone: formData.phone },
@@ -198,22 +201,18 @@ export default function SimplifiedPatientOnboarding({
         console.log('Repeat user continuing:', { patientId: patient._id, sessionType: selectedSessionType, isNewUser: false });
         onComplete(patient._id, false, selectedSessionType);
       } else {
+        setIsNavigating(false);
         toast.error('Patient not found. Please try again.');
       }
     } catch (error) {
       console.error('Error getting patient:', error);
+      setIsNavigating(false);
       toast.error('Error getting patient details. Please try again.');
     }
   };
 
   const handleRepeatUserContinue = async () => {
-    // Validate session type is selected
-    if (!sessionType) {
-      toast.error('Please select a session type');
-      return;
-    }
-
-    await handleRepeatUserContinueWithSessionType(sessionType);
+    setShowSessionTypeModal(true);
   };
 
   const handleCallNow = () => {
@@ -269,7 +268,7 @@ export default function SimplifiedPatientOnboarding({
       gender: formData.gender,
       bio: formData.bio || '',
       dob: dobTimestamp,
-      centers: [centerId],
+      centers: [selectedCenterId],
       category: 'WEBSITE', // Mobile web patients are marked as WEBSITE category
       patientType: 'OP_Patient',
       cohort: 'SURGICAL',
@@ -502,52 +501,69 @@ export default function SimplifiedPatientOnboarding({
 
   return (
     <div className={`${isInDesktopContainer ? 'h-full' : 'min-h-screen'} bg-gray-50 flex flex-col`}>
-      {/* Scrollable Content Area */}
-      <div className="flex-1 overflow-y-auto">
-        {/* Full Width Header Image - Inside Scroll */}
-        <div 
-          className="relative h-36 w-full"
-          style={{
-            backgroundImage: 'url(/indra.webp)',
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-            backgroundRepeat: 'no-repeat'
-          }}
-        >
-          {/* Blue overlay */}
-          <div className="absolute inset-0 bg-blue-500 bg-opacity-20"></div>
-        </div>
-        
-        <div className={`p-4 ${isInDesktopContainer ? 'pb-6' : 'pb-32'}`}>
-          {/* Header Content Below Image */}
-          <div className="mb-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-gray-500 rounded-xl flex items-center justify-center">
-                  <User className="w-5 h-5 text-[#DDFE71]" />
-                </div>
-                <h6 className="text-sm font-semibold text-gray-900">
-                  Book Your First Appointment
-                </h6>
-              </div>
-              <img 
-                src="/stance-logo.png" 
-                alt="Stance Health" 
-                className="h-16 w-auto"
-              />
+      {/* Fixed Header Image */}
+      <div 
+        className="relative h-36 w-full flex-shrink-0"
+        style={{
+          backgroundImage: 'url(/indra.webp)',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat'
+        }}
+      >
+        <div className="absolute inset-0 bg-blue-500 bg-opacity-20"></div>
+      </div>
+      
+      {/* Fixed Header Content */}
+      <div className="flex-shrink-0 bg-gray-50 p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 bg-gray-500 rounded-xl flex items-center justify-center">
+              <User className="w-5 h-5 text-[#DDFE71]" />
             </div>
-            <p className="text-gray-600 text-sm">
-              {!isPhoneVerified 
-                ? 'Enter your phone number to get started'
-                : 'Complete your profile details'
-              }
-            </p>
+            <h6 className="text-sm font-semibold text-gray-900">
+              Book Your Appointment
+            </h6>
           </div>
+          <img 
+            src="/stance-logo.png" 
+            alt="Stance Health" 
+            className="h-16 w-auto"
+          />
+        </div>
+      </div>
 
-          {/* Form Content - Always visible, phone first, then session type, then rest of form */}
+      {/* Scrollable Form Content */}
+      <div className="flex-1 overflow-y-auto">
+        <div className={`p-4 ${isInDesktopContainer ? 'pb-6' : 'pb-32'}`}>
+          <p className="text-gray-600 text-sm mb-6">
+            {!isPhoneVerified 
+              ? 'Enter your phone number to get started'
+              : 'Complete your profile details'
+            }
+          </p>
           <div className="mb-6">
             <div className="space-y-6">
-              {/* Phone Number - First */}
+              {/* Center Selection - First */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Select Center *
+                </label>
+                <select
+                  value={selectedCenterId}
+                  onChange={(e) => setSelectedCenterId(e.target.value)}
+                  className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 outline-none bg-white"
+                >
+                  <option value="">Tap to choose center</option>
+                  {centersData?.centers?.map((center: any) => (
+                    <option key={center._id} value={center._id}>
+                      {center.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              
+              {/* Phone Number - Second */}
               {renderPhoneInput()}
               
               {/* Session Type Selection - Second, shown after phone verification for new users */}
@@ -648,10 +664,11 @@ export default function SimplifiedPatientOnboarding({
                 onClick={() => {
                   handleRepeatUserContinue();
                 }}
-                className="flex-1 py-4 rounded-2xl text-sm text-black transition-all"
-                style={{ backgroundColor: '#DDFE71' }}
+                disabled={isNavigating}
+                className="flex-1 py-4 rounded-2xl text-sm text-black transition-all disabled:bg-gray-400 disabled:cursor-not-allowed"
+                style={{ backgroundColor: isNavigating ? '#9CA3AF' : '#DDFE71' }}
               >
-                Continue
+                {isNavigating ? 'Loading...' : 'Continue'}
               </button>
             )}
             <button
@@ -668,10 +685,19 @@ export default function SimplifiedPatientOnboarding({
         )}
       </div>
 
+      {/* Loading Overlay - Mobile View */}
+      {isNavigating && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-sm mx-4">
+            <StanceHealthLoader message="Loading..." />
+          </div>
+        </div>
+      )}
+
       {/* Session Type Selection Modal for Repeat Users */}
       <SessionTypeSelectionModal
         isOpen={showSessionTypeModal}
-        onClose={() => setShowSessionTypeModal(false)}
+        onClose={() => !isNavigating && setShowSessionTypeModal(false)}
         onSelect={(selectedSessionType) => {
           setSessionType(selectedSessionType);
           handleRepeatUserContinueWithSessionType(selectedSessionType);

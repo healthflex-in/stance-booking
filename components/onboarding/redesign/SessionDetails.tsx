@@ -69,20 +69,7 @@ export default function SessionDetails({
     });
   }, [centersData, sessionType]);
 
-  // Set initial center only after session type is selected
-  useEffect(() => {
-    if (centersData?.centers && sessionType && !selectedCenter) {
-      const center = centersData.centers.find((c: any) => c._id === centerId);
-      if (center) {
-        // Check if center matches session type
-        if (sessionType === 'online' && center.isOnline === true) {
-          setSelectedCenter(center);
-        } else if (sessionType === 'in-person') {
-          setSelectedCenter(center);
-        }
-      }
-    }
-  }, [centersData, centerId, sessionType, selectedCenter]);
+
 
   // Reset center and service when session type changes
   useEffect(() => {
@@ -108,11 +95,6 @@ export default function SessionDetails({
   };
 
   const canProceed = selectedService && selectedCenter && sessionType;
-
-  // Find current center
-  const currentCenter = centersData?.centers.find((center: any) => 
-    center._id === (selectedCenter?._id || centerId)
-  );
 
   return (
     <div className={`${isInDesktopContainer ? 'h-full' : 'min-h-screen'} bg-gray-50 flex flex-col`}>
@@ -154,12 +136,12 @@ export default function SessionDetails({
                       </div>
                       <div className="flex-1 text-left">
                         <h3 className="font-semibold text-gray-900">
-                          {currentCenter?.name || selectedCenter?.name || 'Select location'}
+                          {selectedCenter?.name || 'Tap to choose center'}
                         </h3>
                         <p className="text-sm text-gray-500">
-                          {currentCenter?.address || selectedCenter?.address ? 
-                            `${(currentCenter?.address || selectedCenter?.address)?.street || ''}, ${(currentCenter?.address || selectedCenter?.address)?.city || ''}, ${(currentCenter?.address || selectedCenter?.address)?.state || ''}`.replace(/^,\s*|,\s*$/g, '') : 
-                            'Tap to select a location'}
+                          {selectedCenter?.address ? 
+                            `${selectedCenter.address?.street || ''}, ${selectedCenter.address?.city || ''}, ${selectedCenter.address?.state || ''}`.replace(/^,\s*|,\s*$/g, '') : 
+                            'Select your preferred location'}
                         </p>
                       </div>
                     </div>
@@ -180,15 +162,15 @@ export default function SessionDetails({
             </p>
             <button
               onClick={() => {
-                if (selectedCenter || currentCenter) {
+                if (selectedCenter) {
                   setShowServiceModal(true);
                 }
               }}
-              disabled={!selectedCenter && !currentCenter}
+              disabled={!selectedCenter}
               className="w-full"
             >
               <div className={`bg-white rounded-2xl p-4 border-2 transition-all ${
-                !selectedCenter && !currentCenter 
+                !selectedCenter 
                   ? 'border-gray-200 opacity-50 cursor-not-allowed' 
                   : 'border-gray-200 hover:border-blue-500'
               }`}>
@@ -205,12 +187,12 @@ export default function SessionDetails({
                       <>
                         <h3 className="font-semibold text-gray-900">Select a service</h3>
                         <p className="text-sm text-gray-500">
-                          {!selectedCenter && !currentCenter ? 'Please select a location first' : 'Tap to choose a service'}
+                          {!selectedCenter ? 'Please select a location first' : 'Tap to choose a service'}
                         </p>
                       </>
                     )}
                   </div>
-                  <ChevronRight className={`w-5 h-5 ${!selectedCenter && !currentCenter ? 'text-gray-300' : 'text-gray-400'}`} />
+                  <ChevronRight className={`w-5 h-5 ${!selectedCenter ? 'text-gray-300' : 'text-gray-400'}`} />
                 </div>
               </div>
             </button>

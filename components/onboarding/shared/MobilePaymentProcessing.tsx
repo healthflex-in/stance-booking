@@ -17,6 +17,9 @@ interface MobilePaymentProcessingProps {
   };
   patientId: string;
   centerId: string;
+  consultantId?: string;
+  treatmentId?: string;
+  paymentType?: 'invoice' | 'package';
   onPaymentSuccess: (paymentId: string) => void;
   onPaymentFailure: (error: any) => void;
   isFromGenerateLink?: boolean;
@@ -27,6 +30,9 @@ export default function MobilePaymentProcessing({
   patientDetails,
   patientId,
   centerId,
+  consultantId,
+  treatmentId,
+  paymentType = 'package',
   onPaymentSuccess,
   onPaymentFailure,
   isFromGenerateLink = false,
@@ -104,9 +110,12 @@ export default function MobilePaymentProcessing({
       <div className="hidden">
         <PublicRazorpayPayment
           amount={amount}
+          paymentType={paymentType}
           patientDetails={patientDetails}
           patientId={patientId}
           centerId={centerId}
+          consultantId={consultantId}
+          treatmentId={treatmentId}
           onPaymentSuccess={handlePaymentSuccess}
           onPaymentFailure={handlePaymentFailure}
           isFromGenerateLink={isFromGenerateLink}
