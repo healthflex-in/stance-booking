@@ -7,8 +7,7 @@ import {
   RepeatUserOnlinePaymentConfirmation,
   RepeatUserOnlineBookingConfirmed,
 } from '@/components/onboarding/repeat-user-online';
-import { RepeatUserOnlineSessionDetails } from '@/components/onboarding/repeat-user-online';
-import { RepeatOnlineSlotAvailability } from '@/components/onboarding/redesign';
+import { RepeatUserOnlineSessionDetails, RepeatUserOnlineSlotSelection } from '@/components/onboarding/repeat-user-online';
 
 type BookingStep = 'session-details' | 'slot-selection' | 'payment-confirmation' | 'booking-confirmed';
 
@@ -141,11 +140,9 @@ export default function RepeatOnlinePage() {
         )}
 
         {currentStep === 'slot-selection' && (
-          <RepeatOnlineSlotAvailability
+          <RepeatUserOnlineSlotSelection
             centerId={bookingData.centerId}
             serviceDuration={bookingData.treatmentDuration}
-            sessionType="online"
-            isNewUser={false}
             onSlotSelect={(consultantId, slot) => {
               const slotDate = new Date(slot.startTimeRaw);
               updateBookingData({

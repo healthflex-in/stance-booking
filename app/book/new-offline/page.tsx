@@ -5,8 +5,7 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 
 import { MobilePatientOnboarding } from '@/components/onboarding/shared';
-import { NewOfflineSlotAvailability } from '@/components/onboarding/redesign';
-import { NewUserOfflinePaymentConfirmation, NewUserOfflineSessionDetails } from '@/components/onboarding/new-user-offline';
+import { NewUserOfflinePaymentConfirmation, NewUserOfflineSessionDetails, NewUserOfflineSlotSelection } from '@/components/onboarding/new-user-offline';
 import { NewUserOnlineBookingConfirmed } from '@/components/onboarding/new-user-online';
 
 type BookingStep =
@@ -183,11 +182,9 @@ export default function NewOfflinePage() {
           )}
 
           {currentStep === 'slot-selection' && (
-            <NewOfflineSlotAvailability
+            <NewUserOfflineSlotSelection
               centerId={bookingData.centerId}
               serviceDuration={bookingData.treatmentDuration}
-              sessionType={bookingData.sessionType}
-              isNewUser={bookingData.isNewUser}
               onSlotSelect={(consultantId, slot) => {
                 const slotDate = new Date(slot.startTimeRaw);
                 updateBookingData({
