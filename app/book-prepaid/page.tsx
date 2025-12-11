@@ -10,8 +10,8 @@ import { MobilePatientOnboarding } from '@/components/onboarding/shared';
 import {
   PrepaidBookingConfirmed,
   PrepaidSessionDetails,
+  PrepaidSlotSelection,
 } from '@/components/onboarding/prepaid';
-import { PrepaidSlotAvailability } from '@/components/onboarding/redesign';
 
 type BookingStep =
   | 'patient-onboarding'
@@ -40,6 +40,7 @@ export default function BookPrepaidPage() {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [currentStep, setCurrentStep] = useState<BookingStep>('patient-onboarding');
+  const [isCreatingAppointment, setIsCreatingAppointment] = useState(false);
   const [createAppointment] = useMutation(CREATE_APPOINTMENT);
   const [bookingData, setBookingData] = useState<BookingData>({
     sessionType: 'online',
@@ -90,6 +91,55 @@ export default function BookPrepaidPage() {
 
   const updateBookingData = (updates: Partial<BookingData>) => {
     setBookingData((prev) => ({ ...prev, ...updates }));
+  };
+
+  const handleSlotSelect = async (consultantId: string, slot: any) => {
+    if (isCreatingAppointment) return;
+    
+    setIsCreatingAppointment(true);
+    const slotDate = new Date(slot.startTimeRaw);
+    updateBookingData({
+      consultantId,
+      selectedTimeSlot: {
+        startTime: new Date(slot.startTimeRaw).toISOString(),
+        endTime: new Date(slot.endTimeRaw).toISOString(),
+        displayTime: slot.displayTime
+      },
+      selectedDate: slotDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
+      selectedFullDate: slotDate,
+    });
+
+    try {
+      const input = {
+        patient: bookingData.patientId,
+        consultant: consultantId || null,
+        treatment: bookingData.treatmentId,
+        medium: 'ONLINE',
+        notes: 'Prepaid appointment',
+        center: bookingData.centerId,
+        category: 'WEBSITE',
+        status: 'PRE_PAID',
+        visitType: bookingData.isNewUser ? 'FIRST_VISIT' : 'FOLLOW_UP',
+        event: {
+          startTime: new Date(slot.startTimeRaw).getTime(),
+          endTime: new Date(slot.endTimeRaw).getTime(),
+        },
+      };
+
+      const appointmentResult = await createAppointment({ variables: { input } });
+      const appointmentId = appointmentResult.data?.createAppointment?._id;
+      
+      if (appointmentId) {
+        updateBookingData({ appointmentId });
+        setCurrentStep('booking-confirmed');
+      } else {
+        throw new Error('Appointment creation failed - no ID returned');
+      }
+    } catch (error: any) {
+      console.error('Error creating appointment:', error);
+      alert(error.message || 'Failed to create appointment. Please try again.');
+      setIsCreatingAppointment(false);
+    }
   };
 
   const getStepTitle = () => {
@@ -156,6 +206,7 @@ export default function BookPrepaidPage() {
             <PrepaidSessionDetails
               patientId={bookingData.patientId}
               centerId={bookingData.centerId}
+              isNewUser={bookingData.isNewUser}
               onBack={goToPreviousStep}
               onContinue={(data) => {
                 updateBookingData({
@@ -169,62 +220,22 @@ export default function BookPrepaidPage() {
             />
           )}
 
-          {currentStep === 'slot-selection' && (
-            <PrepaidSlotAvailability
+          {currentStep === 'slot-selection' && !isCreatingAppointment && (
+            <PrepaidSlotSelection
               centerId={bookingData.centerId}
               serviceDuration={bookingData.treatmentDuration}
-              sessionType="online"
-              isNewUser={bookingData.isNewUser}
-              onSlotSelect={async (consultantId, slot) => {
-                const slotDate = new Date(slot.startTimeRaw);
-                updateBookingData({
-                  consultantId,
-                  selectedTimeSlot: {
-                    startTime: new Date(slot.startTimeRaw).toISOString(),
-                    endTime: new Date(slot.endTimeRaw).toISOString(),
-                    displayTime: slot.displayTime
-                  },
-                  selectedDate: slotDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
-                  selectedFullDate: slotDate,
-                });
-
-                // Create appointment immediately (no payment for prepaid)
-                try {
-                  // Build input object - exactly like redesign
-                  const input = {
-                    patient: bookingData.patientId,
-                    consultant: consultantId || null,
-                    treatment: bookingData.treatmentId,
-                    medium: 'ONLINE',
-                    notes: '',
-                    center: bookingData.centerId,
-                    category: 'WEBSITE',
-                    status: 'BOOKED',
-                    visitType: bookingData.isNewUser ? 'FIRST_VISIT' : 'FOLLOW_UP',
-                    event: {
-                      startTime: new Date(slot.startTimeRaw).getTime(),
-                      endTime: new Date(slot.endTimeRaw).getTime(),
-                    },
-                  };
-
-                  const appointmentResult = await createAppointment({
-                    variables: { input },
-                  });
-
-                  const appointmentId = appointmentResult.data?.createAppointment?._id;
-                  if (appointmentId) {
-                    updateBookingData({ appointmentId });
-                    goToNextStep();
-                  } else {
-                    throw new Error('Appointment creation failed - no ID returned');
-                  }
-                } catch (error: any) {
-                  console.error('Error creating appointment:', error);
-                  alert(error.message || 'Failed to create appointment. Please try again.');
-                }
-              }}
+              onSlotSelect={handleSlotSelect}
               onBack={goToPreviousStep}
             />
+          )}
+
+          {currentStep === 'slot-selection' && isCreatingAppointment && (
+            <div className="flex items-center justify-center h-full">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                <p className="text-gray-600">Creating your appointment...</p>
+              </div>
+            </div>
           )}
 
           {currentStep === 'booking-confirmed' && (

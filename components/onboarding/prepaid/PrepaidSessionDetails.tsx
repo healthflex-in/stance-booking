@@ -12,6 +12,7 @@ import ServiceSelectionModal from '@/components/onboarding/redesign/ServiceSelec
 interface PrepaidSessionDetailsProps {
   patientId: string;
   centerId: string;
+  isNewUser: boolean;
   onBack: () => void;
   onContinue: (data: { centerId: string; serviceId: string; serviceDuration: number; servicePrice: number }) => void;
 }
@@ -19,6 +20,7 @@ interface PrepaidSessionDetailsProps {
 export default function PrepaidSessionDetails({
   patientId,
   centerId,
+  isNewUser,
   onBack,
   onContinue,
 }: PrepaidSessionDetailsProps) {
@@ -70,16 +72,18 @@ export default function PrepaidSessionDetails({
     <div className={`${isInDesktopContainer ? 'h-full' : 'min-h-screen'} bg-gray-50 flex flex-col`}>
       <div className="flex-1 overflow-y-auto">
         <div className={`p-4 ${isInDesktopContainer ? 'pb-6' : 'pb-32'}`}>
-          <div className="mb-6">
-            <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4">
-              <h3 className="text-lg font-semibold text-blue-900 mb-1">
-                Welcome back{patientFullName ? `, ${patientFullName}` : ''}!
-              </h3>
-              <p className="text-sm text-blue-700">
-                Book your prepaid session
-              </p>
+          {!isNewUser && (
+            <div className="mb-6">
+              <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4">
+                <h3 className="text-lg font-semibold text-blue-900 mb-1">
+                  Welcome back{patientFullName ? `, ${patientFullName}` : ''}!
+                </h3>
+                <p className="text-sm text-blue-700">
+                  Book your prepaid session
+                </p>
+              </div>
             </div>
-          </div>
+          )}
 
           <div className="mb-6">
             <h2 className="text-xl font-semibold text-gray-900 mb-2">Location</h2>
@@ -157,8 +161,8 @@ export default function PrepaidSessionDetails({
         onClose={() => setShowServiceModal(false)}
         patientId={patientId}
         centerId={selectedCenter?._id || centerId}
-        isNewUser={false}
-        sessionType="in-person"
+        isNewUser={isNewUser}
+        sessionType="online"
         isPrePaid={true}
         onSelect={(service) => {
           setSelectedService(service);

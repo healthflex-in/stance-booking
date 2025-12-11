@@ -3,19 +3,19 @@
 import React from 'react';
 import { PrepaidSlotSelection } from '../prepaid';
 
-interface NewUserOnlineSlotSelectionProps {
+interface NewUserOfflineSlotSelectionProps {
   centerId: string;
   serviceDuration: number;
   onSlotSelect: (consultantId: string, slot: any) => void;
   onBack?: () => void;
 }
 
-export default function NewUserOnlineSlotSelection({
+export default function NewUserOfflineSlotSelection({
   centerId,
   serviceDuration,
   onSlotSelect,
   onBack = () => {},
-}: NewUserOnlineSlotSelectionProps) {
+}: NewUserOfflineSlotSelectionProps) {
   return (
     <PrepaidSlotSelection
       centerId={centerId}
