@@ -42,7 +42,6 @@ export default function SimplifiedPatientOnboarding({
   const [isNewUser, setIsNewUser] = useState(false);
   const [showSessionTypeModal, setShowSessionTypeModal] = useState(false);
   const [isNavigating, setIsNavigating] = useState(false);
-  const [selectedCenterId, setSelectedCenterId] = useState(centerId);
   const [formData, setFormData] = useState<FormData>({
     phone: '',
     firstName: '',
@@ -268,7 +267,7 @@ export default function SimplifiedPatientOnboarding({
       gender: formData.gender,
       bio: formData.bio || '',
       dob: dobTimestamp,
-      centers: [selectedCenterId],
+      centers: [centerId],
       category: 'WEBSITE', // Mobile web patients are marked as WEBSITE category
       patientType: 'OP_Patient',
       cohort: 'SURGICAL',
@@ -544,26 +543,7 @@ export default function SimplifiedPatientOnboarding({
           </p>
           <div className="mb-6">
             <div className="space-y-6">
-              {/* Center Selection - First */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Select Center *
-                </label>
-                <select
-                  value={selectedCenterId}
-                  onChange={(e) => setSelectedCenterId(e.target.value)}
-                  className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 outline-none bg-white"
-                >
-                  <option value="">Tap to choose center</option>
-                  {centersData?.centers?.map((center: any) => (
-                    <option key={center._id} value={center._id}>
-                      {center.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              
-              {/* Phone Number - Second */}
+              {/* Phone Number - First */}
               {renderPhoneInput()}
               
               {/* Session Type Selection - Second, shown after phone verification for new users */}
