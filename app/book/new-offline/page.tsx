@@ -5,12 +5,9 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 
 import { MobilePatientOnboarding } from '@/components/onboarding/shared';
-import { SessionDetails } from '@/components/onboarding/redesign';
-import {
-  NewUserOnlinePaymentConfirmation,
-  NewUserOnlineBookingConfirmed,
-} from '@/components/onboarding/new-user-online';
-import { SlotAvailability } from '@/components/onboarding/redesign';
+import { NewOfflineSlotAvailability } from '@/components/onboarding/redesign';
+import { NewUserOfflinePaymentConfirmation, NewUserOfflineSessionDetails } from '@/components/onboarding/new-user-offline';
+import { NewUserOnlineBookingConfirmed } from '@/components/onboarding/new-user-online';
 
 type BookingStep =
   | 'patient-onboarding'
@@ -169,15 +166,12 @@ export default function NewOfflinePage() {
           )}
 
           {currentStep === 'session-details' && (
-            <SessionDetails
+            <NewUserOfflineSessionDetails
               patientId={bookingData.patientId}
               centerId={bookingData.centerId}
-              isNewUser={bookingData.isNewUser}
-              defaultSessionType="in-person"
               onBack={goToPreviousStep}
               onContinue={(data) => {
                 updateBookingData({
-                  sessionType: data.sessionType as 'in-person',
                   centerId: data.centerId,
                   treatmentId: data.serviceId,
                   treatmentDuration: data.serviceDuration,
@@ -189,7 +183,7 @@ export default function NewOfflinePage() {
           )}
 
           {currentStep === 'slot-selection' && (
-            <SlotAvailability
+            <NewOfflineSlotAvailability
               centerId={bookingData.centerId}
               serviceDuration={bookingData.treatmentDuration}
               sessionType={bookingData.sessionType}
@@ -213,7 +207,7 @@ export default function NewOfflinePage() {
           )}
 
           {currentStep === 'payment-confirmation' && (
-            <NewUserOnlinePaymentConfirmation
+            <NewUserOfflinePaymentConfirmation
               bookingData={bookingData}
               onNext={goToNextStep}
             />

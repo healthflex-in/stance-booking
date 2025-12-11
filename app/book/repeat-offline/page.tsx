@@ -6,10 +6,10 @@ import { ArrowLeft } from 'lucide-react';
 import { useMutation } from '@apollo/client';
 import { CREATE_APPOINTMENT } from '@/gql/queries';
 import {
-  RepeatUserIncenterSessionDetails,
-  RepeatUserIncenterBookingConfirmed,
-} from '@/components/onboarding/repeat-user-incenter';
-import { SlotAvailability } from '@/components/onboarding/redesign';
+  RepeatUserOfflineSessionDetails,
+  RepeatUserOfflineBookingConfirmed,
+} from '@/components/onboarding/repeat-user-offline';
+import { RepeatOfflineSlotAvailability } from '@/components/onboarding/redesign';
 
 type BookingStep = 'session-details' | 'slot-selection' | 'booking-confirmed';
 
@@ -173,7 +173,7 @@ export default function RepeatOfflinePage() {
 
       <div className="flex-1 overflow-hidden">
         {currentStep === 'session-details' && (
-          <RepeatUserIncenterSessionDetails
+          <RepeatUserOfflineSessionDetails
             patientId={bookingData.patientId}
             centerId={bookingData.centerId}
             onBack={goToPreviousStep}
@@ -190,7 +190,7 @@ export default function RepeatOfflinePage() {
         )}
 
         {currentStep === 'slot-selection' && (
-          <SlotAvailability
+          <RepeatOfflineSlotAvailability
             centerId={bookingData.centerId}
             serviceDuration={bookingData.treatmentDuration}
             sessionType="in-person"
@@ -201,7 +201,7 @@ export default function RepeatOfflinePage() {
         )}
 
         {currentStep === 'booking-confirmed' && (
-          <RepeatUserIncenterBookingConfirmed bookingData={bookingData} />
+          <RepeatUserOfflineBookingConfirmed bookingData={bookingData} />
         )}
       </div>
     </div>

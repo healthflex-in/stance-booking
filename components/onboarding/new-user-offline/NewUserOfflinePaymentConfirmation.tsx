@@ -3,14 +3,14 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation } from '@apollo/client';
 import { useRouter } from 'next/navigation';
-import { MapPin, AlertCircle } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
 import { GET_CENTERS, GET_SERVICES, GET_USER, CREATE_APPOINTMENT } from '@/gql/queries';
-import NewUserOnlinePaymentProcessing from './NewUserOnlinePaymentProcessing';
+import NewUserOfflinePaymentProcessing from './NewUserOfflinePaymentProcessing';
 import { useContainerDetection } from '@/hooks/useContainerDetection';
 import { Button } from '@/components/ui-atoms';
 
 interface BookingData {
-  sessionType: 'online' | 'in-person';
+  sessionType: 'in-person';
   patientId: string;
   centerId: string;
   consultantId: string;
@@ -21,15 +21,15 @@ interface BookingData {
   selectedTimeSlot: { startTime: string; endTime: string; displayTime: string };
 }
 
-interface NewUserOnlinePaymentConfirmationProps {
+interface NewUserOfflinePaymentConfirmationProps {
   bookingData: BookingData;
   onNext: () => void;
 }
 
-export default function NewUserOnlinePaymentConfirmation({
+export default function NewUserOfflinePaymentConfirmation({
   bookingData,
   onNext,
-}: NewUserOnlinePaymentConfirmationProps) {
+}: NewUserOfflinePaymentConfirmationProps) {
   const router = useRouter();
   const { isInDesktopContainer } = useContainerDetection();
   const [paymentAmount, setPaymentAmount] = useState(bookingData.treatmentPrice.toString());
@@ -106,7 +106,7 @@ export default function NewUserOnlinePaymentConfirmation({
     const isFullPayment = amount === bookingData.treatmentPrice;
 
     return (
-      <NewUserOnlinePaymentProcessing
+      <NewUserOfflinePaymentProcessing
         amount={amount}
         paymentType={isFullPayment ? 'invoice' : 'package'}
         patientDetails={patientDetails}
@@ -126,7 +126,7 @@ export default function NewUserOnlinePaymentConfirmation({
                     consultant: bookingData.consultantId,
                     center: bookingData.centerId,
                     treatment: bookingData.treatmentId,
-                    medium: bookingData.sessionType === 'online' ? 'ONLINE' : 'IN_PERSON',
+                    medium: 'IN_PERSON',
                     visitType: 'FIRST_VISIT',
                     status: 'BOOKED',
                     category: 'WEBSITE',
@@ -169,7 +169,6 @@ export default function NewUserOnlinePaymentConfirmation({
     <div className={`${isInDesktopContainer ? 'h-full' : 'min-h-screen'} bg-gray-50 flex flex-col`}>
       <div className="flex-1 overflow-y-auto">
         <div className={`p-4 ${isInDesktopContainer ? 'pb-6' : 'pb-32'}`}>
-          {/* Patient Details */}
           <div className="bg-white rounded-2xl border border-gray-200 p-4 mb-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Patient Details</h3>
             <div className="space-y-3">
@@ -190,16 +189,13 @@ export default function NewUserOnlinePaymentConfirmation({
             </div>
           </div>
 
-          {/* Session Details */}
           <div className="bg-white rounded-2xl border border-gray-200 p-4 mb-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Session Details</h3>
             <div className="space-y-4">
               <div>
                 <span className="text-sm text-gray-600 font-medium block">Location</span>
                 <p className="text-sm font-bold text-gray-900">{currentCenter?.name}</p>
-                <p className="text-sm text-gray-500">
-                  {bookingData.sessionType === 'online' ? 'Online Consultation' : 'In Person Consultation'}
-                </p>
+                <p className="text-sm text-gray-500">In Person Consultation</p>
               </div>
               <div>
                 <span className="text-sm text-gray-600 font-medium block">Date & Time</span>
@@ -215,7 +211,6 @@ export default function NewUserOnlinePaymentConfirmation({
             </div>
           </div>
 
-          {/* Payment Amount */}
           <div className="bg-white rounded-2xl border border-gray-200 p-4 mb-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Payment Amount</h3>
             
@@ -237,7 +232,6 @@ export default function NewUserOnlinePaymentConfirmation({
               )}
             </div>
 
-            {/* Payment Type Indicator */}
             {paymentAmount && !amountError && (
               <div className={`p-3 rounded-xl ${isFullPayment ? 'bg-green-50 border border-green-200' : 'bg-blue-50 border border-blue-200'}`}>
                 <div className="flex items-start space-x-2">
@@ -257,7 +251,6 @@ export default function NewUserOnlinePaymentConfirmation({
             )}
           </div>
 
-          {/* Non-refundable Notice */}
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-6">
             <div className="flex items-start space-x-2">
               <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
@@ -269,7 +262,6 @@ export default function NewUserOnlinePaymentConfirmation({
         </div>
       </div>
 
-      {/* Proceed Button */}
       <div className={`${isInDesktopContainer ? 'flex-shrink-0' : 'fixed bottom-0 left-0 right-0'} bg-white border-t border-gray-200 p-4`}>
         <Button
           onClick={handleProceedToPayment}

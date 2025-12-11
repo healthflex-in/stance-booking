@@ -5,12 +5,12 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 
 import { MobilePatientOnboarding } from '@/components/onboarding/shared';
-import { SessionDetails } from '@/components/onboarding/redesign';
+import { NewOnlineSlotAvailability } from '@/components/onboarding/redesign';
 import {
   NewUserOnlinePaymentConfirmation,
   NewUserOnlineBookingConfirmed,
+  NewUserOnlineSessionDetails,
 } from '@/components/onboarding/new-user-online';
-import { SlotAvailability } from '@/components/onboarding/redesign';
 
 type BookingStep =
   | 'patient-onboarding'
@@ -169,15 +169,12 @@ export default function NewOnlinePage() {
           )}
 
           {currentStep === 'session-details' && (
-            <SessionDetails
+            <NewUserOnlineSessionDetails
               patientId={bookingData.patientId}
               centerId={bookingData.centerId}
-              isNewUser={bookingData.isNewUser}
-              defaultSessionType="online"
               onBack={goToPreviousStep}
               onContinue={(data) => {
                 updateBookingData({
-                  sessionType: data.sessionType as 'online', // new-online route only supports online
                   centerId: data.centerId,
                   treatmentId: data.serviceId,
                   treatmentDuration: data.serviceDuration,
@@ -189,7 +186,7 @@ export default function NewOnlinePage() {
           )}
 
           {currentStep === 'slot-selection' && (
-            <SlotAvailability
+            <NewOnlineSlotAvailability
               centerId={bookingData.centerId}
               serviceDuration={bookingData.treatmentDuration}
               sessionType={bookingData.sessionType}

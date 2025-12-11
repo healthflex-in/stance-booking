@@ -8,7 +8,7 @@ import { UPLOAD_DOCUMENT } from '@/gql/queries';
 import { useHealthFlexAnalytics } from '@/services/analytics';
 import { useAuth } from '@/contexts';
 // Import the ButtonVariant type
-type ButtonVariant = 'default' | 'secondary' | 'outline' | 'ghost' | 'destructive';
+type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'destructive';
 
 interface FileUploadProps {
   onUploadComplete: (response: any) => void;
@@ -34,7 +34,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
   onUploadComplete,
   onError,
   buttonText = 'Upload File',
-  buttonVariant = 'outline',
+  buttonVariant = 'primary',
   accept = '*',
   className = '',
   showToast = true,

@@ -1,64 +1,58 @@
 import React from 'react';
-import { cn } from '@/utils/standard-utils';
 
-type ButtonVariant =
-  | 'glow'
-  | 'ghost'
-  | 'default'
-  | 'outline'
-  | 'secondary'
-  | 'destructive';
-
-type ButtonSize = 'default' | 'sm' | 'lg' | 'icon' | 'xs' | 'xxs' | 'xxxs';
+type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'destructive';
+type ButtonSize = 'sm' | 'md' | 'lg';
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: ButtonVariant;
   size?: ButtonSize;
   isLoading?: boolean;
-  variant?: ButtonVariant;
+  fullWidth?: boolean;
 }
 
 const variantStyles: Record<ButtonVariant, string> = {
-  ghost: 'border border-secondary hover:bg-inactive',
-  default: 'bg-accent border-primary border-1 text-white',
-  secondary: 'bg-gray-100 text-primary hover:bg-gray-200',
-  outline: 'border border-primary bg-white hover:bg-gray-50',
-  destructive: '!bg-red-500 !text-white border border-red-500 hover:!bg-red-400 hover:!text-white',
-  glow: 'bg-accent border-accent border-1 text-white shadow-[4px_12px_24px_0px_var(--accent-shadow)]',
+  primary: 'bg-[#DDFE71] text-black hover:bg-[#c9e865]',
+  secondary: 'bg-gray-200 text-gray-900 hover:bg-gray-300',
+  outline: 'border-2 border-gray-300 bg-white text-gray-900 hover:border-gray-400',
+  ghost: 'bg-transparent text-gray-900 hover:bg-gray-100',
+  destructive: 'bg-red-600 text-white hover:bg-red-700',
 };
 
 const sizeStyles: Record<ButtonSize, string> = {
-  default: 'h-10 px-3 py-2',
-  sm: 'h-8 px-3 py-1',
-  lg: 'h-12 px-6 py-3',
-  icon: 'h-10 w-10',
-  xs: 'h-4 px-2 py-3',
-  xxs: 'h-3 px-1 py-2',
-  xxxs: 'h-2 px-1 py-1.5 text-[10px]',
+  sm: 'h-9 px-3 py-2 text-sm',
+  md: 'h-10 px-4 py-2 text-base',
+  lg: 'h-12 px-6 py-3 text-lg',
 };
 
-const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
+export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   (
     {
-      className,
-      variant = 'default',
-      size = 'default',
-      isLoading,
+      className = '',
+      variant = 'primary',
+      size = 'md',
+      isLoading = false,
+      fullWidth = false,
       children,
+      disabled,
       ...props
     },
     ref
   ) => {
+    const isDisabled = disabled || isLoading;
+
     return (
       <button
-        className={cn(
-          'inline-flex items-center justify-center rounded-lg text-[14px] font-medium text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2',
-          variantStyles[variant],
-          sizeStyles[size],
-          className,
-          (isLoading || props.disabled) && 'cursor-not-allowed opacity-50' // Ensure cursor is disabled and opacity is reduced
-        )}
         ref={ref}
-        disabled={isLoading || props.disabled}
+        disabled={isDisabled}
+        className={`
+          inline-flex items-center justify-center rounded-2xl font-semibold
+          transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2
+          ${variantStyles[variant]}
+          ${sizeStyles[size]}
+          ${fullWidth ? 'w-full' : ''}
+          ${isDisabled ? 'cursor-not-allowed opacity-50' : ''}
+          ${className}
+        `.trim().replace(/\s+/g, ' ')}
         {...props}
       >
         {isLoading && (
@@ -71,5 +65,3 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 );
 
 Button.displayName = 'Button';
-
-export { Button };

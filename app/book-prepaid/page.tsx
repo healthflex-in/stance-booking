@@ -7,11 +7,11 @@ import { useMutation } from '@apollo/client';
 import { CREATE_APPOINTMENT } from '@/gql/queries';
 
 import { MobilePatientOnboarding } from '@/components/onboarding/shared';
-import { SessionDetails } from '@/components/onboarding/redesign';
 import {
   PrepaidBookingConfirmed,
+  PrepaidSessionDetails,
 } from '@/components/onboarding/prepaid';
-import { SlotAvailability } from '@/components/onboarding/redesign';
+import { PrepaidSlotAvailability } from '@/components/onboarding/redesign';
 
 type BookingStep =
   | 'patient-onboarding'
@@ -153,16 +153,12 @@ export default function BookPrepaidPage() {
           )}
 
           {currentStep === 'session-details' && (
-            <SessionDetails
+            <PrepaidSessionDetails
               patientId={bookingData.patientId}
               centerId={bookingData.centerId}
-              isNewUser={bookingData.isNewUser}
-              defaultSessionType="online"
-              isPrePaid={true}
               onBack={goToPreviousStep}
               onContinue={(data) => {
                 updateBookingData({
-                  sessionType: data.sessionType,
                   centerId: data.centerId,
                   treatmentId: data.serviceId,
                   treatmentDuration: data.serviceDuration,
@@ -174,7 +170,7 @@ export default function BookPrepaidPage() {
           )}
 
           {currentStep === 'slot-selection' && (
-            <SlotAvailability
+            <PrepaidSlotAvailability
               centerId={bookingData.centerId}
               serviceDuration={bookingData.treatmentDuration}
               sessionType="online"

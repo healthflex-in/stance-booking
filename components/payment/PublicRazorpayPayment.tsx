@@ -32,6 +32,7 @@ interface RazorpayOptions {
 
 interface PublicRazorpayPaymentProps {
   amount: number;
+  paymentType?: 'invoice' | 'package';
   onPaymentSuccess: (paymentId: string) => void;
   onPaymentFailure: (error: any) => void;
   patientDetails: {
@@ -41,6 +42,8 @@ interface PublicRazorpayPaymentProps {
   };
   patientId: string;
   centerId: string;
+  consultantId?: string;
+  treatmentId?: string;
   isFromGenerateLink?: boolean;
 }
 
@@ -75,7 +78,7 @@ const GET_CENTERS = gql`
   }
 `;
 
-const PublicRazorpayPayment: React.FC<PublicRazorpayPaymentProps> = ({ amount, onPaymentSuccess, onPaymentFailure, patientDetails, patientId, centerId, isFromGenerateLink = false }) => {
+const PublicRazorpayPayment: React.FC<PublicRazorpayPaymentProps> = ({ amount, paymentType = 'package', onPaymentSuccess, onPaymentFailure, patientDetails, patientId, centerId, consultantId, treatmentId, isFromGenerateLink = false }) => {
   const [isRazorpayLoaded, setRazorpayLoaded] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [paymentProcessed, setPaymentProcessed] = useState(false);
@@ -236,35 +239,28 @@ const PublicRazorpayPayment: React.FC<PublicRazorpayPaymentProps> = ({ amount, o
     try {
       let orderInput: any;
       
-      // Only add packageId if NOT from generate link
-      if (!isFromGenerateLink) {
+      // Determine order type based on paymentType prop
+      const orderType = paymentType === 'invoice' ? 'INVOICE' : 'ADVANCE';
+      
+      console.log('💳 PAYMENT TYPE:', paymentType, '→ ORDER TYPE:', orderType);
+      
+      // Only add packageId for ADVANCE (partial payment) and NOT from generate link
+      if (!isFromGenerateLink && orderType === 'ADVANCE') {
         // Find center by ID and map to package based on center name
         const center = centersData?.centers?.find((c: any) => c._id === centerId);
         const centerName = center?.name?.toLowerCase() || '';
         
-        console.log('🏥 PAYMENT TESTING LOGS - CENTER INFO:');
-        console.log('Center ID:', centerId);
-        console.log('Center Name:', center?.name);
-        console.log('Center Name (lowercase):', centerName);
+        console.log('🏥 CENTER INFO - Center ID:', centerId, 'Name:', center?.name);
         
         const getPackageIdForCenter = (centerName: string) => {
-          if (centerName.includes('indiranagar')) {
-            return process.env.NEXT_PUBLIC_INDIRANAGAR_PACKAGE_ID || '68d64545bd448a9f282aa3b3';
-          }
-          if (centerName.includes('whitefield')) {
-            return process.env.NEXT_PUBLIC_WHITEFIELD_PACKAGE_ID || '68da370d862df251a77c3b0c';
-          }
-          if (centerName.includes('hsr')) {
-            return process.env.NEXT_PUBLIC_HSR_PACKAGE_ID || '68da3760862df251a77c3b2e';
-          }
-          // Default to Indiranagar package if no match
+          if (centerName.includes('indiranagar')) return process.env.NEXT_PUBLIC_INDIRANAGAR_PACKAGE_ID || '68d64545bd448a9f282aa3b3';
+          if (centerName.includes('whitefield')) return process.env.NEXT_PUBLIC_WHITEFIELD_PACKAGE_ID || '68da370d862df251a77c3b0c';
+          if (centerName.includes('hsr')) return process.env.NEXT_PUBLIC_HSR_PACKAGE_ID || '68da3760862df251a77c3b2e';
           return process.env.NEXT_PUBLIC_INDIRANAGAR_PACKAGE_ID || '68d64545bd448a9f282aa3b3';
         };
         
         const tokenPackageId = getPackageIdForCenter(centerName);
-        
-        console.log('📦 PAYMENT TESTING LOGS - PACKAGE INFO:');
-        console.log('Selected Package ID:', tokenPackageId);
+        console.log('📦 PACKAGE ID:', tokenPackageId);
         
         orderInput = {
           amount: amount,
@@ -275,15 +271,23 @@ const PublicRazorpayPayment: React.FC<PublicRazorpayPaymentProps> = ({ amount, o
           packageId: tokenPackageId,
         };
       } else {
-        console.log('🔗 PAYMENT TESTING LOGS - Generate Link Flow - Creating advance without package');
+        // For INVOICE (full payment) or generate link
+        console.log('📄 Creating', orderType, 'order with consultant and treatment');
         
         orderInput = {
           amount: amount,
           currency: 'INR',
           center: centerId,
           patient: patientId,
-          type: 'ADVANCE',
+          type: orderType,
         };
+        
+        // Add consultant and treatment for invoice
+        if (orderType === 'INVOICE' && consultantId && treatmentId) {
+          orderInput.consultant = consultantId;
+          orderInput.treatment = treatmentId;
+          console.log('✅ Added consultant:', consultantId, 'and treatment:', treatmentId);
+        }
       }
       
       console.log('📝 PAYMENT TESTING LOGS - ORDER INPUT:');

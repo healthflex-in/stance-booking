@@ -9,37 +9,31 @@ import { PrimaryButton } from '@/components/ui-atoms';
 import LocationSelectionModal from '@/components/onboarding/redesign/LocationSelectionModal';
 import ServiceSelectionModal from '@/components/onboarding/redesign/ServiceSelectionModal';
 
-interface RepeatUserIncenterSessionDetailsProps {
+interface PrepaidSessionDetailsProps {
   patientId: string;
   centerId: string;
   onBack: () => void;
   onContinue: (data: { centerId: string; serviceId: string; serviceDuration: number; servicePrice: number }) => void;
 }
 
-export default function RepeatUserIncenterSessionDetails({
+export default function PrepaidSessionDetails({
   patientId,
   centerId,
   onBack,
   onContinue,
-}: RepeatUserIncenterSessionDetailsProps) {
+}: PrepaidSessionDetailsProps) {
   const { isInDesktopContainer } = useContainerDetection();
   const [selectedCenter, setSelectedCenter] = useState<any>(null);
   const [selectedService, setSelectedService] = useState<any>(null);
-
-  // Modal states
   const [showLocationModal, setShowLocationModal] = useState(false);
   const [showServiceModal, setShowServiceModal] = useState(false);
 
-  // Fetch centers
-  const { data: centersData, loading: centersLoading } = useQuery(GET_CENTERS, {
+  const { data: centersData } = useQuery(GET_CENTERS, {
     fetchPolicy: 'cache-first',
   });
 
-  // Fetch patient data for welcome message
   const { data: patientData } = useQuery(GET_USER, {
-    variables: {
-      userId: patientId,
-    },
+    variables: { userId: patientId },
     skip: !patientId,
     fetchPolicy: 'cache-first',
   });
@@ -51,24 +45,17 @@ export default function RepeatUserIncenterSessionDetails({
     ? `${patientFirstName} ${patientLastName}`.trim()
     : patientFirstName || '';
 
-  // Filter centers for in-center
   const filteredCenters = React.useMemo(() => {
     if (!centersData?.centers) return [];
-    return centersData.centers.filter((center: any) => {
-      return center.isOnline === true;
-    });
+    return centersData.centers.filter((center: any) => center.isOnline === true);
   }, [centersData]);
 
-
-
-  // Reset service when center changes
   useEffect(() => {
     setSelectedService(null);
   }, [selectedCenter]);
 
   const handleContinue = () => {
     if (!selectedService || !selectedCenter) return;
-
     onContinue({
       centerId: selectedCenter._id,
       serviceId: selectedService._id,
@@ -81,33 +68,23 @@ export default function RepeatUserIncenterSessionDetails({
 
   return (
     <div className={`${isInDesktopContainer ? 'h-full' : 'min-h-screen'} bg-gray-50 flex flex-col`}>
-      {/* Scrollable Content */}
       <div className="flex-1 overflow-y-auto">
         <div className={`p-4 ${isInDesktopContainer ? 'pb-6' : 'pb-32'}`}>
-          {/* Welcome Back Message */}
           <div className="mb-6">
             <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4">
               <h3 className="text-lg font-semibold text-blue-900 mb-1">
                 Welcome back{patientFullName ? `, ${patientFullName}` : ''}!
               </h3>
               <p className="text-sm text-blue-700">
-                We're glad to see you again. Let's book your next session.
+                Book your prepaid session
               </p>
             </div>
           </div>
 
-          {/* Location Section */}
           <div className="mb-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">
-              Location
-            </h2>
-            <p className="text-gray-600 text-sm mb-4">
-              Select your preferred location
-            </p>
-            <button
-              onClick={() => setShowLocationModal(true)}
-              className="w-full"
-            >
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">Location</h2>
+            <p className="text-gray-600 text-sm mb-4">Select your preferred location</p>
+            <button onClick={() => setShowLocationModal(true)} className="w-full">
               <div className="bg-white rounded-2xl p-4 border-2 border-gray-200 hover:border-blue-500 transition-all">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
@@ -131,43 +108,22 @@ export default function RepeatUserIncenterSessionDetails({
             </button>
           </div>
 
-          {/* Service Selection */}
           <div className="mb-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">
-              Service
-            </h2>
-            <p className="text-gray-600 text-sm mb-4">
-              Choose the service you need
-            </p>
-            <button
-              onClick={() => {
-                if (selectedCenter) {
-                  setShowServiceModal(true);
-                }
-              }}
-              disabled={!selectedCenter}
-              className="w-full"
-            >
-              <div className={`bg-white rounded-2xl p-4 border-2 transition-all ${
-                !selectedCenter 
-                  ? 'border-gray-200 opacity-50 cursor-not-allowed' 
-                  : 'border-gray-200 hover:border-blue-500'
-              }`}>
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">Service</h2>
+            <p className="text-gray-600 text-sm mb-4">Choose the service you need</p>
+            <button onClick={() => selectedCenter && setShowServiceModal(true)} disabled={!selectedCenter} className="w-full">
+              <div className={`bg-white rounded-2xl p-4 border-2 transition-all ${!selectedCenter ? 'border-gray-200 opacity-50 cursor-not-allowed' : 'border-gray-200 hover:border-blue-500'}`}>
                 <div className="flex items-center justify-between">
                   <div className="flex-1 text-left">
                     {selectedService ? (
                       <>
                         <h3 className="font-semibold text-gray-900">{selectedService.name}</h3>
-                        <p className="text-sm text-gray-500">
-                          {selectedService.duration} minutes • ₹{selectedService.bookingAmount || selectedService.price || 0}
-                        </p>
+                        <p className="text-sm text-gray-500">{selectedService.duration} minutes • ₹{selectedService.bookingAmount || selectedService.price || 0}</p>
                       </>
                     ) : (
                       <>
                         <h3 className="font-semibold text-gray-900">Select a service</h3>
-                        <p className="text-sm text-gray-500">
-                          {!selectedCenter ? 'Please select a location first' : 'Tap to choose a service'}
-                        </p>
+                        <p className="text-sm text-gray-500">{!selectedCenter ? 'Please select a location first' : 'Tap to choose a service'}</p>
                       </>
                     )}
                   </div>
@@ -179,19 +135,12 @@ export default function RepeatUserIncenterSessionDetails({
         </div>
       </div>
 
-      {/* Continue Button */}
       <div className={`${isInDesktopContainer ? 'flex-shrink-0' : 'fixed bottom-0 left-0 right-0'} bg-white border-t border-gray-200 p-4`}>
-        <PrimaryButton
-          onClick={handleContinue}
-          disabled={!canProceed}
-          fullWidth={true}
-          variant="primary"
-        >
+        <PrimaryButton onClick={handleContinue} disabled={!canProceed} fullWidth={true} variant="primary">
           Continue
         </PrimaryButton>
       </div>
 
-      {/* Modals */}
       <LocationSelectionModal
         isOpen={showLocationModal}
         onClose={() => setShowLocationModal(false)}
@@ -210,6 +159,7 @@ export default function RepeatUserIncenterSessionDetails({
         centerId={selectedCenter?._id || centerId}
         isNewUser={false}
         sessionType="in-person"
+        isPrePaid={true}
         onSelect={(service) => {
           setSelectedService(service);
           setShowServiceModal(false);
@@ -218,4 +168,3 @@ export default function RepeatUserIncenterSessionDetails({
     </div>
   );
 }
-

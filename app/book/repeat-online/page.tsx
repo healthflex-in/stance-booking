@@ -4,11 +4,11 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import {
-  RepeatUserOnlineSessionDetails,
   RepeatUserOnlinePaymentConfirmation,
   RepeatUserOnlineBookingConfirmed,
 } from '@/components/onboarding/repeat-user-online';
-import { SlotAvailability } from '@/components/onboarding/redesign';
+import { RepeatUserOnlineSessionDetails } from '@/components/onboarding/repeat-user-online';
+import { RepeatOnlineSlotAvailability } from '@/components/onboarding/redesign';
 
 type BookingStep = 'session-details' | 'slot-selection' | 'payment-confirmation' | 'booking-confirmed';
 
@@ -141,7 +141,7 @@ export default function RepeatOnlinePage() {
         )}
 
         {currentStep === 'slot-selection' && (
-          <SlotAvailability
+          <RepeatOnlineSlotAvailability
             centerId={bookingData.centerId}
             serviceDuration={bookingData.treatmentDuration}
             sessionType="online"
