@@ -6,7 +6,7 @@ import { Clock, UserCircle, ChevronRight } from 'lucide-react';
 import { GET_CONSULTANTS } from '@/gql/queries';
 import { useAvailableSlots } from '@/hooks/useAvailableSlots';
 import { useContainerDetection } from '@/hooks/useContainerDetection';
-import ConsultantSelectionModal from '../redesign/ConsultantSelectionModal';
+import { ConsultantSelectionModal } from '../shared';
 
 interface PrepaidSlotSelectionProps {
   centerId: string;

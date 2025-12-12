@@ -25,7 +25,6 @@ export default function ConsultantSelectionModal({
 }: ConsultantSelectionModalProps) {
   const { isInDesktopContainer } = useContainerDetection();
 
-  // Prevent body scroll when modal is open
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
@@ -50,7 +49,6 @@ export default function ConsultantSelectionModal({
         onClick={(e) => e.stopPropagation()}
         style={{ touchAction: 'pan-y' }}
       >
-        {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 flex-shrink-0">
           <h3 className="text-lg font-semibold text-gray-900">
             Select preferred consultant
@@ -64,11 +62,9 @@ export default function ConsultantSelectionModal({
           </button>
         </div>
 
-        {/* Content */}
         <div className="flex-1 overflow-y-auto px-5 py-4">
           {consultants.length > 0 ? (
             <div className="space-y-2">
-              {/* "Any available" option */}
               <button
                 onClick={() => onSelect(null)}
                 className={`w-full rounded-xl border p-3 text-left transition-all ${
@@ -97,7 +93,6 @@ export default function ConsultantSelectionModal({
                 </div>
               </button>
 
-              {/* Consultant List */}
               {consultants.map((consultant: any) => {
                 const isSelected = selectedConsultant?._id === consultant._id;
                 return (

@@ -4,13 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import RazorpayScriptLoader from '@/components/loader/RazorpayScriptLoader';
-import {
-  SimplifiedPatientOnboarding,
-  SessionDetails,
-  SlotAvailability,
-  BookingConfirmation,
-  BookingConfirmed,
-} from '@/components/onboarding/redesign';
+import { SimplifiedPatientOnboarding } from '@/components/onboarding/shared';
 
 type BookingStep =
   | 'patient-onboarding'
@@ -59,27 +53,20 @@ function BookPageContent() {
   }, []);
 
   const handlePatientOnboardingComplete = (patientId: string, isNewUser: boolean, sessionType: 'in-person' | 'online') => {
-    console.log('handlePatientOnboardingComplete called:', { patientId, isNewUser, sessionType });
-    // Store patientId and centerId in session storage
     sessionStorage.setItem('patientId', patientId);
     sessionStorage.setItem('centerId', bookingData.centerId || '');
     
-    // Redirect to appropriate route based on user type and session type
     if (isNewUser) {
       if (sessionType === 'online') {
-        console.log('Redirecting to /book/new-online');
-        router.push('/book/new-online');
+        router.replace('/book/new-online');
       } else {
-        console.log('Redirecting to /book/new-offline');
-        router.push('/book/new-offline');
+        router.replace('/book/new-offline');
       }
     } else {
       if (sessionType === 'online') {
-        console.log('Redirecting to /book/repeat-online');
-        router.push('/book/repeat-online');
+        router.replace('/book/repeat-online');
       } else {
-        console.log('Redirecting to /book/repeat-offline');
-        router.push('/book/repeat-offline');
+        router.replace('/book/repeat-offline');
       }
     }
   };
@@ -173,68 +160,7 @@ function BookPageContent() {
             />
           )}
 
-          {currentStep === 'session-details' && (
-            <SessionDetails
-              patientId={bookingData.patientId!}
-              centerId={bookingData.centerId!}
-              isNewUser={bookingData.isNewUser!}
-              defaultSessionType="in-person"
-              onBack={handleBack}
-              onContinue={(data) => {
-                setBookingData((prev) => ({
-                  ...prev,
-                  sessionType: data.sessionType,
-                  centerId: data.centerId,
-                  treatmentId: data.serviceId,
-                  treatmentDuration: data.serviceDuration,
-                  treatmentPrice: data.servicePrice,
-                }));
-                setCurrentStep('slot-selection');
-              }}
-            />
-          )}
 
-          {currentStep === 'slot-selection' && (
-            <SlotAvailability
-              centerId={bookingData.centerId!}
-              serviceDuration={bookingData.treatmentDuration || 45}
-              sessionType={bookingData.sessionType || 'in-person'}
-              isNewUser={bookingData.isNewUser!}
-              onSlotSelect={(consultantId, slot) => {
-                const slotDate = new Date(slot.startTimeRaw);
-                setBookingData((prev) => ({
-                  ...prev,
-                  consultantId,
-                  selectedTimeSlot: {
-                    startTime: new Date(slot.startTimeRaw).toISOString(),
-                    endTime: new Date(slot.endTimeRaw).toISOString(),
-                    displayTime: slot.displayTime,
-                    startTimeRaw: slot.startTimeRaw,
-                    endTimeRaw: slot.endTimeRaw,
-                  },
-                  selectedDate: slotDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
-                  selectedFullDate: slotDate,
-                }));
-                setCurrentStep('booking-confirmation');
-              }}
-              onBack={handleBack}
-            />
-          )}
-
-          {currentStep === 'booking-confirmation' && (
-            <BookingConfirmation
-              bookingData={bookingData}
-              onBack={handleBack}
-              onConfirm={handlePaymentComplete}
-            />
-          )}
-
-          {currentStep === 'booking-confirmed' && (
-            <BookingConfirmed
-              bookingData={bookingData}
-              onGoHome={handleGoHome}
-            />
-          )}
         </div>
       </div>
     </>

@@ -19,7 +19,6 @@ export default function SessionTypeSelectionModal({
 }: SessionTypeSelectionModalProps) {
   const { isInDesktopContainer } = useContainerDetection();
 
-  // Prevent body scroll when modal is open
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
@@ -44,7 +43,6 @@ export default function SessionTypeSelectionModal({
         onClick={(e) => e.stopPropagation()}
         style={{ touchAction: 'pan-y' }}
       >
-        {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 flex-shrink-0">
           <h3 className="text-lg font-semibold text-gray-900">
             Select Session Type
@@ -58,10 +56,8 @@ export default function SessionTypeSelectionModal({
           </button>
         </div>
 
-        {/* Content */}
         <div className="flex-1 overflow-y-auto px-5 py-4">
           <div className="space-y-3">
-            {/* In Person Option */}
             <button
               onClick={() => {
                 onSelect('in-person');
@@ -98,7 +94,6 @@ export default function SessionTypeSelectionModal({
               </div>
             </button>
 
-            {/* Online Option */}
             <button
               onClick={() => {
                 onSelect('online');
@@ -140,4 +135,3 @@ export default function SessionTypeSelectionModal({
     </div>
   );
 }
-

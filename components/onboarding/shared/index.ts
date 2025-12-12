@@ -5,3 +5,8 @@ export { default as MobileLoadingScreen } from './MobileLoadingScreen';
 export { default as LeadDetectionModal } from './LeadDetectionModal';
 export { default as Popup } from './Popup';
 export { default as WhatsAppButton } from './WhatsAppButton';
+export { default as ConsultantSelectionModal } from './ConsultantSelectionModal';
+export { default as LocationSelectionModal } from './LocationSelectionModal';
+export { default as ServiceSelectionModal } from './ServiceSelectionModal';
+export { default as SessionTypeSelectionModal } from './SessionTypeSelectionModal';
+export { default as SimplifiedPatientOnboarding } from './SimplifiedPatientOnboarding';
