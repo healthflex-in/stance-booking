@@ -2486,3 +2486,12 @@ export const GET_FILTERED_CONSULTANTS = gql`
     }
   }
 `;
+
+export const VERIFY_PAYMENT = gql`
+  mutation VerifyPayment($orderId: ObjectID!, $razorpayPaymentId: String!) {
+    verifyPayment(orderId: $orderId, razorpayPaymentId: $razorpayPaymentId) {
+      success
+      message
+    }
+  }
+`;
