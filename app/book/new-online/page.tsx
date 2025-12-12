@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 
-import { MobilePatientOnboarding } from '@/components/onboarding/shared';
+
 import {
   NewUserOnlinePaymentConfirmation,
   NewUserOnlineBookingConfirmed,
@@ -13,7 +13,6 @@ import {
 } from '@/components/onboarding/new-user-online';
 
 type BookingStep =
-  | 'patient-onboarding'
   | 'session-details'
   | 'slot-selection'
   | 'payment-confirmation'
@@ -36,7 +35,7 @@ interface BookingData {
 export default function NewOnlinePage() {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
-  const [currentStep, setCurrentStep] = useState<BookingStep>('patient-onboarding');
+  const [currentStep, setCurrentStep] = useState<BookingStep>('session-details');
   const [bookingData, setBookingData] = useState<BookingData>({
     sessionType: 'online',
     patientId: '',
@@ -52,21 +51,15 @@ export default function NewOnlinePage() {
 
   useEffect(() => {
     setMounted(true);
-    
-    // Check if patient data exists in session storage
     const storedPatientId = sessionStorage.getItem('patientId');
     const storedCenterId = sessionStorage.getItem('centerId');
     
     if (storedPatientId && storedCenterId) {
-      // Patient already created, skip to session details
       setBookingData(prev => ({
         ...prev,
         patientId: storedPatientId,
         centerId: storedCenterId,
       }));
-      setCurrentStep('session-details');
-      
-      // Clear session storage
       sessionStorage.removeItem('patientId');
       sessionStorage.removeItem('centerId');
     }
@@ -74,7 +67,6 @@ export default function NewOnlinePage() {
 
   const goToNextStep = () => {
     const stepOrder: BookingStep[] = [
-      'patient-onboarding',
       'session-details',
       'slot-selection',
       'payment-confirmation',
@@ -88,7 +80,6 @@ export default function NewOnlinePage() {
 
   const goToPreviousStep = () => {
     const stepOrder: BookingStep[] = [
-      'patient-onboarding',
       'session-details',
       'slot-selection',
       'payment-confirmation',
@@ -108,8 +99,6 @@ export default function NewOnlinePage() {
 
   const getStepTitle = () => {
     switch (currentStep) {
-      case 'patient-onboarding':
-        return 'New User - Online';
       case 'session-details':
         return 'Session Details';
       case 'slot-selection':
@@ -123,7 +112,7 @@ export default function NewOnlinePage() {
     }
   };
 
-  const canGoBack = currentStep !== 'patient-onboarding' && currentStep !== 'booking-confirmed';
+  const canGoBack = currentStep !== 'session-details' && currentStep !== 'booking-confirmed';
 
   if (!mounted) {
     return (
@@ -160,14 +149,6 @@ export default function NewOnlinePage() {
         </div>
 
         <div className="flex-1 overflow-hidden">
-          {currentStep === 'patient-onboarding' && (
-            <MobilePatientOnboarding
-              centerId={bookingData.centerId}
-              onNext={goToNextStep}
-              onPatientCreated={(patientId, isNewUser) => updateBookingData({ patientId, isNewUser })}
-            />
-          )}
-
           {currentStep === 'session-details' && (
             <NewUserOnlineSessionDetails
               patientId={bookingData.patientId}

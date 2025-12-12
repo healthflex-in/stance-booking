@@ -2,12 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import SimplifiedPatientOnboarding from '@/components/onboarding/redesign/SimplifiedPatientOnboarding';
-import {
-  NewBookingMain,
-  BookingConfirmation,
-  BookingConfirmed,
-} from '@/components/onboarding/redesign';
+import { SimplifiedPatientOnboarding } from '@/components/onboarding/shared';
 
 type BookingStep =
   | 'patient-onboarding'

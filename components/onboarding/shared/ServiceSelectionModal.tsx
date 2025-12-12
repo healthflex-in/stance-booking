@@ -13,7 +13,7 @@ interface ServiceSelectionModalProps {
   centerId: string;
   isNewUser: boolean;
   sessionType: 'in-person' | 'online';
-  isPrePaid?: boolean; // New prop to indicate prepaid flow
+  isPrePaid?: boolean;
   onSelect: (service: { id: string; _id: string; name: string; duration: number; price: number; bookingAmount: number }) => void;
 }
 
@@ -30,181 +30,89 @@ export default function ServiceSelectionModal({
   const [services, setServices] = useState<any[]>([]);
   const { isInDesktopContainer } = useContainerDetection();
 
-  // Fetch all services from backend
-  // Query when we have a valid centerId (like other components do)
   const isValidCenterId = centerId && typeof centerId === 'string' && centerId.trim() !== '';
   
   const { data: servicesData, loading: servicesLoading, error: servicesError, refetch } = useQuery(GET_SERVICES, {
     variables: isValidCenterId ? { centerId: [centerId] } : {},
     skip: !isValidCenterId,
     fetchPolicy: 'network-only',
-    onCompleted: (data) => {
-      console.log('=== GET_SERVICES QUERY COMPLETED ===');
-      console.log('Response data:', data);
-      console.log('Services array:', data?.services);
-      console.log('Services count:', data?.services?.length || 0);
-      if (data?.services) {
-        console.log('Sample service:', data.services[0]);
-      }
-    },
-    onError: (error) => {
-      console.error('=== GET_SERVICES QUERY ERROR ===');
-      console.error('Error:', error);
-    },
   });
 
-  // Refetch when modal opens to ensure fresh data
   useEffect(() => {
     if (isOpen && isValidCenterId) {
-      console.log('Modal opened, refetching services...');
       refetch();
     }
   }, [isOpen, isValidCenterId, refetch]);
 
   useEffect(() => {
-    console.log('=== SERVICE FILTERING DEBUG ===');
-    console.log('Query execution state:', {
-      isValidCenterId,
-      isOpen,
-      centerId,
-      skip: !isValidCenterId,
-    });
-    console.log('Service query state:', {
-      hasData: !!servicesData,
-      servicesCount: servicesData?.services?.length || 0,
-      centerId,
-      isNewUser,
-      sessionType,
-      loading: servicesLoading,
-      error: servicesError,
-      rawData: servicesData,
-    });
-
     if (servicesError) {
-      console.error('=== SERVICE QUERY ERROR ===');
-      console.error('Error details:', servicesError);
-      console.error('Error message:', servicesError.message);
-      console.error('GraphQL errors:', servicesError.graphQLErrors);
-      console.error('Network error:', servicesError.networkError);
-      console.error('centerId used:', centerId);
-      console.error('isValidCenterId:', isValidCenterId);
       setServices([]);
       return;
     }
 
     if (!servicesData?.services) {
-      console.log('No services data available');
       setServices([]);
       return;
     }
 
     if (!centerId) {
-      console.error('No centerId provided!');
       setServices([]);
       return;
     }
 
-    console.log('All services:', servicesData.services);
-    console.log('Filtering with:', { isNewUser, sessionType, centerId });
-
-    // Filter services based on exact requirements from user
-    // Regular flow:
-    // Flow 2: New User : Online - allowOnlineBooking: true, allowOnlineDelivery: true, isNewUserService: true, isPrePaid: false
-    // Flow 4: Repeat user - Online - allowOnlineBooking: true, allowOnlineDelivery: true, isNewUserService: false, isPrePaid: false
-    // Flow 3: New User : In center - allowOnlineBooking: true, allowOnlineDelivery: false, isNewUserService: true, isPrePaid: false
-    // Flow 5: Repeat user - In Center - allowOnlineBooking: true, allowOnlineDelivery: false, isNewUserService: false, isPrePaid: false
-    // Prepaid flow:
-    // New User Prepaid: allowOnlineBooking: true, allowOnlineDelivery: true, isNewUserService: true, isPrePaid: true
-    // Repeat User Prepaid: allowOnlineBooking: true, allowOnlineDelivery: true, isNewUserService: false, isPrePaid: true
     const filteredServices = servicesData.services.filter((service: any) => {
-      console.log('Checking service:', {
-        name: service.name,
-        allowOnlineBooking: service.allowOnlineBooking,
-        allowOnlineDelivery: service.allowOnlineDelivery,
-        isNewUserService: service.isNewUserService,
-        isPrePaid: service.isPrePaid,
-        isPrePaidFlow: isPrePaid,
-      });
-
-      // Step 1: Must have allowOnlineBooking = true (REQUIRED for all flows)
-      // Use truthy check like old code
       if (!service.allowOnlineBooking) {
-        console.log(`  ❌ Rejected: allowOnlineBooking is falsy (${service.allowOnlineBooking})`);
         return false;
       }
       
-      // Step 2: Filter by prepaid status
       if (isPrePaid) {
-        // Prepaid flow: must have isPrePaid = true
         if (!service.isPrePaid) {
-          console.log(`  ❌ Rejected: isPrePaid flow but service.isPrePaid is falsy (${service.isPrePaid})`);
           return false;
         }
-        // Prepaid is always online, so allowOnlineDelivery must be true
         if (!service.allowOnlineDelivery) {
-          console.log(`  ❌ Rejected: isPrePaid flow but allowOnlineDelivery is falsy (${service.allowOnlineDelivery})`);
           return false;
         }
       } else {
-        // Regular flow: must be non-prepaid (isPrePaid = false)
         if (service.isPrePaid) {
-          console.log(`  ❌ Rejected: regular flow but isPrePaid is truthy (${service.isPrePaid})`);
           return false;
         }
       }
       
-      // Step 3: Filter by new/returning user
-      // New users: isNewUserService must be true
-      // Returning users: isNewUserService must be false
       if (isNewUser && !service.isNewUserService) {
-        console.log(`  ❌ Rejected: isNewUser is true but isNewUserService is falsy (${service.isNewUserService})`);
         return false;
       }
       if (!isNewUser && service.isNewUserService) {
-        console.log(`  ❌ Rejected: isNewUser is false but isNewUserService is truthy (${service.isNewUserService})`);
         return false;
       }
       
-      // Step 4: Filter by session type (only for regular flow, prepaid is always online)
       if (!isPrePaid) {
-        // Online: allowOnlineDelivery must be truthy (true)
-        // In-center: allowOnlineDelivery must be falsy (false)
         if (sessionType === 'online') {
           if (!service.allowOnlineDelivery) {
-            console.log(`  ❌ Rejected: sessionType is online but allowOnlineDelivery is falsy (${service.allowOnlineDelivery})`);
             return false;
           }
         } else {
-          // In-person: allowOnlineDelivery must be falsy
           if (service.allowOnlineDelivery) {
-            console.log(`  ❌ Rejected: sessionType is in-person but allowOnlineDelivery is truthy (${service.allowOnlineDelivery})`);
             return false;
           }
         }
       }
 
-      console.log(`  ✅ Accepted: ${service.name}`);
       return true;
     });
 
-    console.log('Filtered services:', filteredServices);
-    console.log(`Total services: ${servicesData.services.length}, Filtered: ${filteredServices.length}`);
-
-    // Map services to the format expected by UI
     const mappedServices = filteredServices.map((service: any) => ({
       id: service._id,
       _id: service._id,
       name: service.name,
       duration: service.duration,
       price: service.price,
-      bookingAmount: service.bookingAmount || service.price, // Use bookingAmount if available, fallback to price
+      bookingAmount: service.bookingAmount || service.price,
       description: service.description || 'Professional service',
     }));
 
     setServices(mappedServices);
   }, [servicesData, isNewUser, sessionType]);
 
-  // Prevent body scroll when modal is open
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
@@ -229,7 +137,6 @@ export default function ServiceSelectionModal({
         onClick={(e) => e.stopPropagation()}
         style={{ touchAction: 'pan-y' }}
       >
-        {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 flex-shrink-0">
           <h3 className="text-lg font-semibold text-gray-900">
             Select required service
@@ -243,7 +150,6 @@ export default function ServiceSelectionModal({
           </button>
         </div>
 
-        {/* Content */}
         <div className="flex-1 overflow-y-auto px-5 py-4">
           {servicesLoading ? (
             <div className="flex justify-center py-12">

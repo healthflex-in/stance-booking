@@ -6,8 +6,7 @@ import { MapPin, ChevronRight } from 'lucide-react';
 import { GET_CENTERS } from '@/gql/queries';
 import { useContainerDetection } from '@/hooks/useContainerDetection';
 import { PrimaryButton } from '@/components/ui-atoms';
-import LocationSelectionModal from '@/components/onboarding/redesign/LocationSelectionModal';
-import ServiceSelectionModal from '@/components/onboarding/redesign/ServiceSelectionModal';
+import { LocationSelectionModal, ServiceSelectionModal } from '@/components/onboarding/shared';
 
 interface NewUserOnlineSessionDetailsProps {
   patientId: string;

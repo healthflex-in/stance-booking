@@ -68,7 +68,6 @@ export default function SimplifiedPatientOnboarding({
   });
   const mobileAnalytics = useMobileFlowAnalytics();
 
-  // Fetch centers for organization ID
   const { data: centersData } = useQuery(GET_CENTERS, {
     fetchPolicy: 'cache-first',
   });
@@ -81,12 +80,10 @@ export default function SimplifiedPatientOnboarding({
     fetchPolicy: 'network-only',
   });
 
-  // Track component mount and analytics
   useEffect(() => {
     mobileAnalytics.trackPatientOnboardingStart(centerId);
     mobileAnalytics.trackPatientDetailsStart('', centerId);
     
-    // Track referral source from URL parameters
     const urlParams = new URLSearchParams(window.location.search);
     const source = urlParams.get('utm_source') || urlParams.get('source') || 'direct';
     const campaign = urlParams.get('utm_campaign');
@@ -96,7 +93,6 @@ export default function SimplifiedPatientOnboarding({
       mobileAnalytics.trackReferralSource(source, campaign || '', medium || '', '', centerId);
     }
     
-    // Track mobile optimization score
     const screenSize = `${window.innerWidth}x${window.innerHeight}`;
     const deviceType = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ? 'mobile' : 'desktop';
     const optimizationScore = window.innerWidth < 768 ? 85 : 95;
@@ -104,7 +100,6 @@ export default function SimplifiedPatientOnboarding({
     mobileAnalytics.trackMobileOptimization(optimizationScore, deviceType, screenSize);
   }, [centerId]);
 
-  // Set organization ID and center ID in localStorage
   useEffect(() => {
     if (centersData?.centers) {
       const defaultCenter = centersData.centers.find(
@@ -128,14 +123,12 @@ export default function SimplifiedPatientOnboarding({
       toast.success('Patient created successfully');
       mobileAnalytics.trackPatientCreated(data.createPatient._id, centerId, false);
       
-      // Set organization ID in localStorage from the created patient's center
       const patientCenter = data.createPatient.profileData?.centers?.[0];
       if (patientCenter?.organization?._id) {
         localStorage.setItem('organizationId', patientCenter.organization._id);
         localStorage.setItem('stance-organizationID', patientCenter.organization._id);
       }
       
-      // Set center ID in localStorage
       if (patientCenter?._id) {
         localStorage.setItem('centerId', patientCenter._id);
         localStorage.setItem('stance-centreID', patientCenter._id);
@@ -161,21 +154,18 @@ export default function SimplifiedPatientOnboarding({
       });
       
       if (data?.patientExists) {
-        // Get full patient details
         const { data: patientData } = await getPatientByPhone({
           variables: { phone: formData.phone },
         });
         
         const patient = patientData?.patientByPhone;
         if (patient) {
-          // Repeat user - show session type modal
           setIsNewUser(false);
           setIsPhoneVerified(true);
           setShowSessionTypeModal(true);
           return;
         }
       } else {
-        // New user - show form
         setIsNewUser(true);
         setIsPhoneVerified(true);
         toast.success('Phone number verified! Please fill in your details.');
@@ -197,7 +187,6 @@ export default function SimplifiedPatientOnboarding({
       
       const patient = patientData?.patientByPhone;
       if (patient) {
-        console.log('Repeat user continuing:', { patientId: patient._id, sessionType: selectedSessionType, isNewUser: false });
         onComplete(patient._id, false, selectedSessionType);
       } else {
         setIsNavigating(false);
@@ -240,7 +229,6 @@ export default function SimplifiedPatientOnboarding({
   };
 
   const handleContinue = async () => {
-    // Validate session type is selected
     if (!sessionType) {
       toast.error('Please select a session type');
       return;
@@ -268,7 +256,7 @@ export default function SimplifiedPatientOnboarding({
       bio: formData.bio || '',
       dob: dobTimestamp,
       centers: [centerId],
-      category: 'WEBSITE', // Mobile web patients are marked as WEBSITE category
+      category: 'WEBSITE',
       patientType: 'OP_Patient',
       cohort: 'SURGICAL',
       referral: formData.referral.type ? formData.referral : undefined,
@@ -307,7 +295,7 @@ export default function SimplifiedPatientOnboarding({
             }
             if (isPhoneVerified) {
               setIsPhoneVerified(false);
-              setIsNewUser(false); // Reset when phone changes
+              setIsNewUser(false);
             }
           }}
           disabled={isPhoneVerified}
@@ -342,7 +330,6 @@ export default function SimplifiedPatientOnboarding({
 
   const renderForm = () => (
     <>
-      {/* Other form fields */}
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -414,7 +401,6 @@ export default function SimplifiedPatientOnboarding({
         )}
       </div>
 
-      {/* Gender */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-3">
           Gender
@@ -445,7 +431,6 @@ export default function SimplifiedPatientOnboarding({
         </div>
       </div>
 
-      {/* Date of Birth */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">
           Date of Birth
@@ -476,7 +461,6 @@ export default function SimplifiedPatientOnboarding({
         )}
       </div>
 
-      {/* Bio/Notes */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">
           Bio / Notes (Optional)
@@ -500,7 +484,6 @@ export default function SimplifiedPatientOnboarding({
 
   return (
     <div className={`${isInDesktopContainer ? 'h-full' : 'min-h-screen'} bg-gray-50 flex flex-col`}>
-      {/* Fixed Header Image */}
       <div 
         className="relative h-36 w-full flex-shrink-0"
         style={{
@@ -513,7 +496,6 @@ export default function SimplifiedPatientOnboarding({
         <div className="absolute inset-0 bg-blue-500 bg-opacity-20"></div>
       </div>
       
-      {/* Fixed Header Content */}
       <div className="flex-shrink-0 bg-gray-50 p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
@@ -532,7 +514,6 @@ export default function SimplifiedPatientOnboarding({
         </div>
       </div>
 
-      {/* Scrollable Form Content */}
       <div className="flex-1 overflow-y-auto">
         <div className={`p-4 ${isInDesktopContainer ? 'pb-6' : 'pb-32'}`}>
           <p className="text-gray-600 text-sm mb-6">
@@ -543,10 +524,8 @@ export default function SimplifiedPatientOnboarding({
           </p>
           <div className="mb-6">
             <div className="space-y-6">
-              {/* Phone Number - First */}
               {renderPhoneInput()}
               
-              {/* Session Type Selection - Second, shown after phone verification for new users */}
               {isPhoneVerified && isNewUser && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -585,12 +564,10 @@ export default function SimplifiedPatientOnboarding({
                 </div>
               )}
               
-              {/* Rest of form fields - Always visible, disabled until phone verified */}
               {renderForm()}
             </div>
           </div>
 
-          {/* Error Message */}
           {formErrors.general && (
             <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl">
               <p className="text-red-700 text-sm">{formErrors.general}</p>
@@ -599,7 +576,6 @@ export default function SimplifiedPatientOnboarding({
         </div>
       </div>
 
-      {/* Navigation Buttons */}
       <div className={`${isInDesktopContainer ? 'flex-shrink-0' : 'fixed bottom-0 left-0 right-0'} bg-white border-t border-gray-200 p-4`}>
         {!isPhoneVerified ? (
           <div className="flex space-x-3">
@@ -665,7 +641,6 @@ export default function SimplifiedPatientOnboarding({
         )}
       </div>
 
-      {/* Loading Overlay - Mobile View */}
       {isNavigating && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-sm mx-4">
@@ -674,7 +649,6 @@ export default function SimplifiedPatientOnboarding({
         </div>
       )}
 
-      {/* Session Type Selection Modal for Repeat Users */}
       <SessionTypeSelectionModal
         isOpen={showSessionTypeModal}
         onClose={() => !isNavigating && setShowSessionTypeModal(false)}

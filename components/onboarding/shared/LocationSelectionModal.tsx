@@ -23,7 +23,6 @@ export default function LocationSelectionModal({
 }: LocationSelectionModalProps) {
   const { isInDesktopContainer } = useContainerDetection();
 
-  // Fetch centers when modal opens (if not passed as prop)
   const { data: centersData, loading: centersLoading } = useQuery(GET_CENTERS, {
     skip: !isOpen || centers.length > 0,
     fetchPolicy: 'cache-first',
@@ -31,7 +30,6 @@ export default function LocationSelectionModal({
 
   const displayCenters = centers.length > 0 ? centers : (centersData?.centers || []);
 
-  // Prevent body scroll when modal is open
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
@@ -56,7 +54,6 @@ export default function LocationSelectionModal({
         onClick={(e) => e.stopPropagation()}
         style={{ touchAction: 'pan-y' }}
       >
-        {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 flex-shrink-0">
           <h3 className="text-lg font-semibold text-gray-900">
             Select preferred location
@@ -70,7 +67,6 @@ export default function LocationSelectionModal({
           </button>
         </div>
 
-        {/* Content */}
         <div className="flex-1 overflow-y-auto px-5 py-4">
           {centersLoading ? (
             <div className="flex justify-center py-12">

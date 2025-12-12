@@ -9,7 +9,7 @@ import {
   RepeatUserOfflineSessionDetails,
   RepeatUserOfflineBookingConfirmed,
 } from '@/components/onboarding/repeat-user-offline';
-import { RepeatOfflineSlotAvailability } from '@/components/onboarding/redesign';
+import { RepeatUserOfflineSlotSelection } from '@/components/onboarding/repeat-user-offline';
 
 type BookingStep = 'session-details' | 'slot-selection' | 'booking-confirmed';
 
@@ -190,11 +190,9 @@ export default function RepeatOfflinePage() {
         )}
 
         {currentStep === 'slot-selection' && (
-          <RepeatOfflineSlotAvailability
+          <RepeatUserOfflineSlotSelection
             centerId={bookingData.centerId}
             serviceDuration={bookingData.treatmentDuration}
-            sessionType="in-person"
-            isNewUser={false}
             onSlotSelect={handleSlotSelect}
             onBack={goToPreviousStep}
           />
