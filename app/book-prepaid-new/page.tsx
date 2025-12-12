@@ -44,9 +44,10 @@ export default function BookPrepaidNewPage() {
     setMounted(true);
   }, []);
 
-  const handlePatientOnboardingComplete = (patientId: string, isNewUser: boolean) => {
-    setBookingData((prev) => ({ ...prev, patientId, isNewUser }));
-    setCurrentStep('booking-main');
+  const handlePatientOnboardingComplete = (patientId: string, isNewUser: boolean, sessionType: 'in-person' | 'online') => {
+    sessionStorage.setItem('patientId', patientId);
+    sessionStorage.setItem('centerId', bookingData.centerId || '');
+    router.replace('/book-prepaid');
   };
 
   const handleBookingConfirm = (data: any) => {
@@ -96,30 +97,7 @@ export default function BookPrepaidNewPage() {
         />
       )}
 
-      {currentStep === 'booking-main' && (
-        <NewBookingMain
-          centerId={bookingData.centerId!}
-          patientId={bookingData.patientId!}
-          isNewUser={bookingData.isNewUser!}
-          onConfirm={handleBookingConfirm}
-          onBack={handleBack}
-        />
-      )}
 
-      {currentStep === 'booking-confirmation' && (
-        <BookingConfirmation
-          bookingData={bookingData}
-          onBack={handleBack}
-          onConfirm={handlePaymentComplete}
-        />
-      )}
-
-      {currentStep === 'booking-confirmed' && (
-        <BookingConfirmed
-          bookingData={bookingData}
-          onGoHome={handleGoHome}
-        />
-      )}
     </>
   );
 
