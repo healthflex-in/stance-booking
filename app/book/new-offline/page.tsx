@@ -47,6 +47,11 @@ export default function NewOfflinePage() {
 
   useEffect(() => {
     setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
+    
     const storedPatientId = sessionStorage.getItem('patientId');
     const storedCenterId = sessionStorage.getItem('centerId');
     
@@ -59,7 +64,7 @@ export default function NewOfflinePage() {
       sessionStorage.removeItem('patientId');
       sessionStorage.removeItem('centerId');
     }
-  }, []);
+  }, [mounted]);
 
   const goToNextStep = () => {
     const stepOrder: BookingStep[] = [

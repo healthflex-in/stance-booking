@@ -58,6 +58,7 @@ export default function RepeatUserOnlinePaymentProcessing({
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const pollAttemptsRef = useRef(0);
   const isPollingRef = useRef(false);
+  const paymentInitiatedRef = useRef(false);
 
   useEffect(() => {
     toast.warning('Do not close or refresh this page during payment!', {
@@ -163,6 +164,9 @@ export default function RepeatUserOnlinePaymentProcessing({
   };
 
   const initiatePayment = useCallback(async () => {
+    if (paymentInitiatedRef.current) return;
+    paymentInitiatedRef.current = true;
+
     const orderData = await createOrder();
     if (!orderData) return;
 
