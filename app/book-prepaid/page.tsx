@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { useMutation } from '@apollo/client';
+import { toast } from 'sonner';
 import { CREATE_APPOINTMENT } from '@/gql/queries';
 
 import { MobilePatientOnboarding } from '@/components/onboarding/shared';
@@ -11,12 +12,14 @@ import {
   PrepaidBookingConfirmed,
   PrepaidSessionDetails,
   PrepaidSlotSelection,
+  PrepaidConfirmation,
 } from '@/components/onboarding/prepaid';
 
 type BookingStep =
   | 'patient-onboarding'
   | 'session-details'
   | 'slot-selection'
+  | 'confirmation'
   | 'booking-confirmed';
 
 interface BookingData {
@@ -40,7 +43,6 @@ export default function BookPrepaidPage() {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [currentStep, setCurrentStep] = useState<BookingStep>('patient-onboarding');
-  const [isCreatingAppointment, setIsCreatingAppointment] = useState(false);
   const [createAppointment] = useMutation(CREATE_APPOINTMENT);
   const [bookingData, setBookingData] = useState<BookingData>({
     sessionType: 'online',
@@ -66,6 +68,7 @@ export default function BookPrepaidPage() {
       'patient-onboarding',
       'session-details',
       'slot-selection',
+      'confirmation',
       'booking-confirmed',
     ];
     const currentIndex = stepOrder.indexOf(currentStep);
@@ -79,6 +82,7 @@ export default function BookPrepaidPage() {
       'patient-onboarding',
       'session-details',
       'slot-selection',
+      'confirmation',
       'booking-confirmed',
     ];
     const currentIndex = stepOrder.indexOf(currentStep);
@@ -93,12 +97,10 @@ export default function BookPrepaidPage() {
     setBookingData((prev) => ({ ...prev, ...updates }));
   };
 
-  const handleSlotSelect = async (consultantId: string, slot: any) => {
-    if (isCreatingAppointment) return;
-    
-    setIsCreatingAppointment(true);
+  const handleSlotSelect = (consultantId: string, slot: any) => {
     const slotDate = new Date(slot.startTimeRaw);
-    updateBookingData({
+    setBookingData(prev => ({
+      ...prev,
       consultantId,
       selectedTimeSlot: {
         startTime: new Date(slot.startTimeRaw).toISOString(),
@@ -107,12 +109,15 @@ export default function BookPrepaidPage() {
       },
       selectedDate: slotDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
       selectedFullDate: slotDate,
-    });
+    }));
+    goToNextStep();
+  };
 
+  const handleConfirmBooking = async () => {
     try {
       const input = {
         patient: bookingData.patientId,
-        consultant: consultantId || null,
+        consultant: bookingData.consultantId || null,
         treatment: bookingData.treatmentId,
         medium: 'ONLINE',
         notes: 'Prepaid appointment',
@@ -121,8 +126,8 @@ export default function BookPrepaidPage() {
         status: 'PRE_PAID',
         visitType: bookingData.isNewUser ? 'FIRST_VISIT' : 'FOLLOW_UP',
         event: {
-          startTime: new Date(slot.startTimeRaw).getTime(),
-          endTime: new Date(slot.endTimeRaw).getTime(),
+          startTime: new Date((bookingData.selectedTimeSlot as any).startTime).getTime(),
+          endTime: new Date((bookingData.selectedTimeSlot as any).endTime).getTime(),
         },
       };
 
@@ -130,15 +135,14 @@ export default function BookPrepaidPage() {
       const appointmentId = appointmentResult.data?.createAppointment?._id;
       
       if (appointmentId) {
-        updateBookingData({ appointmentId });
-        setCurrentStep('booking-confirmed');
+        setBookingData(prev => ({ ...prev, appointmentId }));
+        goToNextStep();
       } else {
         throw new Error('Appointment creation failed - no ID returned');
       }
     } catch (error: any) {
       console.error('Error creating appointment:', error);
-      alert(error.message || 'Failed to create appointment. Please try again.');
-      setIsCreatingAppointment(false);
+      toast.error(error.message || 'Failed to create appointment. Please try again.');
     }
   };
 
@@ -150,6 +154,8 @@ export default function BookPrepaidPage() {
         return 'Session Details';
       case 'slot-selection':
         return 'Slot Availability';
+      case 'confirmation':
+        return 'Confirm Booking';
       case 'booking-confirmed':
         return 'Booking Confirmed';
       default:
@@ -220,7 +226,7 @@ export default function BookPrepaidPage() {
             />
           )}
 
-          {currentStep === 'slot-selection' && !isCreatingAppointment && (
+          {currentStep === 'slot-selection' && (
             <PrepaidSlotSelection
               centerId={bookingData.centerId}
               serviceDuration={bookingData.treatmentDuration}
@@ -229,13 +235,11 @@ export default function BookPrepaidPage() {
             />
           )}
 
-          {currentStep === 'slot-selection' && isCreatingAppointment && (
-            <div className="flex items-center justify-center h-full">
-              <div className="text-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                <p className="text-gray-600">Creating your appointment...</p>
-              </div>
-            </div>
+          {currentStep === 'confirmation' && (
+            <PrepaidConfirmation
+              bookingData={bookingData}
+              onConfirm={handleConfirmBooking}
+            />
           )}
 
           {currentStep === 'booking-confirmed' && (

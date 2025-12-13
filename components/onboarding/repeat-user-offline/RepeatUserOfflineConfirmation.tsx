@@ -1,0 +1,115 @@
+'use client';
+
+import React, { useState } from 'react';
+import { useQuery } from '@apollo/client';
+import { GET_CENTERS, GET_SERVICES, GET_USER } from '@/gql/queries';
+import { useContainerDetection } from '@/hooks/useContainerDetection';
+import { Button } from '@/components/ui-atoms';
+
+interface BookingData {
+  sessionType: 'in-person';
+  patientId: string;
+  centerId: string;
+  consultantId: string;
+  treatmentId: string;
+  treatmentPrice: number;
+  selectedDate: string;
+  selectedTimeSlot: { startTime: string; endTime: string; displayTime: string };
+}
+
+interface RepeatUserOfflineConfirmationProps {
+  bookingData: BookingData;
+  onConfirm: () => void;
+}
+
+export default function RepeatUserOfflineConfirmation({
+  bookingData,
+  onConfirm,
+}: RepeatUserOfflineConfirmationProps) {
+  const { isInDesktopContainer } = useContainerDetection();
+  const [isCreating, setIsCreating] = useState(false);
+
+  const { data: centersData } = useQuery(GET_CENTERS);
+  const { data: servicesData } = useQuery(GET_SERVICES, {
+    variables: { centerId: [bookingData.centerId] },
+  });
+  const { data: userData } = useQuery(GET_USER, {
+    variables: { userId: bookingData.patientId },
+  });
+
+  const currentCenter = centersData?.centers.find((c: any) => c._id === bookingData.centerId);
+  const currentService = servicesData?.services.find((s: any) => s._id === bookingData.treatmentId);
+  const patient = userData?.user;
+
+  const patientDetails = {
+    name: patient?.profileData ? `${patient.profileData.firstName} ${patient.profileData.lastName}` : '',
+    phone: patient?.phone || '',
+    email: patient?.email || '',
+  };
+
+  const handleConfirm = async () => {
+    setIsCreating(true);
+    await onConfirm();
+  };
+
+  return (
+    <div className={`${isInDesktopContainer ? 'h-full' : 'min-h-screen'} bg-gray-50 flex flex-col`}>
+      <div className="flex-1 overflow-y-auto">
+        <div className={`p-4 ${isInDesktopContainer ? 'pb-6' : 'pb-32'}`}>
+          <div className="bg-white rounded-2xl border border-gray-200 p-4 mb-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Patient Details</h3>
+            <div className="space-y-3">
+              <div>
+                <span className="text-sm text-gray-600 font-medium block">Name</span>
+                <p className="text-sm font-medium text-gray-900">{patientDetails.name}</p>
+              </div>
+              <div>
+                <span className="text-sm text-gray-600 font-medium block">Phone</span>
+                <p className="text-sm font-medium text-gray-900">{patientDetails.phone}</p>
+              </div>
+              {patientDetails.email && (
+                <div>
+                  <span className="text-sm text-gray-600 font-medium block">Email</span>
+                  <p className="text-sm font-medium text-gray-900">{patientDetails.email}</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="bg-white rounded-2xl border border-gray-200 p-4 mb-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Session Details</h3>
+            <div className="space-y-4">
+              <div>
+                <span className="text-sm text-gray-600 font-medium block">Location</span>
+                <p className="text-sm font-bold text-gray-900">{currentCenter?.name}</p>
+                <p className="text-sm text-gray-500">In Person Consultation</p>
+              </div>
+              <div>
+                <span className="text-sm text-gray-600 font-medium block">Date & Time</span>
+                <p className="text-sm font-medium text-gray-900">
+                  {bookingData.selectedDate}, {bookingData.selectedTimeSlot.displayTime}
+                </p>
+              </div>
+              <div>
+                <span className="text-sm text-gray-600 font-medium block">Service</span>
+                <p className="text-sm font-medium text-gray-900">{currentService?.name}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className={`${isInDesktopContainer ? 'flex-shrink-0' : 'fixed bottom-0 left-0 right-0'} bg-white border-t border-gray-200 p-4`}>
+        <Button
+          onClick={handleConfirm}
+          disabled={isCreating}
+          fullWidth
+          variant="primary"
+          size="lg"
+        >
+          {isCreating ? 'Confirming...' : 'Confirm Booking'}
+        </Button>
+      </div>
+    </div>
+  );
+}

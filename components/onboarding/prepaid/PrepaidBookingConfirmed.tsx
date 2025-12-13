@@ -50,90 +50,31 @@ export default function PrepaidBookingConfirmed({ bookingData }: PrepaidBookingC
   );
 
   useEffect(() => {
-    console.log('useEffect triggered:', {
-      appointmentCreated,
-      creationInProgress: creationInProgress.current,
-      patientId: bookingData.patientId,
-      consultantId: bookingData.consultantId,
-      appointmentId: bookingData.appointmentId,
-      userLoading,
-      consultantLoading,
-      hasUserData: !!userData,
-      hasConsultantData: !!consultantData,
-    });
-    
-    // Skip appointment creation if already created (appointmentId provided)
+    // Appointment should already be created - just send emails
     if (bookingData.appointmentId) {
-      console.log('✅ Appointment already created, skipping creation. AppointmentId:', bookingData.appointmentId);
       setAppointmentCreated(true);
       setIsCreating(false);
-      return;
     }
 
-    // Only create appointment if appointmentId is NOT provided (fallback for old flow)
-    if (!appointmentCreated && !creationInProgress.current && bookingData.patientId && bookingData.consultantId && !bookingData.appointmentId && !userLoading && !consultantLoading && userData && consultantData) {
+    // Send emails if all data is loaded
+    if (bookingData.appointmentId && !creationInProgress.current && userData && consultantData && centersData && servicesData) {
       creationInProgress.current = true;
-      console.log('✅ All conditions met, creating appointment...');
       
-      const createPrepaidAppointment = async () => {
+      const sendEmails = async () => {
         try {
           const timeSlot = typeof bookingData.selectedTimeSlot === 'string' 
             ? { startTime: bookingData.selectedTimeSlot, endTime: bookingData.selectedTimeSlot, displayTime: bookingData.selectedTimeSlot }
             : bookingData.selectedTimeSlot;
-          
-          const startTime = new Date(timeSlot.startTime).getTime();
-          const endTime = new Date(timeSlot.endTime).getTime();
-
-          // Build input object - exactly like redesign
-          const input = {
-            patient: bookingData.patientId,
-            consultant: bookingData.consultantId || null,
-            treatment: bookingData.treatmentId,
-            medium: 'ONLINE',
-            notes: '',
-            center: bookingData.centerId,
-            category: 'WEBSITE',
-            status: 'BOOKED',
-            visitType: bookingData.isNewUser ? 'FIRST_VISIT' : 'FOLLOW_UP',
-            event: {
-              startTime,
-              endTime,
-            },
-          };
-
-          await createAppointment({
-            variables: { input },
-          });
-
-          setAppointmentCreated(true);
-          
-          console.log('=== EMAIL SENDING PROCESS START ===');
-          console.log('Patient Data:', userData?.user);
-          console.log('Consultant Data:', consultantData?.user);
-          console.log('Centers Data:', centersData?.centers);
-          console.log('Services Data:', servicesData?.services);
-          
           const center = centersData?.centers?.find((c: any) => c._id === bookingData.centerId);
           const service = servicesData?.services?.find((s: any) => s._id === bookingData.treatmentId);
           const patient = userData?.user;
           const consultant = consultantData?.user;
           
-          console.log('Found Center:', center);
-          console.log('Found Service:', service);
-          console.log('Patient Email:', patient?.email);
-          console.log('Consultant Email:', consultant?.email);
-          
           const consultantName = `${consultant?.profileData?.firstName || ''} ${consultant?.profileData?.lastName || ''}`.trim();
           const patientName = `${patient?.profileData?.firstName || ''} ${patient?.profileData?.lastName || ''}`.trim();
           const treatmentName = service?.name || 'Online Consultation';
           
-          console.log('Consultant Name:', consultantName);
-          console.log('Patient Name:', patientName);
-          console.log('Treatment Name:', treatmentName);
-          
-          // Send Meet link emails to both patient and consultant
           if (patient?.email && center) {
-            console.log('✅ Sending patient Meet link to:', patient.email);
             try {
               await sendAppointmentEmail({
                 variables: {
@@ -154,16 +95,14 @@ export default function PrepaidBookingConfirmed({ bookingData }: PrepaidBookingC
                   },
                 },
               });
-              console.log('✅ Patient Meet link sent successfully');
             } catch (emailErr) {
-              console.error('❌ Error sending patient email:', emailErr);
+              console.error('Error sending patient email:', emailErr);
             }
           }
           
           if (consultant?.email) {
-            console.log('✅ Sending consultant email to:', consultant.email);
             try {
-              const result = await sendConsultantMeetInvite({
+              await sendConsultantMeetInvite({
                 variables: {
                   input: {
                     consultantEmail: consultant.email,
@@ -177,28 +116,18 @@ export default function PrepaidBookingConfirmed({ bookingData }: PrepaidBookingC
                   },
                 },
               });
-              console.log('✅ Consultant email sent successfully:', result);
             } catch (emailErr) {
-              console.error('❌ Error sending consultant email:', emailErr);
+              console.error('Error sending consultant email:', emailErr);
             }
-          } else {
-            console.log('❌ Cannot send consultant email - Missing email:', consultant?.email);
           }
-          
-          console.log('=== EMAIL SENDING PROCESS END ===');
-          
-          setIsCreating(false);
         } catch (err) {
-          console.error('Error creating appointment:', err);
-          setError(err instanceof Error ? err.message : 'Failed to create appointment');
-          setIsCreating(false);
-          creationInProgress.current = false;
+          console.error('Error sending emails:', err);
         }
       };
 
-      createPrepaidAppointment();
+      sendEmails();
     }
-  }, [appointmentCreated, bookingData, createAppointment, sendAppointmentEmail, sendConsultantMeetInvite, userData, consultantData, centersData, userLoading, consultantLoading]);
+  }, [bookingData, sendAppointmentEmail, sendConsultantMeetInvite, userData, consultantData, centersData, servicesData]);
 
   const thingsToBring = [
     { icon: Shirt, label: 'Workout clothes' },
@@ -206,23 +135,12 @@ export default function PrepaidBookingConfirmed({ bookingData }: PrepaidBookingC
     { icon: Package, label: 'Towel' },
   ];
 
-  if (isCreating) {
+  if (!bookingData.appointmentId) {
     return (
       <div className="h-full flex items-center justify-center p-6">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Creating your appointment...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="h-full flex items-center justify-center p-6">
-        <div className="text-center">
-          <p className="text-red-600 mb-4">Failed to create appointment</p>
-          <p className="text-sm text-gray-600">{error}</p>
+          <p className="text-red-600 mb-4">No appointment found</p>
+          <p className="text-sm text-gray-600">Please go back and try again.</p>
         </div>
       </div>
     );

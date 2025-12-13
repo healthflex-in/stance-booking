@@ -8,10 +8,11 @@ import { CREATE_APPOINTMENT } from '@/gql/queries';
 import {
   RepeatUserOfflineSessionDetails,
   RepeatUserOfflineBookingConfirmed,
+  RepeatUserOfflineSlotSelection,
+  RepeatUserOfflineConfirmation,
 } from '@/components/onboarding/repeat-user-offline';
-import { RepeatUserOfflineSlotSelection } from '@/components/onboarding/repeat-user-offline';
 
-type BookingStep = 'session-details' | 'slot-selection' | 'booking-confirmed';
+type BookingStep = 'session-details' | 'slot-selection' | 'confirmation' | 'booking-confirmed';
 
 interface BookingData {
   patientId: string;
@@ -65,6 +66,7 @@ export default function RepeatOfflinePage() {
     const stepOrder: BookingStep[] = [
       'session-details',
       'slot-selection',
+      'confirmation',
       'booking-confirmed',
     ];
     const currentIndex = stepOrder.indexOf(currentStep);
@@ -77,6 +79,7 @@ export default function RepeatOfflinePage() {
     const stepOrder: BookingStep[] = [
       'session-details',
       'slot-selection',
+      'confirmation',
       'booking-confirmed',
     ];
     const currentIndex = stepOrder.indexOf(currentStep);
@@ -91,9 +94,10 @@ export default function RepeatOfflinePage() {
     setBookingData((prev) => ({ ...prev, ...updates }));
   };
 
-  const handleSlotSelect = async (consultantId: string, slot: any) => {
+  const handleSlotSelect = (consultantId: string, slot: any) => {
     const slotDate = new Date(slot.startTimeRaw);
-    updateBookingData({
+    setBookingData(prev => ({
+      ...prev,
       consultantId,
       selectedTimeSlot: {
         startTime: new Date(slot.startTimeRaw).toISOString(),
@@ -102,14 +106,15 @@ export default function RepeatOfflinePage() {
       },
       selectedDate: slotDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
       selectedFullDate: slotDate,
-    });
+    }));
+    goToNextStep();
+  };
 
-    // Create appointment immediately (no payment for repeat in-center)
+  const handleConfirmBooking = async () => {
     try {
-      // Build input object - exactly like redesign
       const input = {
         patient: bookingData.patientId,
-        consultant: consultantId || null,
+        consultant: bookingData.consultantId || null,
         treatment: bookingData.treatmentId,
         medium: 'IN_PERSON',
         notes: '',
@@ -118,8 +123,8 @@ export default function RepeatOfflinePage() {
         status: 'BOOKED',
         visitType: 'FOLLOW_UP',
         event: {
-          startTime: new Date(slot.startTimeRaw).getTime(),
-          endTime: new Date(slot.endTimeRaw).getTime(),
+          startTime: new Date(bookingData.selectedTimeSlot.startTime).getTime(),
+          endTime: new Date(bookingData.selectedTimeSlot.endTime).getTime(),
         },
       };
 
@@ -129,7 +134,7 @@ export default function RepeatOfflinePage() {
 
       const appointmentId = appointmentResult.data?.createAppointment?._id;
       if (appointmentId) {
-        updateBookingData({ appointmentId });
+        setBookingData(prev => ({ ...prev, appointmentId }));
         goToNextStep();
       } else {
         throw new Error('Appointment creation failed - no ID returned');
@@ -144,6 +149,7 @@ export default function RepeatOfflinePage() {
     switch (currentStep) {
       case 'session-details': return 'Session Details';
       case 'slot-selection': return 'Slot Availability';
+      case 'confirmation': return 'Confirm Booking';
       case 'booking-confirmed': return 'Booking Confirmed';
       default: return 'Repeat User - In Center';
     }
@@ -200,6 +206,13 @@ export default function RepeatOfflinePage() {
             serviceDuration={bookingData.treatmentDuration}
             onSlotSelect={handleSlotSelect}
             onBack={goToPreviousStep}
+          />
+        )}
+
+        {currentStep === 'confirmation' && (
+          <RepeatUserOfflineConfirmation
+            bookingData={bookingData}
+            onConfirm={handleConfirmBooking}
           />
         )}
 

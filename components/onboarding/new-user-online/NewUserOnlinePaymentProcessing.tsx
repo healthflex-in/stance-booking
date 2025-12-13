@@ -29,7 +29,7 @@ const CREATE_ORDER = gql`
 `;
 
 const UPDATE_ORDER = gql`
-  mutation UpdateOrder($orderId: ObjectID!) {
+  mutation UpdateOrderNewUserOnline($orderId: ObjectID!) {
     updateOrder(orderId: $orderId) {
       _id
       status
