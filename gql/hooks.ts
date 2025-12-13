@@ -897,8 +897,19 @@ export type CreateLedgerInput = {
   type: TransactionType;
 };
 
+/** Input for creating a new message template */
+export type CreateMessageTemplateInput = {
+  content: Scalars['String']['input'];
+  description?: InputMaybe<Scalars['String']['input']>;
+  isDefault?: InputMaybe<Scalars['Boolean']['input']>;
+  name: Scalars['String']['input'];
+  placeholders?: InputMaybe<Array<Scalars['String']['input']>>;
+  type: MessageTemplateType;
+};
+
 export type CreateOrderInput = {
   amount: Scalars['Float']['input'];
+  appointment?: InputMaybe<Scalars['ObjectID']['input']>;
   center: Scalars['ObjectID']['input'];
   currency: Scalars['String']['input'];
   packageId?: InputMaybe<Scalars['ObjectID']['input']>;
@@ -1614,6 +1625,36 @@ export type Media = {
   video: Scalars['String']['output'];
 };
 
+/** Message Template for WhatsApp/SMS */
+export type MessageTemplate = DataRow & {
+  __typename?: 'MessageTemplate';
+  _id: Scalars['ObjectID']['output'];
+  content: Scalars['String']['output'];
+  createdAt: Scalars['Timestamp']['output'];
+  description?: Maybe<Scalars['String']['output']>;
+  isActive: Scalars['Boolean']['output'];
+  isDefault: Scalars['Boolean']['output'];
+  name: Scalars['String']['output'];
+  organization: Organization;
+  placeholders?: Maybe<Array<Scalars['String']['output']>>;
+  seqNo: Scalars['String']['output'];
+  type: MessageTemplateType;
+  updatedAt: Scalars['Timestamp']['output'];
+  version: Scalars['Int']['output'];
+};
+
+export type MessageTemplateFilter = {
+  isDefault?: InputMaybe<Scalars['Boolean']['input']>;
+  organization?: InputMaybe<Scalars['ObjectID']['input']>;
+  type?: InputMaybe<MessageTemplateType>;
+};
+
+export enum MessageTemplateType {
+  AdvanceReceipt = 'ADVANCE_RECEIPT',
+  AppointmentConfirmation = 'APPOINTMENT_CONFIRMATION',
+  Invoice = 'INVOICE'
+}
+
 export enum MuscleGroup {
   Adductors = 'ADDUCTORS',
   BicepsBrachii = 'BICEPS_BRACHII',
@@ -1679,6 +1720,8 @@ export type Mutation = {
   createGoals: Array<Goal>;
   createInvoice: Invoice;
   createLedger: Ledger;
+  /** Create a new message template */
+  createMessageTemplate: MessageTemplate;
   createOrder: Order;
   /** Create a new organization */
   createOrganization: Organization;
@@ -1706,6 +1749,8 @@ export type Mutation = {
   deleteInvoice: Invoice;
   /** Delete a match record */
   deleteMatch: Scalars['Boolean']['output'];
+  /** Delete a message template */
+  deleteMessageTemplate: MessageTemplate;
   /** Delete an organization */
   deleteOrganization: Organization;
   /** Delete a package */
@@ -1751,6 +1796,8 @@ export type Mutation = {
   /** update a goal-set */
   updateGoalSet: GoalSet;
   updateInvoice: Invoice;
+  /** Update a message template */
+  updateMessageTemplate: MessageTemplate;
   updateOrder: Order;
   /** Update an organization */
   updateOrganization: Organization;
@@ -1772,6 +1819,7 @@ export type Mutation = {
   /** Create or update a match record */
   upsertMatch: Match;
   verifyOTP: AuthenticatedSession;
+  verifyPayment: WebhookResponse;
 };
 
 
@@ -1893,6 +1941,11 @@ export type MutationCreateLedgerArgs = {
 };
 
 
+export type MutationCreateMessageTemplateArgs = {
+  input: CreateMessageTemplateInput;
+};
+
+
 export type MutationCreateOrderArgs = {
   input: CreateOrderInput;
 };
@@ -1969,6 +2022,11 @@ export type MutationDeleteInvoiceArgs = {
 
 
 export type MutationDeleteMatchArgs = {
+  id: Scalars['ObjectID']['input'];
+};
+
+
+export type MutationDeleteMessageTemplateArgs = {
   id: Scalars['ObjectID']['input'];
 };
 
@@ -2118,6 +2176,12 @@ export type MutationUpdateInvoiceArgs = {
 };
 
 
+export type MutationUpdateMessageTemplateArgs = {
+  id: Scalars['ObjectID']['input'];
+  input: UpdateMessageTemplateInput;
+};
+
+
 export type MutationUpdateOrderArgs = {
   orderId: Scalars['ObjectID']['input'];
 };
@@ -2182,6 +2246,12 @@ export type MutationUpsertMatchArgs = {
 
 export type MutationVerifyOtpArgs = {
   input: VerifyOtpInput;
+};
+
+
+export type MutationVerifyPaymentArgs = {
+  orderId: Scalars['ObjectID']['input'];
+  razorpayPaymentId: Scalars['String']['input'];
 };
 
 export type ObjectiveAssessmentInput = {
@@ -2259,6 +2329,7 @@ export type OnboardingLink = {
 export type Order = DataRow & {
   __typename?: 'Order';
   _id: Scalars['ObjectID']['output'];
+  advance?: Maybe<Advance>;
   amount: Scalars['Float']['output'];
   center: Center;
   createdAt: Scalars['Timestamp']['output'];
@@ -2589,6 +2660,12 @@ export type Query = {
   matches: Array<Match>;
   /** get current user */
   me: User;
+  /** Get message template by id */
+  messageTemplate: MessageTemplate;
+  /** Get message template by type (returns default or organization-specific) */
+  messageTemplateByType?: Maybe<MessageTemplate>;
+  /** Get all message templates */
+  messageTemplates: Array<MessageTemplate>;
   /** Get organization by id */
   organization: Organization;
   /** Get list of packages */
@@ -2756,6 +2833,21 @@ export type QueryMatchArgs = {
 export type QueryMatchesArgs = {
   id?: InputMaybe<Scalars['ObjectID']['input']>;
   stanceId?: InputMaybe<Scalars['String']['input']>;
+};
+
+
+export type QueryMessageTemplateArgs = {
+  id: Scalars['ObjectID']['input'];
+};
+
+
+export type QueryMessageTemplateByTypeArgs = {
+  type: MessageTemplateType;
+};
+
+
+export type QueryMessageTemplatesArgs = {
+  filter?: InputMaybe<MessageTemplateFilter>;
 };
 
 
@@ -3321,8 +3413,19 @@ export type UpdateGoalSetInput = {
 };
 
 export type UpdateInvoiceInput = {
+  appointment?: InputMaybe<Scalars['ObjectID']['input']>;
   items?: InputMaybe<Array<CreateInvoiceItemInput>>;
   payment?: InputMaybe<PaymentFieldInput>;
+};
+
+/** Input for updating a message template */
+export type UpdateMessageTemplateInput = {
+  content?: InputMaybe<Scalars['String']['input']>;
+  description?: InputMaybe<Scalars['String']['input']>;
+  isActive?: InputMaybe<Scalars['Boolean']['input']>;
+  isDefault?: InputMaybe<Scalars['Boolean']['input']>;
+  name?: InputMaybe<Scalars['String']['input']>;
+  placeholders?: InputMaybe<Array<Scalars['String']['input']>>;
 };
 
 export type UpdateOrganizationInput = {
@@ -3492,17 +3595,46 @@ export type CreateOrderMutationVariables = Exact<{
 
 export type CreateOrderMutation = { __typename?: 'Mutation', createOrder: { __typename?: 'Order', _id: any, razorpayOrderId: string } };
 
+export type UpdateOrderNewUserOfflineMutationVariables = Exact<{
+  orderId: Scalars['ObjectID']['input'];
+}>;
+
+
+export type UpdateOrderNewUserOfflineMutation = { __typename?: 'Mutation', updateOrder: { __typename?: 'Order', _id: any, status: OrderStatus, invoice: { __typename?: 'Invoice', _id: any }, payment?: { __typename?: 'Payment', razorpayPaymentId?: string | null } | null } };
+
+export type VerifyPaymentMutationVariables = Exact<{
+  orderId: Scalars['ObjectID']['input'];
+  razorpayPaymentId: Scalars['String']['input'];
+}>;
+
+
+export type VerifyPaymentMutation = { __typename?: 'Mutation', verifyPayment: { __typename?: 'WebhookResponse', success: boolean, message?: string | null } };
+
+export type GetCentersQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type GetCentersQuery = { __typename?: 'Query', centers: Array<{ __typename?: 'Center', _id: any, name: string }> };
+
+export type UpdateOrderNewUserOnlineMutationVariables = Exact<{
+  orderId: Scalars['ObjectID']['input'];
+}>;
+
+
+export type UpdateOrderNewUserOnlineMutation = { __typename?: 'Mutation', updateOrder: { __typename?: 'Order', _id: any, status: OrderStatus, invoice: { __typename?: 'Invoice', _id: any }, payment?: { __typename?: 'Payment', razorpayPaymentId?: string | null } | null } };
+
+export type UpdateOrderRepeatUserOnlineMutationVariables = Exact<{
+  orderId: Scalars['ObjectID']['input'];
+}>;
+
+
+export type UpdateOrderRepeatUserOnlineMutation = { __typename?: 'Mutation', updateOrder: { __typename?: 'Order', _id: any, status: OrderStatus, invoice: { __typename?: 'Invoice', _id: any }, payment?: { __typename?: 'Payment', razorpayPaymentId?: string | null } | null } };
+
 export type UpdateOrderMutationVariables = Exact<{
   orderId: Scalars['ObjectID']['input'];
 }>;
 
 
 export type UpdateOrderMutation = { __typename?: 'Mutation', updateOrder: { __typename?: 'Order', _id: any, status: OrderStatus, razorpayOrderId: string, payment?: { __typename?: 'Payment', razorpayPaymentId?: string | null } | null } };
-
-export type GetCentersQueryVariables = Exact<{ [key: string]: never; }>;
-
-
-export type GetCentersQuery = { __typename?: 'Query', centers: Array<{ __typename?: 'Center', _id: any, name: string }> };
 
 
 export const CreateOrderDocument = gql`
@@ -3539,44 +3671,81 @@ export function useCreateOrderMutation(baseOptions?: Apollo.MutationHookOptions<
 export type CreateOrderMutationHookResult = ReturnType<typeof useCreateOrderMutation>;
 export type CreateOrderMutationResult = Apollo.MutationResult<CreateOrderMutation>;
 export type CreateOrderMutationOptions = Apollo.BaseMutationOptions<CreateOrderMutation, CreateOrderMutationVariables>;
-export const UpdateOrderDocument = gql`
-    mutation UpdateOrder($orderId: ObjectID!) {
+export const UpdateOrderNewUserOfflineDocument = gql`
+    mutation UpdateOrderNewUserOffline($orderId: ObjectID!) {
   updateOrder(orderId: $orderId) {
     _id
     status
-    razorpayOrderId
+    invoice {
+      _id
+    }
     payment {
       razorpayPaymentId
     }
   }
 }
     `;
-export type UpdateOrderMutationFn = Apollo.MutationFunction<UpdateOrderMutation, UpdateOrderMutationVariables>;
+export type UpdateOrderNewUserOfflineMutationFn = Apollo.MutationFunction<UpdateOrderNewUserOfflineMutation, UpdateOrderNewUserOfflineMutationVariables>;
 
 /**
- * __useUpdateOrderMutation__
+ * __useUpdateOrderNewUserOfflineMutation__
  *
- * To run a mutation, you first call `useUpdateOrderMutation` within a React component and pass it any options that fit your needs.
- * When your component renders, `useUpdateOrderMutation` returns a tuple that includes:
+ * To run a mutation, you first call `useUpdateOrderNewUserOfflineMutation` within a React component and pass it any options that fit your needs.
+ * When your component renders, `useUpdateOrderNewUserOfflineMutation` returns a tuple that includes:
  * - A mutate function that you can call at any time to execute the mutation
  * - An object with fields that represent the current status of the mutation's execution
  *
  * @param baseOptions options that will be passed into the mutation, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options-2;
  *
  * @example
- * const [updateOrderMutation, { data, loading, error }] = useUpdateOrderMutation({
+ * const [updateOrderNewUserOfflineMutation, { data, loading, error }] = useUpdateOrderNewUserOfflineMutation({
  *   variables: {
  *      orderId: // value for 'orderId'
  *   },
  * });
  */
-export function useUpdateOrderMutation(baseOptions?: Apollo.MutationHookOptions<UpdateOrderMutation, UpdateOrderMutationVariables>) {
+export function useUpdateOrderNewUserOfflineMutation(baseOptions?: Apollo.MutationHookOptions<UpdateOrderNewUserOfflineMutation, UpdateOrderNewUserOfflineMutationVariables>) {
         const options = {...defaultOptions, ...baseOptions}
-        return Apollo.useMutation<UpdateOrderMutation, UpdateOrderMutationVariables>(UpdateOrderDocument, options);
+        return Apollo.useMutation<UpdateOrderNewUserOfflineMutation, UpdateOrderNewUserOfflineMutationVariables>(UpdateOrderNewUserOfflineDocument, options);
       }
-export type UpdateOrderMutationHookResult = ReturnType<typeof useUpdateOrderMutation>;
-export type UpdateOrderMutationResult = Apollo.MutationResult<UpdateOrderMutation>;
-export type UpdateOrderMutationOptions = Apollo.BaseMutationOptions<UpdateOrderMutation, UpdateOrderMutationVariables>;
+export type UpdateOrderNewUserOfflineMutationHookResult = ReturnType<typeof useUpdateOrderNewUserOfflineMutation>;
+export type UpdateOrderNewUserOfflineMutationResult = Apollo.MutationResult<UpdateOrderNewUserOfflineMutation>;
+export type UpdateOrderNewUserOfflineMutationOptions = Apollo.BaseMutationOptions<UpdateOrderNewUserOfflineMutation, UpdateOrderNewUserOfflineMutationVariables>;
+export const VerifyPaymentDocument = gql`
+    mutation VerifyPayment($orderId: ObjectID!, $razorpayPaymentId: String!) {
+  verifyPayment(orderId: $orderId, razorpayPaymentId: $razorpayPaymentId) {
+    success
+    message
+  }
+}
+    `;
+export type VerifyPaymentMutationFn = Apollo.MutationFunction<VerifyPaymentMutation, VerifyPaymentMutationVariables>;
+
+/**
+ * __useVerifyPaymentMutation__
+ *
+ * To run a mutation, you first call `useVerifyPaymentMutation` within a React component and pass it any options that fit your needs.
+ * When your component renders, `useVerifyPaymentMutation` returns a tuple that includes:
+ * - A mutate function that you can call at any time to execute the mutation
+ * - An object with fields that represent the current status of the mutation's execution
+ *
+ * @param baseOptions options that will be passed into the mutation, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options-2;
+ *
+ * @example
+ * const [verifyPaymentMutation, { data, loading, error }] = useVerifyPaymentMutation({
+ *   variables: {
+ *      orderId: // value for 'orderId'
+ *      razorpayPaymentId: // value for 'razorpayPaymentId'
+ *   },
+ * });
+ */
+export function useVerifyPaymentMutation(baseOptions?: Apollo.MutationHookOptions<VerifyPaymentMutation, VerifyPaymentMutationVariables>) {
+        const options = {...defaultOptions, ...baseOptions}
+        return Apollo.useMutation<VerifyPaymentMutation, VerifyPaymentMutationVariables>(VerifyPaymentDocument, options);
+      }
+export type VerifyPaymentMutationHookResult = ReturnType<typeof useVerifyPaymentMutation>;
+export type VerifyPaymentMutationResult = Apollo.MutationResult<VerifyPaymentMutation>;
+export type VerifyPaymentMutationOptions = Apollo.BaseMutationOptions<VerifyPaymentMutation, VerifyPaymentMutationVariables>;
 export const GetCentersDocument = gql`
     query GetCenters {
   centers {
@@ -3617,3 +3786,121 @@ export type GetCentersQueryHookResult = ReturnType<typeof useGetCentersQuery>;
 export type GetCentersLazyQueryHookResult = ReturnType<typeof useGetCentersLazyQuery>;
 export type GetCentersSuspenseQueryHookResult = ReturnType<typeof useGetCentersSuspenseQuery>;
 export type GetCentersQueryResult = Apollo.QueryResult<GetCentersQuery, GetCentersQueryVariables>;
+export const UpdateOrderNewUserOnlineDocument = gql`
+    mutation UpdateOrderNewUserOnline($orderId: ObjectID!) {
+  updateOrder(orderId: $orderId) {
+    _id
+    status
+    invoice {
+      _id
+    }
+    payment {
+      razorpayPaymentId
+    }
+  }
+}
+    `;
+export type UpdateOrderNewUserOnlineMutationFn = Apollo.MutationFunction<UpdateOrderNewUserOnlineMutation, UpdateOrderNewUserOnlineMutationVariables>;
+
+/**
+ * __useUpdateOrderNewUserOnlineMutation__
+ *
+ * To run a mutation, you first call `useUpdateOrderNewUserOnlineMutation` within a React component and pass it any options that fit your needs.
+ * When your component renders, `useUpdateOrderNewUserOnlineMutation` returns a tuple that includes:
+ * - A mutate function that you can call at any time to execute the mutation
+ * - An object with fields that represent the current status of the mutation's execution
+ *
+ * @param baseOptions options that will be passed into the mutation, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options-2;
+ *
+ * @example
+ * const [updateOrderNewUserOnlineMutation, { data, loading, error }] = useUpdateOrderNewUserOnlineMutation({
+ *   variables: {
+ *      orderId: // value for 'orderId'
+ *   },
+ * });
+ */
+export function useUpdateOrderNewUserOnlineMutation(baseOptions?: Apollo.MutationHookOptions<UpdateOrderNewUserOnlineMutation, UpdateOrderNewUserOnlineMutationVariables>) {
+        const options = {...defaultOptions, ...baseOptions}
+        return Apollo.useMutation<UpdateOrderNewUserOnlineMutation, UpdateOrderNewUserOnlineMutationVariables>(UpdateOrderNewUserOnlineDocument, options);
+      }
+export type UpdateOrderNewUserOnlineMutationHookResult = ReturnType<typeof useUpdateOrderNewUserOnlineMutation>;
+export type UpdateOrderNewUserOnlineMutationResult = Apollo.MutationResult<UpdateOrderNewUserOnlineMutation>;
+export type UpdateOrderNewUserOnlineMutationOptions = Apollo.BaseMutationOptions<UpdateOrderNewUserOnlineMutation, UpdateOrderNewUserOnlineMutationVariables>;
+export const UpdateOrderRepeatUserOnlineDocument = gql`
+    mutation UpdateOrderRepeatUserOnline($orderId: ObjectID!) {
+  updateOrder(orderId: $orderId) {
+    _id
+    status
+    invoice {
+      _id
+    }
+    payment {
+      razorpayPaymentId
+    }
+  }
+}
+    `;
+export type UpdateOrderRepeatUserOnlineMutationFn = Apollo.MutationFunction<UpdateOrderRepeatUserOnlineMutation, UpdateOrderRepeatUserOnlineMutationVariables>;
+
+/**
+ * __useUpdateOrderRepeatUserOnlineMutation__
+ *
+ * To run a mutation, you first call `useUpdateOrderRepeatUserOnlineMutation` within a React component and pass it any options that fit your needs.
+ * When your component renders, `useUpdateOrderRepeatUserOnlineMutation` returns a tuple that includes:
+ * - A mutate function that you can call at any time to execute the mutation
+ * - An object with fields that represent the current status of the mutation's execution
+ *
+ * @param baseOptions options that will be passed into the mutation, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options-2;
+ *
+ * @example
+ * const [updateOrderRepeatUserOnlineMutation, { data, loading, error }] = useUpdateOrderRepeatUserOnlineMutation({
+ *   variables: {
+ *      orderId: // value for 'orderId'
+ *   },
+ * });
+ */
+export function useUpdateOrderRepeatUserOnlineMutation(baseOptions?: Apollo.MutationHookOptions<UpdateOrderRepeatUserOnlineMutation, UpdateOrderRepeatUserOnlineMutationVariables>) {
+        const options = {...defaultOptions, ...baseOptions}
+        return Apollo.useMutation<UpdateOrderRepeatUserOnlineMutation, UpdateOrderRepeatUserOnlineMutationVariables>(UpdateOrderRepeatUserOnlineDocument, options);
+      }
+export type UpdateOrderRepeatUserOnlineMutationHookResult = ReturnType<typeof useUpdateOrderRepeatUserOnlineMutation>;
+export type UpdateOrderRepeatUserOnlineMutationResult = Apollo.MutationResult<UpdateOrderRepeatUserOnlineMutation>;
+export type UpdateOrderRepeatUserOnlineMutationOptions = Apollo.BaseMutationOptions<UpdateOrderRepeatUserOnlineMutation, UpdateOrderRepeatUserOnlineMutationVariables>;
+export const UpdateOrderDocument = gql`
+    mutation UpdateOrder($orderId: ObjectID!) {
+  updateOrder(orderId: $orderId) {
+    _id
+    status
+    razorpayOrderId
+    payment {
+      razorpayPaymentId
+    }
+  }
+}
+    `;
+export type UpdateOrderMutationFn = Apollo.MutationFunction<UpdateOrderMutation, UpdateOrderMutationVariables>;
+
+/**
+ * __useUpdateOrderMutation__
+ *
+ * To run a mutation, you first call `useUpdateOrderMutation` within a React component and pass it any options that fit your needs.
+ * When your component renders, `useUpdateOrderMutation` returns a tuple that includes:
+ * - A mutate function that you can call at any time to execute the mutation
+ * - An object with fields that represent the current status of the mutation's execution
+ *
+ * @param baseOptions options that will be passed into the mutation, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options-2;
+ *
+ * @example
+ * const [updateOrderMutation, { data, loading, error }] = useUpdateOrderMutation({
+ *   variables: {
+ *      orderId: // value for 'orderId'
+ *   },
+ * });
+ */
+export function useUpdateOrderMutation(baseOptions?: Apollo.MutationHookOptions<UpdateOrderMutation, UpdateOrderMutationVariables>) {
+        const options = {...defaultOptions, ...baseOptions}
+        return Apollo.useMutation<UpdateOrderMutation, UpdateOrderMutationVariables>(UpdateOrderDocument, options);
+      }
+export type UpdateOrderMutationHookResult = ReturnType<typeof useUpdateOrderMutation>;
+export type UpdateOrderMutationResult = Apollo.MutationResult<UpdateOrderMutation>;
+export type UpdateOrderMutationOptions = Apollo.BaseMutationOptions<UpdateOrderMutation, UpdateOrderMutationVariables>;

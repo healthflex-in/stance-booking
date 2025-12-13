@@ -1003,8 +1003,19 @@ export type CreateLedgerInput = {
   type: TransactionType;
 };
 
+/** Input for creating a new message template */
+export type CreateMessageTemplateInput = {
+  content: Scalars['String']['input'];
+  description?: InputMaybe<Scalars['String']['input']>;
+  isDefault?: InputMaybe<Scalars['Boolean']['input']>;
+  name: Scalars['String']['input'];
+  placeholders?: InputMaybe<Array<Scalars['String']['input']>>;
+  type: MessageTemplateType;
+};
+
 export type CreateOrderInput = {
   amount: Scalars['Float']['input'];
+  appointment?: InputMaybe<Scalars['ObjectID']['input']>;
   center: Scalars['ObjectID']['input'];
   currency: Scalars['String']['input'];
   packageId?: InputMaybe<Scalars['ObjectID']['input']>;
@@ -1720,6 +1731,36 @@ export type Media = {
   video: Scalars['String']['output'];
 };
 
+/** Message Template for WhatsApp/SMS */
+export type MessageTemplate = DataRow & {
+  __typename?: 'MessageTemplate';
+  _id: Scalars['ObjectID']['output'];
+  content: Scalars['String']['output'];
+  createdAt: Scalars['Timestamp']['output'];
+  description?: Maybe<Scalars['String']['output']>;
+  isActive: Scalars['Boolean']['output'];
+  isDefault: Scalars['Boolean']['output'];
+  name: Scalars['String']['output'];
+  organization: Organization;
+  placeholders?: Maybe<Array<Scalars['String']['output']>>;
+  seqNo: Scalars['String']['output'];
+  type: MessageTemplateType;
+  updatedAt: Scalars['Timestamp']['output'];
+  version: Scalars['Int']['output'];
+};
+
+export type MessageTemplateFilter = {
+  isDefault?: InputMaybe<Scalars['Boolean']['input']>;
+  organization?: InputMaybe<Scalars['ObjectID']['input']>;
+  type?: InputMaybe<MessageTemplateType>;
+};
+
+export enum MessageTemplateType {
+  AdvanceReceipt = 'ADVANCE_RECEIPT',
+  AppointmentConfirmation = 'APPOINTMENT_CONFIRMATION',
+  Invoice = 'INVOICE'
+}
+
 export enum MuscleGroup {
   Adductors = 'ADDUCTORS',
   BicepsBrachii = 'BICEPS_BRACHII',
@@ -1785,6 +1826,8 @@ export type Mutation = {
   createGoals: Array<Goal>;
   createInvoice: Invoice;
   createLedger: Ledger;
+  /** Create a new message template */
+  createMessageTemplate: MessageTemplate;
   createOrder: Order;
   /** Create a new organization */
   createOrganization: Organization;
@@ -1812,6 +1855,8 @@ export type Mutation = {
   deleteInvoice: Invoice;
   /** Delete a match record */
   deleteMatch: Scalars['Boolean']['output'];
+  /** Delete a message template */
+  deleteMessageTemplate: MessageTemplate;
   /** Delete an organization */
   deleteOrganization: Organization;
   /** Delete a package */
@@ -1857,6 +1902,8 @@ export type Mutation = {
   /** update a goal-set */
   updateGoalSet: GoalSet;
   updateInvoice: Invoice;
+  /** Update a message template */
+  updateMessageTemplate: MessageTemplate;
   updateOrder: Order;
   /** Update an organization */
   updateOrganization: Organization;
@@ -1878,6 +1925,7 @@ export type Mutation = {
   /** Create or update a match record */
   upsertMatch: Match;
   verifyOTP: AuthenticatedSession;
+  verifyPayment: WebhookResponse;
 };
 
 
@@ -1999,6 +2047,11 @@ export type MutationCreateLedgerArgs = {
 };
 
 
+export type MutationCreateMessageTemplateArgs = {
+  input: CreateMessageTemplateInput;
+};
+
+
 export type MutationCreateOrderArgs = {
   input: CreateOrderInput;
 };
@@ -2075,6 +2128,11 @@ export type MutationDeleteInvoiceArgs = {
 
 
 export type MutationDeleteMatchArgs = {
+  id: Scalars['ObjectID']['input'];
+};
+
+
+export type MutationDeleteMessageTemplateArgs = {
   id: Scalars['ObjectID']['input'];
 };
 
@@ -2224,6 +2282,12 @@ export type MutationUpdateInvoiceArgs = {
 };
 
 
+export type MutationUpdateMessageTemplateArgs = {
+  id: Scalars['ObjectID']['input'];
+  input: UpdateMessageTemplateInput;
+};
+
+
 export type MutationUpdateOrderArgs = {
   orderId: Scalars['ObjectID']['input'];
 };
@@ -2288,6 +2352,12 @@ export type MutationUpsertMatchArgs = {
 
 export type MutationVerifyOtpArgs = {
   input: VerifyOtpInput;
+};
+
+
+export type MutationVerifyPaymentArgs = {
+  orderId: Scalars['ObjectID']['input'];
+  razorpayPaymentId: Scalars['String']['input'];
 };
 
 export type ObjectiveAssessmentInput = {
@@ -2365,6 +2435,7 @@ export type OnboardingLink = {
 export type Order = DataRow & {
   __typename?: 'Order';
   _id: Scalars['ObjectID']['output'];
+  advance?: Maybe<Advance>;
   amount: Scalars['Float']['output'];
   center: Center;
   createdAt: Scalars['Timestamp']['output'];
@@ -2695,6 +2766,12 @@ export type Query = {
   matches: Array<Match>;
   /** get current user */
   me: User;
+  /** Get message template by id */
+  messageTemplate: MessageTemplate;
+  /** Get message template by type (returns default or organization-specific) */
+  messageTemplateByType?: Maybe<MessageTemplate>;
+  /** Get all message templates */
+  messageTemplates: Array<MessageTemplate>;
   /** Get organization by id */
   organization: Organization;
   /** Get list of packages */
@@ -2862,6 +2939,21 @@ export type QueryMatchArgs = {
 export type QueryMatchesArgs = {
   id?: InputMaybe<Scalars['ObjectID']['input']>;
   stanceId?: InputMaybe<Scalars['String']['input']>;
+};
+
+
+export type QueryMessageTemplateArgs = {
+  id: Scalars['ObjectID']['input'];
+};
+
+
+export type QueryMessageTemplateByTypeArgs = {
+  type: MessageTemplateType;
+};
+
+
+export type QueryMessageTemplatesArgs = {
+  filter?: InputMaybe<MessageTemplateFilter>;
 };
 
 
@@ -3427,8 +3519,19 @@ export type UpdateGoalSetInput = {
 };
 
 export type UpdateInvoiceInput = {
+  appointment?: InputMaybe<Scalars['ObjectID']['input']>;
   items?: InputMaybe<Array<CreateInvoiceItemInput>>;
   payment?: InputMaybe<PaymentFieldInput>;
+};
+
+/** Input for updating a message template */
+export type UpdateMessageTemplateInput = {
+  content?: InputMaybe<Scalars['String']['input']>;
+  description?: InputMaybe<Scalars['String']['input']>;
+  isActive?: InputMaybe<Scalars['Boolean']['input']>;
+  isDefault?: InputMaybe<Scalars['Boolean']['input']>;
+  name?: InputMaybe<Scalars['String']['input']>;
+  placeholders?: InputMaybe<Array<Scalars['String']['input']>>;
 };
 
 export type UpdateOrganizationInput = {
@@ -3598,6 +3701,40 @@ export type CreateOrderMutationVariables = Exact<{
 
 export type CreateOrderMutation = { __typename?: 'Mutation', createOrder: { __typename?: 'Order', _id: any, razorpayOrderId: string } };
 
+export type UpdateOrderNewUserOfflineMutationVariables = Exact<{
+  orderId: Scalars['ObjectID']['input'];
+}>;
+
+
+export type UpdateOrderNewUserOfflineMutation = { __typename?: 'Mutation', updateOrder: { __typename?: 'Order', _id: any, status: OrderStatus, invoice: { __typename?: 'Invoice', _id: any }, payment?: { __typename?: 'Payment', razorpayPaymentId?: string | null } | null } };
+
+export type VerifyPaymentMutationVariables = Exact<{
+  orderId: Scalars['ObjectID']['input'];
+  razorpayPaymentId: Scalars['String']['input'];
+}>;
+
+
+export type VerifyPaymentMutation = { __typename?: 'Mutation', verifyPayment: { __typename?: 'WebhookResponse', success: boolean, message?: string | null } };
+
+export type GetCentersQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type GetCentersQuery = { __typename?: 'Query', centers: Array<{ __typename?: 'Center', _id: any, name: string }> };
+
+export type UpdateOrderNewUserOnlineMutationVariables = Exact<{
+  orderId: Scalars['ObjectID']['input'];
+}>;
+
+
+export type UpdateOrderNewUserOnlineMutation = { __typename?: 'Mutation', updateOrder: { __typename?: 'Order', _id: any, status: OrderStatus, invoice: { __typename?: 'Invoice', _id: any }, payment?: { __typename?: 'Payment', razorpayPaymentId?: string | null } | null } };
+
+export type UpdateOrderRepeatUserOnlineMutationVariables = Exact<{
+  orderId: Scalars['ObjectID']['input'];
+}>;
+
+
+export type UpdateOrderRepeatUserOnlineMutation = { __typename?: 'Mutation', updateOrder: { __typename?: 'Order', _id: any, status: OrderStatus, invoice: { __typename?: 'Invoice', _id: any }, payment?: { __typename?: 'Payment', razorpayPaymentId?: string | null } | null } };
+
 export type UpdateOrderMutationVariables = Exact<{
   orderId: Scalars['ObjectID']['input'];
 }>;
@@ -3605,12 +3742,11 @@ export type UpdateOrderMutationVariables = Exact<{
 
 export type UpdateOrderMutation = { __typename?: 'Mutation', updateOrder: { __typename?: 'Order', _id: any, status: OrderStatus, razorpayOrderId: string, payment?: { __typename?: 'Payment', razorpayPaymentId?: string | null } | null } };
 
-export type GetCentersQueryVariables = Exact<{ [key: string]: never; }>;
-
-
-export type GetCentersQuery = { __typename?: 'Query', centers: Array<{ __typename?: 'Center', _id: any, name: string }> };
-
 
 export const CreateOrderDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"CreateOrder"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"CreateOrderInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"createOrder"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"_id"}},{"kind":"Field","name":{"kind":"Name","value":"razorpayOrderId"}}]}}]}}]} as unknown as DocumentNode<CreateOrderMutation, CreateOrderMutationVariables>;
-export const UpdateOrderDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"UpdateOrder"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"orderId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"ObjectID"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"updateOrder"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"orderId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"orderId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"_id"}},{"kind":"Field","name":{"kind":"Name","value":"status"}},{"kind":"Field","name":{"kind":"Name","value":"razorpayOrderId"}},{"kind":"Field","name":{"kind":"Name","value":"payment"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"razorpayPaymentId"}}]}}]}}]}}]} as unknown as DocumentNode<UpdateOrderMutation, UpdateOrderMutationVariables>;
+export const UpdateOrderNewUserOfflineDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"UpdateOrderNewUserOffline"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"orderId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"ObjectID"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"updateOrder"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"orderId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"orderId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"_id"}},{"kind":"Field","name":{"kind":"Name","value":"status"}},{"kind":"Field","name":{"kind":"Name","value":"invoice"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"_id"}}]}},{"kind":"Field","name":{"kind":"Name","value":"payment"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"razorpayPaymentId"}}]}}]}}]}}]} as unknown as DocumentNode<UpdateOrderNewUserOfflineMutation, UpdateOrderNewUserOfflineMutationVariables>;
+export const VerifyPaymentDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"VerifyPayment"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"orderId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"ObjectID"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"razorpayPaymentId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"verifyPayment"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"orderId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"orderId"}}},{"kind":"Argument","name":{"kind":"Name","value":"razorpayPaymentId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"razorpayPaymentId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"success"}},{"kind":"Field","name":{"kind":"Name","value":"message"}}]}}]}}]} as unknown as DocumentNode<VerifyPaymentMutation, VerifyPaymentMutationVariables>;
 export const GetCentersDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetCenters"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"centers"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"_id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}}]}}]}}]} as unknown as DocumentNode<GetCentersQuery, GetCentersQueryVariables>;
+export const UpdateOrderNewUserOnlineDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"UpdateOrderNewUserOnline"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"orderId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"ObjectID"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"updateOrder"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"orderId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"orderId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"_id"}},{"kind":"Field","name":{"kind":"Name","value":"status"}},{"kind":"Field","name":{"kind":"Name","value":"invoice"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"_id"}}]}},{"kind":"Field","name":{"kind":"Name","value":"payment"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"razorpayPaymentId"}}]}}]}}]}}]} as unknown as DocumentNode<UpdateOrderNewUserOnlineMutation, UpdateOrderNewUserOnlineMutationVariables>;
+export const UpdateOrderRepeatUserOnlineDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"UpdateOrderRepeatUserOnline"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"orderId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"ObjectID"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"updateOrder"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"orderId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"orderId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"_id"}},{"kind":"Field","name":{"kind":"Name","value":"status"}},{"kind":"Field","name":{"kind":"Name","value":"invoice"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"_id"}}]}},{"kind":"Field","name":{"kind":"Name","value":"payment"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"razorpayPaymentId"}}]}}]}}]}}]} as unknown as DocumentNode<UpdateOrderRepeatUserOnlineMutation, UpdateOrderRepeatUserOnlineMutationVariables>;
+export const UpdateOrderDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"UpdateOrder"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"orderId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"ObjectID"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"updateOrder"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"orderId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"orderId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"_id"}},{"kind":"Field","name":{"kind":"Name","value":"status"}},{"kind":"Field","name":{"kind":"Name","value":"razorpayOrderId"}},{"kind":"Field","name":{"kind":"Name","value":"payment"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"razorpayPaymentId"}}]}}]}}]}}]} as unknown as DocumentNode<UpdateOrderMutation, UpdateOrderMutationVariables>;

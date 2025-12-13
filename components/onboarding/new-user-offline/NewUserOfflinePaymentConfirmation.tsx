@@ -95,10 +95,41 @@ export default function NewUserOfflinePaymentConfirmation({
     const amount = parseFloat(paymentAmount);
     const isFullPayment = amount === bookingData.treatmentPrice;
 
-    sessionStorage.setItem('paymentType', isFullPayment ? 'invoice' : 'package');
-    sessionStorage.setItem('paymentAmount', amount.toString());
+    try {
+      // Create appointment FIRST with appropriate status
+      const appointmentResult = await createAppointment({
+        variables: {
+          input: {
+            patient: bookingData.patientId,
+            consultant: bookingData.consultantId,
+            center: bookingData.centerId,
+            treatment: bookingData.treatmentId,
+            medium: 'IN_PERSON',
+            visitType: 'FIRST_VISIT',
+            status: isFullPayment ? 'BOOKED' : 'TOKEN_PAID',
+            category: 'WEBSITE',
+            event: {
+              startTime: new Date(bookingData.selectedTimeSlot.startTime).getTime(),
+              endTime: new Date(bookingData.selectedTimeSlot.endTime).getTime(),
+            },
+          },
+        },
+      });
 
-    setIsProcessingPayment(true);
+      const appointmentId = appointmentResult?.data?.createAppointment?._id;
+      if (!appointmentId) {
+        throw new Error('Failed to create appointment');
+      }
+
+      // Store appointment ID and payment info
+      sessionStorage.setItem('appointmentId', appointmentId);
+      sessionStorage.setItem('paymentType', isFullPayment ? 'invoice' : 'package');
+      sessionStorage.setItem('paymentAmount', amount.toString());
+      setIsProcessingPayment(true);
+    } catch (error) {
+      console.error('Error creating appointment:', error);
+      setAmountError('Failed to create appointment. Please try again.');
+    }
   };
 
   if (isProcessingPayment) {
@@ -114,42 +145,12 @@ export default function NewUserOfflinePaymentConfirmation({
         centerId={bookingData.centerId}
         consultantId={bookingData.consultantId}
         treatmentId={bookingData.treatmentId}
-        onPaymentSuccess={async (paymentId) => {
-          const paymentType = sessionStorage.getItem('paymentType');
-          
-          try {
-            if (paymentType === 'invoice') {
-              await createAppointment({
-                variables: {
-                  input: {
-                    patient: bookingData.patientId,
-                    consultant: bookingData.consultantId,
-                    center: bookingData.centerId,
-                    treatment: bookingData.treatmentId,
-                    medium: 'IN_PERSON',
-                    visitType: 'FIRST_VISIT',
-                    status: 'BOOKED',
-                    category: 'WEBSITE',
-                    event: {
-                      startTime: new Date(bookingData.selectedTimeSlot.startTime).getTime(),
-                      endTime: new Date(bookingData.selectedTimeSlot.endTime).getTime(),
-                    },
-                  },
-                },
-              });
-            }
-            
-            sessionStorage.removeItem('paymentType');
-            sessionStorage.removeItem('paymentAmount');
-            setIsProcessingPayment(false);
-            onNext();
-          } catch (error) {
-            console.error('Error creating appointment:', error);
-            sessionStorage.removeItem('paymentType');
-            sessionStorage.removeItem('paymentAmount');
-            setIsProcessingPayment(false);
-            setAmountError('Failed to complete booking. Please try again.');
-          }
+        onPaymentSuccess={async (paymentId, invoiceId) => {
+          sessionStorage.removeItem('appointmentId');
+          sessionStorage.removeItem('paymentType');
+          sessionStorage.removeItem('paymentAmount');
+          setIsProcessingPayment(false);
+          onNext();
         }}
         onPaymentFailure={async (error) => {
           setIsProcessingPayment(false);

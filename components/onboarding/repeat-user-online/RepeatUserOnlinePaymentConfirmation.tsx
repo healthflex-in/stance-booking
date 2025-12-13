@@ -56,68 +56,58 @@ export default function RepeatUserOnlinePaymentConfirmation({
     email: patient?.email || '',
   };
 
-  const handleProceedToPayment = () => {
-    setIsProcessingPayment(true);
-  };
-
-  const handlePaymentSuccess = async (paymentId: string) => {
+  const handleProceedToPayment = async () => {
     try {
-      // Get start and end times
-      let startTime: number;
-      let endTime: number;
-
-      if (bookingData.selectedTimeSlot?.startTime) {
-        startTime = new Date(bookingData.selectedTimeSlot.startTime).getTime();
-        endTime = new Date(bookingData.selectedTimeSlot.endTime || bookingData.selectedTimeSlot.startTime).getTime();
-      } else {
-        throw new Error('No time slot selected');
-      }
-
-      // Verify the dates are valid and in the future
-      const now = Date.now();
-      if (startTime <= now) {
-        throw new Error('Selected time slot is in the past');
-      }
-
-      // Build input object - exactly like redesign
-      const input = {
-        patient: bookingData.patientId,
-        consultant: bookingData.consultantId || null,
-        treatment: bookingData.treatmentId,
-        medium: 'ONLINE',
-        notes: '',
-        center: bookingData.centerId,
-        category: 'WEBSITE',
-        status: 'BOOKED',
-        visitType: 'FOLLOW_UP',
-        event: {
-          startTime,
-          endTime,
+      // Create appointment FIRST
+      const appointmentResult = await createAppointment({
+        variables: {
+          input: {
+            patient: bookingData.patientId,
+            consultant: bookingData.consultantId,
+            center: bookingData.centerId,
+            treatment: bookingData.treatmentId,
+            medium: 'ONLINE',
+            visitType: 'FOLLOW_UP',
+            status: 'BOOKED',
+            category: 'WEBSITE',
+            event: {
+              startTime: new Date(bookingData.selectedTimeSlot.startTime).getTime(),
+              endTime: new Date(bookingData.selectedTimeSlot.endTime).getTime(),
+            },
+          },
         },
-      };
-
-      // Create appointment AFTER payment success
-      const result = await createAppointment({
-        variables: { input },
       });
 
-      const appointmentId = result.data?.createAppointment?._id;
-      if (appointmentId) {
-        toast.success('Appointment booked successfully!');
-        setIsProcessingPayment(false);
-        onNext(appointmentId); // Pass appointmentId to parent
-      } else {
-        throw new Error('Appointment creation failed - no ID returned');
+      const appointmentId = appointmentResult?.data?.createAppointment?._id;
+      if (!appointmentId) {
+        throw new Error('Failed to create appointment');
       }
-    } catch (error: any) {
+
+      // Store appointment ID for payment
+      sessionStorage.setItem('appointmentId', appointmentId);
+      sessionStorage.setItem('paymentType', 'invoice');
+      sessionStorage.setItem('paymentAmount', bookingData.treatmentPrice.toString());
+      setIsProcessingPayment(true);
+    } catch (error) {
       console.error('Error creating appointment:', error);
-      setIsProcessingPayment(false);
-      toast.error(error.message || 'Failed to create appointment. Please try again.');
+      toast.error('Failed to create appointment. Please try again.');
     }
+  };
+
+  const handlePaymentSuccess = async (paymentId: string, invoiceId?: string) => {
+    const appointmentId = sessionStorage.getItem('appointmentId');
+    sessionStorage.removeItem('appointmentId');
+    sessionStorage.removeItem('paymentType');
+    sessionStorage.removeItem('paymentAmount');
+    setIsProcessingPayment(false);
+    onNext(appointmentId || undefined);
   };
 
   const handlePaymentFailure = (error: any) => {
     setIsProcessingPayment(false);
+    sessionStorage.removeItem('appointmentId');
+    sessionStorage.removeItem('paymentType');
+    sessionStorage.removeItem('paymentAmount');
     const errorMsg = typeof error === 'string' ? error : error?.description || error?.message || 'Payment failed';
     router.push(`/onboarding-patient/failure?error=${encodeURIComponent(errorMsg)}`);
   };

@@ -15,11 +15,21 @@ import { TypedDocumentNode as DocumentNode } from '@graphql-typed-document-node/
  */
 type Documents = {
     "\n  mutation CreateOrder($input: CreateOrderInput!) {\n    createOrder(input: $input) {\n      _id\n      razorpayOrderId\n    }\n  }\n": typeof types.CreateOrderDocument,
+    "\n  mutation UpdateOrderNewUserOffline($orderId: ObjectID!) {\n    updateOrder(orderId: $orderId) {\n      _id\n      status\n      invoice {\n        _id\n      }\n      payment {\n        razorpayPaymentId\n      }\n    }\n  }\n": typeof types.UpdateOrderNewUserOfflineDocument,
+    "\n  mutation VerifyPayment($orderId: ObjectID!, $razorpayPaymentId: String!) {\n    verifyPayment(orderId: $orderId, razorpayPaymentId: $razorpayPaymentId) {\n      success\n      message\n    }\n  }\n": typeof types.VerifyPaymentDocument,
+    "\n  query GetCenters {\n    centers { _id name }\n  }\n": typeof types.GetCentersDocument,
+    "\n  mutation UpdateOrderNewUserOnline($orderId: ObjectID!) {\n    updateOrder(orderId: $orderId) {\n      _id\n      status\n      invoice {\n        _id\n      }\n      payment {\n        razorpayPaymentId\n      }\n    }\n  }\n": typeof types.UpdateOrderNewUserOnlineDocument,
+    "\n  mutation UpdateOrderRepeatUserOnline($orderId: ObjectID!) {\n    updateOrder(orderId: $orderId) {\n      _id\n      status\n      invoice {\n        _id\n      }\n      payment {\n        razorpayPaymentId\n      }\n    }\n  }\n": typeof types.UpdateOrderRepeatUserOnlineDocument,
     "\n  mutation UpdateOrder($orderId: ObjectID!) {\n    updateOrder(orderId: $orderId) {\n      _id\n      status\n      razorpayOrderId\n      payment {\n        razorpayPaymentId\n      }\n    }\n  }\n": typeof types.UpdateOrderDocument,
     "\n  query GetCenters {\n    centers {\n      _id\n      name\n    }\n  }\n": typeof types.GetCentersDocument,
 };
 const documents: Documents = {
     "\n  mutation CreateOrder($input: CreateOrderInput!) {\n    createOrder(input: $input) {\n      _id\n      razorpayOrderId\n    }\n  }\n": types.CreateOrderDocument,
+    "\n  mutation UpdateOrderNewUserOffline($orderId: ObjectID!) {\n    updateOrder(orderId: $orderId) {\n      _id\n      status\n      invoice {\n        _id\n      }\n      payment {\n        razorpayPaymentId\n      }\n    }\n  }\n": types.UpdateOrderNewUserOfflineDocument,
+    "\n  mutation VerifyPayment($orderId: ObjectID!, $razorpayPaymentId: String!) {\n    verifyPayment(orderId: $orderId, razorpayPaymentId: $razorpayPaymentId) {\n      success\n      message\n    }\n  }\n": types.VerifyPaymentDocument,
+    "\n  query GetCenters {\n    centers { _id name }\n  }\n": types.GetCentersDocument,
+    "\n  mutation UpdateOrderNewUserOnline($orderId: ObjectID!) {\n    updateOrder(orderId: $orderId) {\n      _id\n      status\n      invoice {\n        _id\n      }\n      payment {\n        razorpayPaymentId\n      }\n    }\n  }\n": types.UpdateOrderNewUserOnlineDocument,
+    "\n  mutation UpdateOrderRepeatUserOnline($orderId: ObjectID!) {\n    updateOrder(orderId: $orderId) {\n      _id\n      status\n      invoice {\n        _id\n      }\n      payment {\n        razorpayPaymentId\n      }\n    }\n  }\n": types.UpdateOrderRepeatUserOnlineDocument,
     "\n  mutation UpdateOrder($orderId: ObjectID!) {\n    updateOrder(orderId: $orderId) {\n      _id\n      status\n      razorpayOrderId\n      payment {\n        razorpayPaymentId\n      }\n    }\n  }\n": types.UpdateOrderDocument,
     "\n  query GetCenters {\n    centers {\n      _id\n      name\n    }\n  }\n": types.GetCentersDocument,
 };
@@ -42,6 +52,26 @@ export function graphql(source: string): unknown;
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  mutation CreateOrder($input: CreateOrderInput!) {\n    createOrder(input: $input) {\n      _id\n      razorpayOrderId\n    }\n  }\n"): (typeof documents)["\n  mutation CreateOrder($input: CreateOrderInput!) {\n    createOrder(input: $input) {\n      _id\n      razorpayOrderId\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation UpdateOrderNewUserOffline($orderId: ObjectID!) {\n    updateOrder(orderId: $orderId) {\n      _id\n      status\n      invoice {\n        _id\n      }\n      payment {\n        razorpayPaymentId\n      }\n    }\n  }\n"): (typeof documents)["\n  mutation UpdateOrderNewUserOffline($orderId: ObjectID!) {\n    updateOrder(orderId: $orderId) {\n      _id\n      status\n      invoice {\n        _id\n      }\n      payment {\n        razorpayPaymentId\n      }\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation VerifyPayment($orderId: ObjectID!, $razorpayPaymentId: String!) {\n    verifyPayment(orderId: $orderId, razorpayPaymentId: $razorpayPaymentId) {\n      success\n      message\n    }\n  }\n"): (typeof documents)["\n  mutation VerifyPayment($orderId: ObjectID!, $razorpayPaymentId: String!) {\n    verifyPayment(orderId: $orderId, razorpayPaymentId: $razorpayPaymentId) {\n      success\n      message\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query GetCenters {\n    centers { _id name }\n  }\n"): (typeof documents)["\n  query GetCenters {\n    centers { _id name }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation UpdateOrderNewUserOnline($orderId: ObjectID!) {\n    updateOrder(orderId: $orderId) {\n      _id\n      status\n      invoice {\n        _id\n      }\n      payment {\n        razorpayPaymentId\n      }\n    }\n  }\n"): (typeof documents)["\n  mutation UpdateOrderNewUserOnline($orderId: ObjectID!) {\n    updateOrder(orderId: $orderId) {\n      _id\n      status\n      invoice {\n        _id\n      }\n      payment {\n        razorpayPaymentId\n      }\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation UpdateOrderRepeatUserOnline($orderId: ObjectID!) {\n    updateOrder(orderId: $orderId) {\n      _id\n      status\n      invoice {\n        _id\n      }\n      payment {\n        razorpayPaymentId\n      }\n    }\n  }\n"): (typeof documents)["\n  mutation UpdateOrderRepeatUserOnline($orderId: ObjectID!) {\n    updateOrder(orderId: $orderId) {\n      _id\n      status\n      invoice {\n        _id\n      }\n      payment {\n        razorpayPaymentId\n      }\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

@@ -15,7 +15,7 @@ interface NewUserOfflinePaymentProcessingProps {
   centerId: string;
   consultantId: string;
   treatmentId: string;
-  onPaymentSuccess: (paymentId: string) => void;
+  onPaymentSuccess: (paymentId: string, invoiceId?: string) => void;
   onPaymentFailure: (error: any) => void;
 }
 
@@ -29,11 +29,25 @@ const CREATE_ORDER = gql`
 `;
 
 const UPDATE_ORDER = gql`
-  mutation UpdateOrder($orderId: ObjectID!) {
+  mutation UpdateOrderNewUserOffline($orderId: ObjectID!) {
     updateOrder(orderId: $orderId) {
       _id
       status
-      payment { razorpayPaymentId }
+      invoice {
+        _id
+      }
+      payment {
+        razorpayPaymentId
+      }
+    }
+  }
+`;
+
+const VERIFY_PAYMENT = gql`
+  mutation VerifyPayment($orderId: ObjectID!, $razorpayPaymentId: String!) {
+    verifyPayment(orderId: $orderId, razorpayPaymentId: $razorpayPaymentId) {
+      success
+      message
     }
   }
 `;
@@ -59,6 +73,7 @@ export default function NewUserOfflinePaymentProcessing({
   const [loaderMessage, setLoaderMessage] = useState<string | null>(null);
   const [createOrderMutation] = useMutation(CREATE_ORDER);
   const [updateOrderMutation] = useMutation(UPDATE_ORDER);
+  const [verifyPaymentMutation] = useMutation(VERIFY_PAYMENT);
   const { data: centersData } = useQuery(GET_CENTERS);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const pollAttemptsRef = useRef(0);
@@ -88,63 +103,53 @@ export default function NewUserOfflinePaymentProcessing({
     if (isPollingRef.current) return;
     
     isPollingRef.current = true;
-    setLoaderMessage("Completing your Payment...");
-
-    try {
-      const { data, errors } = await updateOrderMutation({ variables: { orderId: orderDbId } });
-
-      if (errors?.[0]?.message?.includes('already paid')) {
-        isPollingRef.current = false;
-        onPaymentSuccess('payment_success');
-        return;
-      }
-
-      if (data?.updateOrder?.status === 'PAID') {
-        isPollingRef.current = false;
-        onPaymentSuccess(data.updateOrder.payment?.razorpayPaymentId || 'payment_success');
-        return;
-      } else if (data?.updateOrder?.status === 'ATTEMPTED') {
-        isPollingRef.current = false;
-        onPaymentFailure('Payment failed');
-        return;
-      }
-    } catch (error) {
-      console.error('Initial status check failed:', error);
-    }
-
+    setLoaderMessage("Verifying Payment...");
     pollAttemptsRef.current = 0;
-    pollingIntervalRef.current = setInterval(async () => {
+
+    // Wait 3 seconds before first poll
+    await new Promise(resolve => setTimeout(resolve, 3000));
+
+    const doPoll = async () => {
       try {
         pollAttemptsRef.current += 1;
 
-        if (pollAttemptsRef.current > 200) {
+        if (pollAttemptsRef.current > 10) {
           if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
-          onPaymentFailure('Payment timeout');
+          isPollingRef.current = false;
+          onPaymentFailure('Payment verification timeout');
           return;
         }
 
-        const { data, errors } = await updateOrderMutation({ variables: { orderId: orderDbId } });
+        const { data, errors } = await updateOrderMutation({ 
+          variables: { orderId: orderDbId },
+          fetchPolicy: 'network-only'
+        });
 
-        if (errors?.[0]?.message?.includes('already paid')) {
+        if (errors?.length && errors[0].message.includes('already paid')) {
           if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
           isPollingRef.current = false;
-          onPaymentSuccess('payment_success');
+          onPaymentSuccess('payment_success', data?.updateOrder?.invoice?._id);
           return;
         }
 
         if (data?.updateOrder?.status === 'PAID') {
           if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
           isPollingRef.current = false;
-          onPaymentSuccess(data.updateOrder.payment?.razorpayPaymentId || 'payment_success');
+          onPaymentSuccess(
+            data.updateOrder.payment?.razorpayPaymentId || 'payment_success',
+            data.updateOrder.invoice?._id
+          );
         } else if (data?.updateOrder?.status === 'ATTEMPTED') {
           if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
           isPollingRef.current = false;
           onPaymentFailure('Payment failed');
         }
-      } catch (error) {
-        console.error('Polling error:', error);
+      } catch (error: any) {
+        console.error('❌ Poll error:', error.message);
       }
-    }, 3000);
+    };
+
+    pollingIntervalRef.current = setInterval(doPoll, 30000);
   }, [onPaymentSuccess, onPaymentFailure, updateOrderMutation]);
 
   const createOrder = async () => {
@@ -158,8 +163,11 @@ export default function NewUserOfflinePaymentProcessing({
       };
 
       if (paymentType === 'invoice') {
-        orderInput.consultant = consultantId;
-        orderInput.treatment = treatmentId;
+        const appointmentId = sessionStorage.getItem('appointmentId');
+        if (!appointmentId) {
+          throw new Error('Appointment ID not found');
+        }
+        orderInput.appointment = appointmentId;
       } else {
         const center = centersData?.centers?.find((c: any) => c._id === centerId);
         const centerName = center?.name?.toLowerCase() || '';
@@ -197,7 +205,33 @@ export default function NewUserOfflinePaymentProcessing({
       name: 'Stance Health',
       description: 'Appointment Booking',
       order_id: orderData.razorpayOrderId,
-      handler: (response: any) => {
+      handler: async (response: any) => {
+        // Call verifyPayment immediately after payment succeeds
+        try {
+          const verifyResult = await verifyPaymentMutation({
+            variables: {
+              orderId: orderData.orderDbId,
+              razorpayPaymentId: response.razorpay_payment_id,
+            },
+          });
+          
+          if (verifyResult.data?.verifyPayment?.success) {
+            // Get the order to retrieve invoice ID
+            const { data } = await updateOrderMutation({ 
+              variables: { orderId: orderData.orderDbId },
+              fetchPolicy: 'network-only'
+            });
+            onPaymentSuccess(
+              response.razorpay_payment_id,
+              data?.updateOrder?.invoice?._id
+            );
+            return;
+          }
+        } catch (error: any) {
+          console.error('Payment verification failed, falling back to polling:', error);
+        }
+        
+        // Fallback: start polling if verifyPayment failed
         pollPaymentStatus(orderData.orderDbId);
       },
       prefill: {
