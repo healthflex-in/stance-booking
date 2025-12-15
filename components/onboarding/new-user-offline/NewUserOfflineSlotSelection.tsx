@@ -4,9 +4,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useQuery } from '@apollo/client';
 import { Clock, UserCircle, ChevronRight } from 'lucide-react';
 import { GET_CONSULTANTS } from '@/gql/queries';
-import { useAvailableSlots } from '@/hooks/useAvailableSlots';
+import { useCenterAvailability } from '@/hooks';
 import { useContainerDetection } from '@/hooks/useContainerDetection';
 import { ConsultantSelectionModal } from '../shared';
+import { StanceHealthLoader } from '@/components/loader/StanceHealthLoader';
 
 interface NewUserOfflineSlotSelectionProps {
   centerId: string;
@@ -75,16 +76,39 @@ export default function NewUserOfflineSlotSelection({
     });
   }, [consultantsData]);
 
-  const { availableSlots, loading: slotsLoading } = useAvailableSlots({
+  const startOfDay = React.useMemo(() => {
+    if (!currentSelectedDate) return new Date();
+    const start = new Date(currentSelectedDate);
+    start.setHours(0, 0, 0, 0);
+    return start;
+  }, [currentSelectedDate]);
+
+  const endOfDay = React.useMemo(() => {
+    if (!currentSelectedDate) return new Date();
+    const end = new Date(currentSelectedDate);
+    end.setHours(23, 59, 59, 999);
+    return end;
+  }, [currentSelectedDate]);
+
+  const { consultants: availabilityConsultants, loading: slotsLoading } = useCenterAvailability({
     centerId,
-    date: currentSelectedDate || new Date(),
-    serviceDurationInMinutes: serviceDuration,
-    consultantId: selectedConsultant?._id || null,
-    isReturningUser: false,
-    consultantIds: selectedConsultant ? [selectedConsultant._id] : consultants.map((c: any) => c._id),
-    preFilteredConsultants: selectedConsultant ? [selectedConsultant] : consultants,
-    allConsultantsForLookup: selectedConsultant ? undefined : allConsultants,
+    startDate: startOfDay,
+    endDate: endOfDay,
+    serviceDuration,
+    consultantId: selectedConsultant?._id,
+    designation: 'Physiotherapist',
+    enabled: !!currentSelectedDate,
   });
+
+  const availableSlots = React.useMemo(() => {
+    return availabilityConsultants.flatMap(consultant => 
+      consultant.availableSlots.map(slot => ({
+        startTime: new Date(slot.startTime * 1000),
+        endTime: new Date(slot.endTime * 1000),
+        consultantId: consultant.consultantId,
+      }))
+    );
+  }, [availabilityConsultants]);
 
   const generateNext14Days = (): DateOption[] => {
     const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -192,14 +216,6 @@ export default function NewUserOfflineSlotSelection({
 
   const currentTimeSlots = selectedDate ? (dateSlots[selectedDate] || []) : [];
   const canProceed = !!selectedTimeSlot;
-
-  if (consultantsLoading) {
-    return (
-      <div className="h-full flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
 
   return (
     <div className={`${isInDesktopContainer ? 'h-full' : 'min-h-screen'} bg-gray-50 flex flex-col`}>
@@ -315,8 +331,8 @@ export default function NewUserOfflineSlotSelection({
                 <h4 className="text-base font-medium text-gray-900 mb-3">Available time slots</h4>
                 
                 {slotsLoading ? (
-                  <div className="flex justify-center py-8">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                  <div className="flex justify-center items-center py-16">
+                    <StanceHealthLoader message="Loading slots..." />
                   </div>
                 ) : currentTimeSlots.length > 0 ? (
                   <div className="grid grid-cols-2 gap-3">

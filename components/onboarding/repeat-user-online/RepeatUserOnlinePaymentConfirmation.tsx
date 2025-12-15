@@ -9,6 +9,8 @@ import { GET_CENTERS, GET_SERVICES, GET_USER, CREATE_APPOINTMENT } from '@/gql/q
 import RepeatUserOnlinePaymentProcessing from './RepeatUserOnlinePaymentProcessing';
 import { useContainerDetection } from '@/hooks/useContainerDetection';
 import { Button } from '@/components/ui-atoms';
+import { StanceHealthLoader } from '@/components/loader/StanceHealthLoader';
+import { EmailCollectionModal } from '@/components/onboarding/shared';
 
 interface BookingData {
   sessionType: 'online';
@@ -35,16 +37,17 @@ export default function RepeatUserOnlinePaymentConfirmation({
   const router = useRouter();
   const { isInDesktopContainer } = useContainerDetection();
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [showEmailModal, setShowEmailModal] = useState(false);
 
-  const { data: centersData } = useQuery(GET_CENTERS);
-  const { data: servicesData } = useQuery(GET_SERVICES, {
+  const { data: centersData, loading: centersLoading } = useQuery(GET_CENTERS);
+  const { data: servicesData, loading: servicesLoading } = useQuery(GET_SERVICES, {
     variables: { centerId: [bookingData.centerId] },
   });
-  const { data: userData } = useQuery(GET_USER, {
+  const { data: userData, loading: userLoading } = useQuery(GET_USER, {
     variables: { userId: bookingData.patientId },
   });
 
-  const [createAppointment] = useMutation(CREATE_APPOINTMENT);
+  const [createAppointment, { loading: creatingAppointment }] = useMutation(CREATE_APPOINTMENT);
 
   const currentCenter = centersData?.centers.find((c: any) => c._id === bookingData.centerId);
   const currentService = servicesData?.services.find((s: any) => s._id === bookingData.treatmentId);
@@ -56,7 +59,14 @@ export default function RepeatUserOnlinePaymentConfirmation({
     email: patient?.email || '',
   };
 
+  const isLoading = centersLoading || servicesLoading || userLoading;
+
   const handleProceedToPayment = async () => {
+    if (!patient?.email) {
+      setShowEmailModal(true);
+      return;
+    }
+    
     try {
       // Create appointment FIRST
       const appointmentResult = await createAppointment({
@@ -110,6 +120,14 @@ export default function RepeatUserOnlinePaymentConfirmation({
     const errorMsg = typeof error === 'string' ? error : error?.description || error?.message || 'Payment failed';
     router.push(`/onboarding-patient/failure?error=${encodeURIComponent(errorMsg)}`);
   };
+
+  if (isLoading) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <StanceHealthLoader message="Loading details..." />
+      </div>
+    );
+  }
 
   if (isProcessingPayment) {
     return (
@@ -201,6 +219,8 @@ export default function RepeatUserOnlinePaymentConfirmation({
       <div className={`${isInDesktopContainer ? 'flex-shrink-0' : 'fixed bottom-0 left-0 right-0'} bg-white border-t border-gray-200 p-4`}>
         <Button
           onClick={handleProceedToPayment}
+          disabled={creatingAppointment}
+          isLoading={creatingAppointment}
           fullWidth
           variant="primary"
           size="lg"
@@ -208,6 +228,14 @@ export default function RepeatUserOnlinePaymentConfirmation({
           Proceed to Payment
         </Button>
       </div>
+
+      <EmailCollectionModal
+        isOpen={showEmailModal}
+        patientId={bookingData.patientId}
+        patientName={patientDetails.name}
+        onEmailSaved={() => setShowEmailModal(false)}
+        onClose={() => setShowEmailModal(false)}
+      />
     </div>
   );
 }

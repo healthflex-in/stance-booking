@@ -1,9 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useApolloClient, gql } from '@apollo/client';
 
-const GET_ORGANIZATION_AVAILABILITY = gql`
-  query GetOrganizationAvailability($input: OrganizationAvailabilityInput!) {
-    getOrganizationAvailability(input: $input) {
+const GET_CENTER_AVAILABILITY = gql`
+  query GetCenterAvailability($input: CenterAvailabilityInput!) {
+    getCenterAvailability(input: $input) {
       consultantId
       consultantName
       availableSlots {
@@ -29,74 +29,62 @@ interface ConsultantAvailability {
   availableSlots: AvailabilitySlot[];
 }
 
-interface UseAvailabilityParams {
-  organizationId: string;
+interface UseCenterAvailabilityParams {
+  centerId: string;
   startDate: Date;
   endDate: Date;
   serviceDuration: number;
+  consultantId?: string;
   designation?: string;
   enabled?: boolean;
 }
 
-interface UseAvailabilityReturn {
+interface UseCenterAvailabilityReturn {
   consultants: ConsultantAvailability[];
-  centers: Array<{ id: string; name: string }>;
   loading: boolean;
   error: string | null;
   refetch: () => void;
 }
 
-export const useAvailability = ({
-  organizationId,
+export const useCenterAvailability = ({
+  centerId,
   startDate,
   endDate,
   serviceDuration,
+  consultantId,
   designation,
   enabled = true,
-}: UseAvailabilityParams): UseAvailabilityReturn => {
+}: UseCenterAvailabilityParams): UseCenterAvailabilityReturn => {
   const [consultants, setConsultants] = useState<ConsultantAvailability[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const client = useApolloClient();
 
-  const centers = useMemo(() => {
-    const centerMap = new Map<string, string>();
-    
-    consultants.forEach(consultant => {
-      consultant.availableSlots.forEach(slot => {
-        if (!centerMap.has(slot.centerId)) {
-          centerMap.set(slot.centerId, slot.centerName);
-        }
-      });
-    });
-
-    return Array.from(centerMap.entries()).map(([id, name]) => ({ id, name }));
-  }, [consultants]);
-
   const fetchAvailability = async () => {
-    if (!enabled || !organizationId) return;
+    if (!enabled || !centerId) return;
 
     setLoading(true);
     setError(null);
 
     try {
       const { data } = await client.query({
-        query: GET_ORGANIZATION_AVAILABILITY,
+        query: GET_CENTER_AVAILABILITY,
         variables: {
           input: {
-            organizationId,
+            centerId,
             startDate: Math.floor(startDate.getTime() / 1000),
             endDate: Math.floor(endDate.getTime() / 1000),
             serviceDuration,
+            consultantId: consultantId || null,
             designation: designation || null,
           },
         },
         fetchPolicy: 'network-only',
       });
 
-      setConsultants(data?.getOrganizationAvailability || []);
+      setConsultants(data?.getCenterAvailability || []);
     } catch (err) {
-      console.error('Error fetching availability:', err);
+      console.error('Error fetching center availability:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch availability');
     } finally {
       setLoading(false);
@@ -105,11 +93,10 @@ export const useAvailability = ({
 
   useEffect(() => {
     fetchAvailability();
-  }, [organizationId, startDate.getTime(), endDate.getTime(), serviceDuration, designation || '', enabled]);
+  }, [centerId, startDate.getTime(), endDate.getTime(), serviceDuration, consultantId || '', designation || '', enabled]);
 
   return {
     consultants,
-    centers,
     loading,
     error,
     refetch: fetchAvailability,

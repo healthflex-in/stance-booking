@@ -12,7 +12,7 @@ interface RepeatUserOnlineSessionDetailsProps {
   patientId: string;
   centerId: string;
   onBack: () => void;
-  onContinue: (data: { centerId: string; serviceId: string; serviceDuration: number; servicePrice: number }) => void;
+  onContinue: (data: { centerId: string; serviceId: string; serviceDuration: number; servicePrice: number; designation: string }) => void;
 }
 
 export default function RepeatUserOnlineSessionDetails({
@@ -24,6 +24,7 @@ export default function RepeatUserOnlineSessionDetails({
   const { isInDesktopContainer } = useContainerDetection();
   const [selectedCenter, setSelectedCenter] = useState<any>(null);
   const [selectedService, setSelectedService] = useState<any>(null);
+  const [selectedDesignation, setSelectedDesignation] = useState<string>('Physiotherapist');
 
   // Modal states
   const [showLocationModal, setShowLocationModal] = useState(false);
@@ -73,6 +74,7 @@ export default function RepeatUserOnlineSessionDetails({
       serviceId: selectedService._id,
       serviceDuration: selectedService.duration,
       servicePrice: selectedService.bookingAmount || selectedService.price || 0,
+      designation: selectedDesignation,
     });
   };
 
@@ -128,6 +130,46 @@ export default function RepeatUserOnlineSessionDetails({
                 </div>
               </div>
             </button>
+          </div>
+
+          {/* Designation Selection */}
+          <div className="mb-6">
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">
+              Consultant Type
+            </h2>
+            <p className="text-gray-600 text-sm mb-4">
+              Select the type of consultant you need
+            </p>
+            <div className="bg-white rounded-xl p-1 border border-gray-200 flex">
+              <button
+                type="button"
+                onClick={() => setSelectedDesignation('Physiotherapist')}
+                className={`flex-1 py-2 px-3 rounded-lg font-medium text-xs transition-all ${
+                  selectedDesignation === 'Physiotherapist'
+                    ? 'text-black shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+                style={{
+                  backgroundColor: selectedDesignation === 'Physiotherapist' ? '#DDFE71' : 'transparent'
+                }}
+              >
+                Physiotherapist
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedDesignation('S&C Coach')}
+                className={`flex-1 py-2 px-3 rounded-lg font-medium text-xs transition-all ${
+                  selectedDesignation === 'S&C Coach'
+                    ? 'text-black shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+                style={{
+                  backgroundColor: selectedDesignation === 'S&C Coach' ? '#DDFE71' : 'transparent'
+                }}
+              >
+                S&C Coach
+              </button>
+            </div>
           </div>
 
           {/* Service Selection */}

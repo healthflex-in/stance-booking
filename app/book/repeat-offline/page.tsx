@@ -25,6 +25,7 @@ interface BookingData {
   selectedFullDate?: Date;
   selectedTimeSlot: { startTime: string; endTime: string; displayTime: string };
   sessionType: 'in-person';
+  designation?: string;
   appointmentId?: string;
 }
 
@@ -194,6 +195,7 @@ export default function RepeatOfflinePage() {
                 treatmentId: data.serviceId,
                 treatmentDuration: data.serviceDuration,
                 treatmentPrice: data.servicePrice,
+                designation: data.designation,
               });
               goToNextStep();
             }}
@@ -204,6 +206,7 @@ export default function RepeatOfflinePage() {
           <RepeatUserOfflineSlotSelection
             centerId={bookingData.centerId}
             serviceDuration={bookingData.treatmentDuration}
+            designation={bookingData.designation}
             onSlotSelect={handleSlotSelect}
             onBack={goToPreviousStep}
           />

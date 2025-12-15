@@ -6,6 +6,7 @@ import { ChevronRight } from 'lucide-react';
 import { GET_SERVICES } from '@/gql/queries';
 import { useContainerDetection } from '@/hooks/useContainerDetection';
 import { PrimaryButton } from '@/components/ui-atoms';
+import { StanceHealthLoader } from '@/components/loader/StanceHealthLoader';
 
 interface NewUserOnlineSessionDetailsProps {
   patientId: string;
@@ -50,7 +51,7 @@ export default function NewUserOnlineSessionDetails({
   if (servicesLoading) {
     return (
       <div className="h-full flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <StanceHealthLoader message="Loading services..." />
       </div>
     );
   }
@@ -73,11 +74,8 @@ export default function NewUserOnlineSessionDetails({
                 <button
                   key={service._id}
                   onClick={() => setSelectedService(service)}
-                  className={`w-full bg-white rounded-2xl p-4 border-2 transition-all text-left ${
-                    selectedService?._id === service._id
-                      ? 'border-blue-500 bg-blue-50'
-                      : 'border-gray-200 hover:border-blue-300'
-                  }`}
+                  className="w-full bg-white rounded-2xl p-4 border-2 transition-all text-left"
+                  style={{ borderColor: selectedService?._id === service._id ? '#DDFE71' : '#e5e7eb', backgroundColor: selectedService?._id === service._id ? '#f7ffe5' : '#fff' }}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex-1">
@@ -90,8 +88,8 @@ export default function NewUserOnlineSessionDetails({
                       )}
                     </div>
                     {selectedService?._id === service._id && (
-                      <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center ml-3">
-                        <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <div className="w-6 h-6 rounded-full flex items-center justify-center ml-3" style={{ backgroundColor: '#DDFE71' }}>
+                        <svg className="w-4 h-4 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                         </svg>
                       </div>

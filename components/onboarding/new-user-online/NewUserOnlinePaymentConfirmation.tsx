@@ -8,6 +8,8 @@ import { GET_CENTERS, GET_SERVICES, GET_USER, CREATE_APPOINTMENT } from '@/gql/q
 import NewUserOnlinePaymentProcessing from './NewUserOnlinePaymentProcessing';
 import { useContainerDetection } from '@/hooks/useContainerDetection';
 import { Button } from '@/components/ui-atoms';
+import { StanceHealthLoader } from '@/components/loader/StanceHealthLoader';
+import { EmailCollectionModal } from '@/components/onboarding/shared';
 
 interface BookingData {
   sessionType: 'online' | 'in-person';
@@ -34,17 +36,18 @@ export default function NewUserOnlinePaymentConfirmation({
   const { isInDesktopContainer } = useContainerDetection();
   const [amountError, setAmountError] = useState('');
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [showEmailModal, setShowEmailModal] = useState(false);
 
-  const { data: centersData } = useQuery(GET_CENTERS);
-  const { data: servicesData } = useQuery(GET_SERVICES, {
+  const { data: centersData, loading: centersLoading } = useQuery(GET_CENTERS);
+  const { data: servicesData, loading: servicesLoading } = useQuery(GET_SERVICES, {
     variables: { centerId: [bookingData.centerId] },
   });
-  const { data: userData } = useQuery(GET_USER, {
+  const { data: userData, loading: userLoading } = useQuery(GET_USER, {
     variables: { userId: bookingData.patientId },
     skip: !bookingData.patientId,
   });
 
-  const [createAppointment] = useMutation(CREATE_APPOINTMENT);
+  const [createAppointment, { loading: creatingAppointment }] = useMutation(CREATE_APPOINTMENT);
 
   const currentCenter = centersData?.centers.find((c: any) => c._id === bookingData.centerId);
   const currentService = servicesData?.services.find((s: any) => s._id === bookingData.treatmentId);
@@ -56,10 +59,17 @@ export default function NewUserOnlinePaymentConfirmation({
     email: patient?.email || '',
   };
 
+  const isLoading = centersLoading || servicesLoading || userLoading;
+
   const handleProceedToPayment = async () => {
     try {
       if (!bookingData.patientId) {
         setAmountError('Patient ID is missing. Please start over.');
+        return;
+      }
+
+      if (!patient?.email) {
+        setShowEmailModal(true);
         return;
       }
 
@@ -110,6 +120,14 @@ export default function NewUserOnlinePaymentConfirmation({
       setAmountError('Failed to create appointment. Please try again.');
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <StanceHealthLoader message="Loading details..." />
+      </div>
+    );
+  }
 
   if (isProcessingPayment) {
     return (
@@ -228,6 +246,8 @@ export default function NewUserOnlinePaymentConfirmation({
       <div className={`${isInDesktopContainer ? 'flex-shrink-0' : 'fixed bottom-0 left-0 right-0'} bg-white border-t border-gray-200 p-4`}>
         <Button
           onClick={handleProceedToPayment}
+          disabled={creatingAppointment}
+          isLoading={creatingAppointment}
           fullWidth
           variant="primary"
           size="lg"
@@ -235,6 +255,14 @@ export default function NewUserOnlinePaymentConfirmation({
           Pay ₹{bookingData.treatmentPrice}
         </Button>
       </div>
+
+      <EmailCollectionModal
+        isOpen={showEmailModal}
+        patientId={bookingData.patientId}
+        patientName={patientDetails.name}
+        onEmailSaved={() => setShowEmailModal(false)}
+        onClose={() => setShowEmailModal(false)}
+      />
     </div>
   );
 }
