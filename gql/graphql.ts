@@ -884,6 +884,7 @@ export type CreateAppointmentInput = {
   event: CreateAppointmentEventInput;
   isPrepaid?: InputMaybe<Scalars['Boolean']['input']>;
   medium: AppointmentMedium;
+  meetingLink?: InputMaybe<Scalars['String']['input']>;
   notes?: InputMaybe<Scalars['String']['input']>;
   patient: Scalars['ObjectID']['input'];
   status?: InputMaybe<AppointmentStatus>;
@@ -3493,6 +3494,7 @@ export type UpdateAppointmentInput = {
   event?: InputMaybe<UpdateAppointmentEventInput>;
   eventAttendees?: InputMaybe<Array<InputMaybe<Scalars['ObjectID']['input']>>>;
   medium?: InputMaybe<AppointmentMedium>;
+  meetingLink?: InputMaybe<Scalars['String']['input']>;
   notes?: InputMaybe<Scalars['String']['input']>;
   rescheduledFrom?: InputMaybe<Array<Scalars['ObjectID']['input']>>;
   rescheduledTo?: InputMaybe<Scalars['ObjectID']['input']>;
