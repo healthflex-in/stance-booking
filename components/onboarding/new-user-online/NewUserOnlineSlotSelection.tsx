@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Clock } from 'lucide-react';
 import { useAvailability } from '@/hooks';
 import { useContainerDetection } from '@/hooks/useContainerDetection';
+import { StanceHealthLoader } from '@/components/loader/StanceHealthLoader';
 
 interface NewUserOnlineSlotSelectionProps {
   serviceDuration: number;
@@ -68,6 +69,7 @@ export default function NewUserOnlineSlotSelection({
     startDate: startOfDay,
     endDate: endOfDay,
     serviceDuration,
+    designation: 'Physiotherapist',
     enabled: !!currentSelectedDate,
   });
 
@@ -170,14 +172,6 @@ export default function NewUserOnlineSlotSelection({
   const currentTimeSlots = selectedDate ? (dateSlots[selectedDate] || []) : [];
   const canProceed = !!selectedTimeSlot;
 
-  if (consultantsLoading) {
-    return (
-      <div className="h-full flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
-
   return (
     <div className={`${isInDesktopContainer ? 'h-full' : 'min-h-screen'} bg-gray-50 flex flex-col`}>
       <div className="flex-1 overflow-y-auto">
@@ -252,8 +246,8 @@ export default function NewUserOnlineSlotSelection({
                 <h4 className="text-base font-medium text-gray-900 mb-3">Available time slots</h4>
                 
                 {consultantsLoading ? (
-                  <div className="flex justify-center py-8">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                  <div className="flex justify-center items-center py-16">
+                    <StanceHealthLoader message="Loading slots..." />
                   </div>
                 ) : currentTimeSlots.length > 0 ? (
                   <div className="grid grid-cols-2 gap-3">

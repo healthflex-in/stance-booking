@@ -87,6 +87,8 @@ export default function NewUserOfflinePaymentConfirmation({
     }
   };
 
+  const [isCreatingAppointment, setIsCreatingAppointment] = useState(false);
+
   const handleProceedToPayment = async () => {
     if (!validateAmount(paymentAmount)) {
       return;
@@ -95,6 +97,7 @@ export default function NewUserOfflinePaymentConfirmation({
     const amount = parseFloat(paymentAmount);
     const isFullPayment = amount === bookingData.treatmentPrice;
 
+    setIsCreatingAppointment(true);
     try {
       // Create appointment FIRST with appropriate status
       const appointmentResult = await createAppointment({
@@ -129,6 +132,8 @@ export default function NewUserOfflinePaymentConfirmation({
     } catch (error) {
       console.error('Error creating appointment:', error);
       setAmountError('Failed to create appointment. Please try again.');
+    } finally {
+      setIsCreatingAppointment(false);
     }
   };
 
@@ -266,7 +271,8 @@ export default function NewUserOfflinePaymentConfirmation({
       <div className={`${isInDesktopContainer ? 'flex-shrink-0' : 'fixed bottom-0 left-0 right-0'} bg-white border-t border-gray-200 p-4`}>
         <Button
           onClick={handleProceedToPayment}
-          disabled={!paymentAmount || !!amountError}
+          disabled={!paymentAmount || !!amountError || isCreatingAppointment}
+          isLoading={isCreatingAppointment}
           fullWidth
           variant="primary"
           size="lg"

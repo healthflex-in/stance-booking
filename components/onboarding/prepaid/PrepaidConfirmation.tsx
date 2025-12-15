@@ -5,6 +5,8 @@ import { useQuery } from '@apollo/client';
 import { GET_CENTERS, GET_SERVICES, GET_USER } from '@/gql/queries';
 import { useContainerDetection } from '@/hooks/useContainerDetection';
 import { Button } from '@/components/ui-atoms';
+import { StanceHealthLoader } from '@/components/loader/StanceHealthLoader';
+import { EmailCollectionModal } from '@/components/onboarding/shared';
 
 interface PrepaidConfirmationProps {
   bookingData: any;
@@ -17,12 +19,13 @@ export default function PrepaidConfirmation({
 }: PrepaidConfirmationProps) {
   const { isInDesktopContainer } = useContainerDetection();
   const [isCreating, setIsCreating] = useState(false);
+  const [showEmailModal, setShowEmailModal] = useState(false);
 
-  const { data: centersData } = useQuery(GET_CENTERS);
-  const { data: servicesData } = useQuery(GET_SERVICES, {
+  const { data: centersData, loading: centersLoading } = useQuery(GET_CENTERS);
+  const { data: servicesData, loading: servicesLoading } = useQuery(GET_SERVICES, {
     variables: { centerId: [bookingData.centerId] },
   });
-  const { data: userData } = useQuery(GET_USER, {
+  const { data: userData, loading: userLoading } = useQuery(GET_USER, {
     variables: { userId: bookingData.patientId },
   });
 
@@ -36,10 +39,29 @@ export default function PrepaidConfirmation({
     email: patient?.email || '',
   };
 
+  const isLoading = centersLoading || servicesLoading || userLoading;
+
   const handleConfirm = async () => {
+    if (!patient?.email) {
+      setShowEmailModal(true);
+      return;
+    }
+    
     setIsCreating(true);
-    await onConfirm();
+    try {
+      await onConfirm();
+    } finally {
+      setIsCreating(false);
+    }
   };
+
+  if (isLoading) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <StanceHealthLoader message="Loading details..." />
+      </div>
+    );
+  }
 
   return (
     <div className={`${isInDesktopContainer ? 'h-full' : 'min-h-screen'} bg-gray-50 flex flex-col`}>
@@ -92,13 +114,22 @@ export default function PrepaidConfirmation({
         <Button
           onClick={handleConfirm}
           disabled={isCreating}
+          isLoading={isCreating}
           fullWidth
           variant="primary"
           size="lg"
         >
-          {isCreating ? 'Confirming...' : 'Confirm Booking'}
+          Confirm Booking
         </Button>
       </div>
+
+      <EmailCollectionModal
+        isOpen={showEmailModal}
+        patientId={bookingData.patientId}
+        patientName={patientDetails.name}
+        onEmailSaved={() => setShowEmailModal(false)}
+        onClose={() => setShowEmailModal(false)}
+      />
     </div>
   );
 }

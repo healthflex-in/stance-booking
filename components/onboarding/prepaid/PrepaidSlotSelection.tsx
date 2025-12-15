@@ -7,11 +7,14 @@ import { GET_CONSULTANTS } from '@/gql/queries';
 import { useAvailability } from '@/hooks';
 import { useContainerDetection } from '@/hooks/useContainerDetection';
 import { ConsultantSelectionModal } from '../shared';
+import { StanceHealthLoader } from '@/components/loader/StanceHealthLoader';
 
 interface PrepaidSlotSelectionProps {
   centerId: string;
   serviceDuration: number;
   consultantId?: string;
+  designation?: string;
+  isNewUser?: boolean;
   onSlotSelect: (consultantId: string, slot: any) => void;
   onBack: () => void;
 }
@@ -41,6 +44,8 @@ export default function PrepaidSlotSelection({
   centerId,
   serviceDuration,
   consultantId,
+  designation,
+  isNewUser = false,
   onSlotSelect,
   onBack,
 }: PrepaidSlotSelectionProps) {
@@ -97,6 +102,7 @@ export default function PrepaidSlotSelection({
     startDate: startOfDay,
     endDate: endOfDay,
     serviceDuration,
+    designation,
     enabled: !!currentSelectedDate,
   });
 
@@ -218,19 +224,12 @@ export default function PrepaidSlotSelection({
   const currentTimeSlots = selectedDate ? (dateSlots[selectedDate] || []) : [];
   const canProceed = !!selectedTimeSlot;
 
-  if (consultantsLoading) {
-    return (
-      <div className="h-full flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
-
   return (
     <div className={`${isInDesktopContainer ? 'h-full' : 'min-h-screen'} bg-gray-50 flex flex-col`}>
       <div className="flex-1 overflow-y-auto">
         <div className={`p-4 ${isInDesktopContainer ? 'pb-6' : 'pb-32'}`}>
-          {/* Consultant Selection */}
+          {/* Consultant Selection - Only for repeat users */}
+          {!isNewUser && (
           <div className="mb-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Select preferred consultant</h3>
             <div className="bg-white rounded-2xl p-4 border border-gray-200">
@@ -270,6 +269,7 @@ export default function PrepaidSlotSelection({
               </div>
             </div>
           </div>
+          )}
 
           <div className="mb-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
@@ -346,8 +346,8 @@ export default function PrepaidSlotSelection({
                 </h4>
                 
                 {slotsLoading ? (
-                  <div className="flex justify-center py-8">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                  <div className="flex justify-center items-center py-16">
+                    <StanceHealthLoader message="Loading slots..." />
                   </div>
                 ) : currentTimeSlots.length > 0 ? (
                   <div className="grid grid-cols-2 gap-3">

@@ -37,6 +37,7 @@ interface BookingData {
   assessmentType?: 'in-person' | 'online';
   isNewUser: boolean;
   appointmentId?: string;
+  designation?: string;
 }
 
 export default function BookPrepaidPage() {
@@ -220,6 +221,7 @@ export default function BookPrepaidPage() {
                   treatmentId: data.serviceId,
                   treatmentDuration: data.serviceDuration,
                   treatmentPrice: data.servicePrice,
+                  designation: data.designation,
                 });
                 goToNextStep();
               }}
@@ -230,6 +232,8 @@ export default function BookPrepaidPage() {
             <PrepaidSlotSelection
               centerId={bookingData.centerId}
               serviceDuration={bookingData.treatmentDuration}
+              designation={bookingData.designation}
+              isNewUser={bookingData.isNewUser}
               onSlotSelect={handleSlotSelect}
               onBack={goToPreviousStep}
             />
