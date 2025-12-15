@@ -105,7 +105,6 @@ export default function RepeatUserOnlinePaymentConfirmation({
 
   const handlePaymentFailure = (error: any) => {
     setIsProcessingPayment(false);
-    sessionStorage.removeItem('appointmentId');
     sessionStorage.removeItem('paymentType');
     sessionStorage.removeItem('paymentAmount');
     const errorMsg = typeof error === 'string' ? error : error?.description || error?.message || 'Payment failed';

@@ -2,10 +2,11 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { useMutation, useQuery } from '@apollo/client';
-import { CREATE_APPOINTMENT, GET_CENTERS, SEND_APPOINTMENT_EMAIL, SEND_CONSULTANT_MEET_INVITE, GET_USER, GET_SERVICES } from '@/gql/queries';
+import { CREATE_APPOINTMENT, GET_CENTERS, SEND_APPOINTMENT_EMAIL, SEND_CONSULTANT_MEET_INVITE, GET_USER, GET_SERVICES, GET_APPOINTMENT_BY_ID } from '@/gql/queries';
 import { CheckCircle, Shirt, Droplets, Package } from 'lucide-react';
 import { Button } from '@/components/ui-atoms/Button';
 import { toast } from 'sonner';
+import { useRouter } from 'next/navigation';
 
 interface PrepaidBookingConfirmedProps {
   bookingData: {
@@ -22,6 +23,7 @@ interface PrepaidBookingConfirmedProps {
 }
 
 export default function PrepaidBookingConfirmed({ bookingData }: PrepaidBookingConfirmedProps) {
+  const router = useRouter();
   const [appointmentCreated, setAppointmentCreated] = useState(false);
   const [isCreating, setIsCreating] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -44,6 +46,10 @@ export default function PrepaidBookingConfirmed({ bookingData }: PrepaidBookingC
     variables: { centerId: [bookingData.centerId] },
     skip: !bookingData.centerId,
   });
+  const { data: appointmentData } = useQuery(GET_APPOINTMENT_BY_ID, {
+    variables: { id: bookingData.appointmentId },
+    skip: !bookingData.appointmentId,
+  });
 
   const currentCenter = centersData?.centers.find(
     (center: any) => center._id === bookingData.centerId
@@ -57,7 +63,7 @@ export default function PrepaidBookingConfirmed({ bookingData }: PrepaidBookingC
     }
 
     // Send emails if all data is loaded
-    if (bookingData.appointmentId && !creationInProgress.current && userData && consultantData && centersData && servicesData) {
+    if (bookingData.appointmentId && !creationInProgress.current && userData && consultantData && centersData && servicesData && appointmentData) {
       creationInProgress.current = true;
       
       const sendEmails = async () => {
@@ -92,6 +98,7 @@ export default function PrepaidBookingConfirmed({ bookingData }: PrepaidBookingC
                     startDateTime: timeSlot.startTime,
                     endDateTime: timeSlot.endTime,
                     isOnlineAssessment: true,
+                    meetingLink: appointmentData?.appointment?.meetingLink,
                   },
                 },
               });
@@ -113,6 +120,7 @@ export default function PrepaidBookingConfirmed({ bookingData }: PrepaidBookingC
                     treatmentName,
                     startDateTime: timeSlot.startTime,
                     endDateTime: timeSlot.endTime,
+                    meetingLink: appointmentData?.appointment?.meetingLink,
                   },
                 },
               });
@@ -127,7 +135,7 @@ export default function PrepaidBookingConfirmed({ bookingData }: PrepaidBookingC
 
       sendEmails();
     }
-  }, [bookingData, sendAppointmentEmail, sendConsultantMeetInvite, userData, consultantData, centersData, servicesData]);
+  }, [bookingData, sendAppointmentEmail, sendConsultantMeetInvite, userData, consultantData, centersData, servicesData, appointmentData]);
 
   const thingsToBring = [
     { icon: Shirt, label: 'Workout clothes' },
@@ -263,6 +271,7 @@ export default function PrepaidBookingConfirmed({ bookingData }: PrepaidBookingC
                     startDateTime: timeSlot.startTime,
                     endDateTime: timeSlot.endTime,
                     isOnlineAssessment: true,
+                    meetingLink: appointmentData?.appointment?.meetingLink,
                   },
                 },
               });
@@ -278,6 +287,7 @@ export default function PrepaidBookingConfirmed({ bookingData }: PrepaidBookingC
                     treatmentName,
                     startDateTime: timeSlot.startTime,
                     endDateTime: timeSlot.endTime,
+                    meetingLink: appointmentData?.appointment?.meetingLink,
                   },
                 },
               });
@@ -296,7 +306,7 @@ export default function PrepaidBookingConfirmed({ bookingData }: PrepaidBookingC
           {resendingEmail ? 'Sending...' : 'Resend Email'}
         </button>
         <button
-          onClick={() => window.location.href = '/book-prepaid'}
+          onClick={() => router.push('/book-prepaid')}
           className="w-full py-4 text-black rounded-xl font-semibold transition-all"
           style={{ backgroundColor: '#DDFE71' }}
         >

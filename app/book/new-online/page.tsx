@@ -30,6 +30,7 @@ interface BookingData {
   selectedFullDate?: Date;
   selectedTimeSlot: { startTime: string; endTime: string; displayTime: string };
   isNewUser: boolean;
+  appointmentId?: string;
 }
 
 export default function NewOnlinePage() {
@@ -196,7 +197,10 @@ export default function NewOnlinePage() {
           {currentStep === 'payment-confirmation' && (
             <NewUserOnlinePaymentConfirmation
               bookingData={bookingData}
-              onNext={goToNextStep}
+              onNext={(appointmentId) => {
+                updateBookingData({ appointmentId });
+                goToNextStep();
+              }}
             />
           )}
 

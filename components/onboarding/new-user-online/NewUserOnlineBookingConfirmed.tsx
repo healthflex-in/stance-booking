@@ -2,9 +2,10 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { useMutation, useQuery } from '@apollo/client';
-import { CREATE_APPOINTMENT, GET_CENTERS, SEND_APPOINTMENT_EMAIL, SEND_CONSULTANT_MEET_INVITE, GET_USER, GET_SERVICES } from '@/gql/queries';
+import { CREATE_APPOINTMENT, GET_CENTERS, SEND_APPOINTMENT_EMAIL, SEND_CONSULTANT_MEET_INVITE, GET_USER, GET_SERVICES, GET_APPOINTMENT_BY_ID } from '@/gql/queries';
 import { CheckCircle, Shirt, Droplets, Package } from 'lucide-react';
 import { toast } from 'sonner';
+import { useRouter } from 'next/navigation';
 
 interface NewUserOnlineBookingConfirmedProps {
   bookingData: {
@@ -15,13 +16,16 @@ interface NewUserOnlineBookingConfirmedProps {
     treatmentPrice: number;
     selectedTimeSlot: { startTime: string; endTime: string; displayTime: string };
     selectedDate: string;
+    appointmentId?: string;
   };
 }
 
 export default function NewUserOnlineBookingConfirmed({ bookingData }: NewUserOnlineBookingConfirmedProps) {
+  const router = useRouter();
   const [emailsSent, setEmailsSent] = useState(false);
   const [resendingEmail, setResendingEmail] = useState(false);
   const emailSendInProgress = useRef(false);
+  const appointmentId = bookingData.appointmentId;
 
   const [sendAppointmentEmail] = useMutation(SEND_APPOINTMENT_EMAIL);
   const [sendConsultantMeetInvite] = useMutation(SEND_CONSULTANT_MEET_INVITE);
@@ -36,20 +40,63 @@ export default function NewUserOnlineBookingConfirmed({ bookingData }: NewUserOn
   const { data: servicesData } = useQuery(GET_SERVICES, {
     variables: { centerId: [bookingData.centerId] },
   });
+  const { data: appointmentData, loading: appointmentLoading, error: appointmentError } = useQuery(GET_APPOINTMENT_BY_ID, {
+    variables: { id: appointmentId },
+    skip: !appointmentId,
+    fetchPolicy: 'network-only',
+  });
+  
+  console.log('=== APPOINTMENT QUERY STATUS ===');
+  console.log('appointmentId:', appointmentId);
+  console.log('loading:', appointmentLoading);
+  console.log('error:', appointmentError);
+  console.log('data:', appointmentData);
+  console.log('=== END QUERY STATUS ===');
 
   const currentCenter = centersData?.centers.find((c: any) => c._id === bookingData.centerId);
   const currentService = servicesData?.services.find((s: any) => s._id === bookingData.treatmentId);
   const patient = userData?.user;
   const consultant = consultantData?.user;
 
+  console.log('=== NEW USER ONLINE COMPONENT STATE ===');
+  console.log('appointmentId:', appointmentId);
+  console.log('emailsSent:', emailsSent);
+  console.log('emailSendInProgress:', emailSendInProgress.current);
+  console.log('patient:', !!patient);
+  console.log('consultant:', !!consultant);
+  console.log('currentCenter:', !!currentCenter);
+  console.log('currentService:', !!currentService);
+  console.log('appointmentData:', !!appointmentData);
+  console.log('appointmentData.appointment:', appointmentData?.appointment);
+  console.log('=== END COMPONENT STATE ===');
+
   useEffect(() => {
-    if (!emailsSent && !emailSendInProgress.current && patient && consultant && currentCenter && currentService) {
+    console.log('=== USEEFFECT TRIGGERED ===');
+    console.log('Condition check:', {
+      emailsSent: !emailsSent,
+      emailSendInProgress: !emailSendInProgress.current,
+      patient: !!patient,
+      consultant: !!consultant,
+      currentCenter: !!currentCenter,
+      currentService: !!currentService,
+      appointmentData: !!appointmentData,
+      allConditionsMet: !emailsSent && !emailSendInProgress.current && patient && consultant && currentCenter && currentService && appointmentData
+    });
+    
+    if (!emailsSent && !emailSendInProgress.current && patient && consultant && currentCenter && currentService && appointmentData) {
+      console.log('✅ ALL CONDITIONS MET - SENDING EMAILS');
       emailSendInProgress.current = true;
       
       const sendEmails = async () => {
         try {
           const patientName = `${patient.profileData.firstName} ${patient.profileData.lastName}`;
           const consultantName = `${consultant.profileData.firstName} ${consultant.profileData.lastName}`;
+          
+          console.log('=== FRONTEND EMAIL SEND DEBUG ===');
+          console.log('appointmentId:', appointmentId);
+          console.log('appointmentData:', appointmentData);
+          console.log('meetingLink from DB:', appointmentData?.appointment?.meetingLink);
+          console.log('=== END FRONTEND DEBUG ===');
           
           // Send email to patient
           if (patient.email) {
@@ -69,6 +116,7 @@ export default function NewUserOnlineBookingConfirmed({ bookingData }: NewUserOn
                   startDateTime: bookingData.selectedTimeSlot.startTime,
                   endDateTime: bookingData.selectedTimeSlot.endTime,
                   isOnlineAssessment: true,
+                  meetingLink: appointmentData?.appointment?.meetingLink,
                 },
               },
             });
@@ -87,6 +135,7 @@ export default function NewUserOnlineBookingConfirmed({ bookingData }: NewUserOn
                   treatmentName: currentService.name,
                   startDateTime: bookingData.selectedTimeSlot.startTime,
                   endDateTime: bookingData.selectedTimeSlot.endTime,
+                  meetingLink: appointmentData?.appointment?.meetingLink,
                 },
               },
             });
@@ -100,7 +149,7 @@ export default function NewUserOnlineBookingConfirmed({ bookingData }: NewUserOn
       
       sendEmails();
     }
-  }, [emailsSent, patient, consultant, currentCenter, currentService]);
+  }, [emailsSent, patient, consultant, currentCenter, currentService, appointmentData]);
 
   const thingsToBring = [
     { icon: Shirt, label: 'Workout clothes' },
@@ -187,6 +236,11 @@ export default function NewUserOnlineBookingConfirmed({ bookingData }: NewUserOn
           onClick={async () => {
             setResendingEmail(true);
             try {
+              console.log('=== RESEND BUTTON CLICKED ===');
+              console.log('appointmentData:', appointmentData);
+              console.log('meetingLink:', appointmentData?.appointment?.meetingLink);
+              console.log('=== END RESEND DEBUG ===');
+              
               const patientName = `${patient?.profileData.firstName} ${patient?.profileData.lastName}`;
               const consultantName = `${consultant?.profileData.firstName} ${consultant?.profileData.lastName}`;
               
@@ -207,6 +261,7 @@ export default function NewUserOnlineBookingConfirmed({ bookingData }: NewUserOn
                       startDateTime: bookingData.selectedTimeSlot.startTime,
                       endDateTime: bookingData.selectedTimeSlot.endTime,
                       isOnlineAssessment: true,
+                      meetingLink: appointmentData?.appointment?.meetingLink,
                     },
                   },
                 });
@@ -224,6 +279,7 @@ export default function NewUserOnlineBookingConfirmed({ bookingData }: NewUserOn
                       treatmentName: currentService?.name || '',
                       startDateTime: bookingData.selectedTimeSlot.startTime,
                       endDateTime: bookingData.selectedTimeSlot.endTime,
+                      meetingLink: appointmentData?.appointment?.meetingLink,
                     },
                   },
                 });
@@ -243,7 +299,7 @@ export default function NewUserOnlineBookingConfirmed({ bookingData }: NewUserOn
           {resendingEmail ? 'Sending...' : 'Resend Email'}
         </button>
         <button
-          onClick={() => window.location.href = '/book'}
+          onClick={() => router.push('/book')}
           className="w-full py-4 text-black rounded-xl font-semibold transition-all"
           style={{ backgroundColor: '#DDFE71' }}
         >
