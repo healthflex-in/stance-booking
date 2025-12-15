@@ -38,7 +38,7 @@ export default function SimplifiedPatientOnboarding({
 }: SimplifiedPatientOnboardingProps) {
   const { isInDesktopContainer } = useContainerDetection();
   const [isPhoneVerified, setIsPhoneVerified] = useState(false);
-  const [sessionType, setSessionType] = useState<'in-person' | 'online'>('in-person');
+  const [sessionType, setSessionType] = useState<'in-person' | 'online' | null>(null);
   const [isNewUser, setIsNewUser] = useState(false);
   const [showSessionTypeModal, setShowSessionTypeModal] = useState(false);
   const [isNavigating, setIsNavigating] = useState(false);
@@ -134,7 +134,9 @@ export default function SimplifiedPatientOnboarding({
         localStorage.setItem('stance-centreID', patientCenter._id);
       }
       
-      onComplete(data.createPatient._id, true, sessionType);
+      if (sessionType) {
+        onComplete(data.createPatient._id, true, sessionType);
+      }
     },
     onError: (error) => {
       toast.error(error.message || 'Failed to create patient');
@@ -187,6 +189,7 @@ export default function SimplifiedPatientOnboarding({
       
       const patient = patientData?.patientByPhone;
       if (patient) {
+        setSessionType(selectedSessionType);
         onComplete(patient._id, false, selectedSessionType);
       } else {
         setIsNavigating(false);
@@ -229,12 +232,12 @@ export default function SimplifiedPatientOnboarding({
   };
 
   const handleContinue = async () => {
-    if (!sessionType) {
-      toast.error('Please select a session type');
-      return;
-    }
     if (!isPhoneVerified) {
       await handlePhoneVerification();
+      return;
+    }
+    if (!sessionType) {
+      toast.error('Please select a session type');
       return;
     }
 
@@ -656,7 +659,7 @@ export default function SimplifiedPatientOnboarding({
           setSessionType(selectedSessionType);
           handleRepeatUserContinueWithSessionType(selectedSessionType);
         }}
-        selectedSessionType={sessionType}
+        selectedSessionType={sessionType || undefined}
       />
     </div>
   );

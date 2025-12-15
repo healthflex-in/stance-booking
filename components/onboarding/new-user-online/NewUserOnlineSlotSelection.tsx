@@ -1,17 +1,13 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { useQuery } from '@apollo/client';
-import { Clock, UserCircle, ChevronRight } from 'lucide-react';
-import { GET_CONSULTANTS } from '@/gql/queries';
-import { useAvailableSlots } from '@/hooks/useAvailableSlots';
+import { Clock } from 'lucide-react';
+import { useAvailability } from '@/hooks';
 import { useContainerDetection } from '@/hooks/useContainerDetection';
-import { ConsultantSelectionModal } from '../shared';
 
 interface NewUserOnlineSlotSelectionProps {
-  centerId: string;
   serviceDuration: number;
-  onSlotSelect: (consultantId: string, slot: any) => void;
+  onSlotSelect: (consultantId: string, centerId: string, slot: any) => void;
   onBack?: () => void;
 }
 
@@ -22,6 +18,8 @@ interface TimeSlot {
   isAvailable: boolean;
   consultantId: string;
   consultantName?: string;
+  centerId: string;
+  centerName: string;
   startTimeRaw: string;
   endTimeRaw: string;
 }
@@ -37,14 +35,11 @@ interface DateOption {
 }
 
 export default function NewUserOnlineSlotSelection({
-  centerId,
   serviceDuration,
   onSlotSelect,
   onBack = () => {},
 }: NewUserOnlineSlotSelectionProps) {
   const { isInDesktopContainer } = useContainerDetection();
-  const [selectedConsultant, setSelectedConsultant] = useState<any>(null);
-  const [showConsultantModal, setShowConsultantModal] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<TimeSlot | null>(null);
   const [availableDates, setAvailableDates] = useState<DateOption[]>([]);
@@ -52,38 +47,28 @@ export default function NewUserOnlineSlotSelection({
   const [dateSlots, setDateSlots] = useState<{ [key: string]: TimeSlot[] }>({});
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  const { data: consultantsData, loading: consultantsLoading } = useQuery(GET_CONSULTANTS, {
-    variables: {
-      userType: 'CONSULTANT',
-      centerId: [centerId],
-    },
-    fetchPolicy: 'network-only',
-  });
+  const organizationId = process.env.NEXT_PUBLIC_ORGANIZATION_ID || '67fe35f25e42152fb5185a5e';
+  
+  const startOfDay = React.useMemo(() => {
+    if (!currentSelectedDate) return new Date();
+    const start = new Date(currentSelectedDate);
+    start.setHours(0, 0, 0, 0);
+    return start;
+  }, [currentSelectedDate]);
 
-  const allConsultants = React.useMemo(() => {
-    if (!consultantsData?.users?.data) return [];
-    return consultantsData.users.data;
-  }, [consultantsData]);
+  const endOfDay = React.useMemo(() => {
+    if (!currentSelectedDate) return new Date();
+    const end = new Date(currentSelectedDate);
+    end.setHours(23, 59, 59, 999);
+    return end;
+  }, [currentSelectedDate]);
 
-  const consultants = React.useMemo(() => {
-    if (!consultantsData?.users?.data) return [];
-    return consultantsData.users.data.filter((consultant: any) => {
-      if (consultant.profileData?.allowOnlineBooking !== true) return false;
-      if (consultant.profileData?.designation !== 'Physiotherapist') return false;
-      const allowOnlineDelivery = consultant.profileData?.allowOnlineDelivery;
-      return allowOnlineDelivery === 'ONLINE' || allowOnlineDelivery === 'BOTH';
-    });
-  }, [consultantsData]);
-
-  const { availableSlots, loading: slotsLoading } = useAvailableSlots({
-    centerId,
-    date: currentSelectedDate || new Date(),
-    serviceDurationInMinutes: serviceDuration,
-    consultantId: selectedConsultant?._id || null,
-    isReturningUser: false,
-    consultantIds: selectedConsultant ? [selectedConsultant._id] : consultants.map((c: any) => c._id),
-    preFilteredConsultants: selectedConsultant ? [selectedConsultant] : consultants,
-    allConsultantsForLookup: selectedConsultant ? undefined : allConsultants,
+  const { consultants, loading: consultantsLoading } = useAvailability({
+    organizationId,
+    startDate: startOfDay,
+    endDate: endOfDay,
+    serviceDuration,
+    enabled: !!currentSelectedDate,
   });
 
   const generateNext14Days = (): DateOption[] => {
@@ -124,35 +109,33 @@ export default function NewUserOnlineSlotSelection({
   }, []);
 
   useEffect(() => {
-    if (!currentSelectedDate || slotsLoading) return;
+    if (!currentSelectedDate || consultantsLoading) return;
     
     const dateKey = `${currentSelectedDate.toLocaleDateString('en-US', { weekday: 'short' })}, ${currentSelectedDate.getDate()} ${currentSelectedDate.toLocaleDateString('en-US', { month: 'short' })}`;
     
-    const processedSlots = availableSlots
-      .filter(slot => {
-        if (!slot.consultantId) return false;
-        return consultants.some((c: any) => c._id === slot.consultantId);
-      })
-      .map(slot => {
-        const consultant = consultants.find((c: any) => c._id === slot.consultantId);
-        let consultantName = '';
-        if (consultant) {
-          const firstName = consultant.profileData?.firstName || '';
-          const lastName = consultant.profileData?.lastName || '';
-          consultantName = `${firstName} ${lastName}`.trim();
-        }
+    const processedSlots: TimeSlot[] = [];
+    
+    consultants.forEach(consultant => {
+      consultant.availableSlots.forEach(slot => {
+        const slotStart = new Date(slot.startTime * 1000);
+        const slotEnd = new Date(slot.endTime * 1000);
         
-        return {
-          startTime: new Date(slot.startTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
-          endTime: new Date(slot.endTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
-          displayTime: `${new Date(slot.startTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })} - ${new Date(slot.endTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}`,
+        processedSlots.push({
+          startTime: slotStart.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
+          endTime: slotEnd.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
+          displayTime: `${slotStart.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })} - ${slotEnd.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}`,
           isAvailable: true,
-          consultantId: slot.consultantId,
-          consultantName: consultantName,
-          startTimeRaw: new Date(slot.startTime).toISOString(),
-          endTimeRaw: new Date(slot.endTime).toISOString(),
-        };
+          consultantId: consultant.consultantId,
+          consultantName: consultant.consultantName,
+          centerId: slot.centerId,
+          centerName: slot.centerName,
+          startTimeRaw: slotStart.toISOString(),
+          endTimeRaw: slotEnd.toISOString(),
+        });
       });
+    });
+    
+    processedSlots.sort((a, b) => new Date(a.startTimeRaw).getTime() - new Date(b.startTimeRaw).getTime());
     
     setDateSlots(prev => ({ ...prev, [dateKey]: processedSlots }));
     
@@ -164,7 +147,7 @@ export default function NewUserOnlineSlotSelection({
         return date;
       })
     );
-  }, [currentSelectedDate, availableSlots, slotsLoading, consultants, allConsultants]);
+  }, [currentSelectedDate, consultants, consultantsLoading]);
 
   const handleDateSelect = (date: DateOption) => {
     const dateKey = `${date.day}, ${date.date} ${date.month}`;
@@ -180,14 +163,8 @@ export default function NewUserOnlineSlotSelection({
 
   const handleContinue = () => {
     if (selectedTimeSlot) {
-      const consultantId = selectedConsultant?._id || selectedTimeSlot.consultantId;
-      onSlotSelect(consultantId, selectedTimeSlot);
+      onSlotSelect(selectedTimeSlot.consultantId, selectedTimeSlot.centerId, selectedTimeSlot);
     }
-  };
-
-  const handleConsultantSelect = (consultant: any | null) => {
-    setSelectedConsultant(consultant);
-    setShowConsultantModal(false);
   };
 
   const currentTimeSlots = selectedDate ? (dateSlots[selectedDate] || []) : [];
@@ -206,46 +183,6 @@ export default function NewUserOnlineSlotSelection({
       <div className="flex-1 overflow-y-auto">
         <div className={`p-4 ${isInDesktopContainer ? 'pb-6' : 'pb-32'}`}>
           <div className="mb-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Select preferred consultant</h3>
-            <div className="bg-white rounded-2xl p-4 border border-gray-200">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-purple-50 rounded-xl flex items-center justify-center">
-                    <UserCircle className="w-5 h-5 text-purple-600" />
-                  </div>
-                  <div className="flex-1">
-                    {selectedConsultant ? (
-                      <>
-                        <p className="text-sm font-bold text-gray-900">
-                          {selectedConsultant.profileData?.firstName || selectedConsultant.profileData?.lastName ? (
-                            <>Dr. {selectedConsultant.profileData?.firstName || ''} {selectedConsultant.profileData?.lastName || ''}</>
-                          ) : (
-                            <>Consultant</>
-                          )}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          {selectedConsultant.profileData?.designation || 'Consultant'}
-                        </p>
-                      </>
-                    ) : (
-                      <>
-                        <p className="text-sm font-bold text-gray-900">Any available</p>
-                        <p className="text-xs text-gray-500">First available consultant for your session</p>
-                      </>
-                    )}
-                  </div>
-                </div>
-                <button
-                  onClick={() => setShowConsultantModal(true)}
-                  className="p-2 hover:bg-gray-50 rounded-lg transition-colors"
-                >
-                  <ChevronRight className="w-5 h-5 text-gray-400" />
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div className="mb-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Visit details</h3>
 
             <div className="mb-4">
@@ -257,7 +194,7 @@ export default function NewUserOnlineSlotSelection({
                 {availableDates.map((dateOption) => {
                   const dateKey = `${dateOption.day}, ${dateOption.date} ${dateOption.month}`;
                   const isCurrentDate = selectedDate === dateKey;
-                  const isDisabled = Boolean(slotsLoading && !isCurrentDate);
+                  const isDisabled = Boolean(consultantsLoading && !isCurrentDate);
                   
                   return (
                     <button
@@ -314,7 +251,7 @@ export default function NewUserOnlineSlotSelection({
               <div className="mb-6">
                 <h4 className="text-base font-medium text-gray-900 mb-3">Available time slots</h4>
                 
-                {slotsLoading ? (
+                {consultantsLoading ? (
                   <div className="flex justify-center py-8">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
                   </div>
@@ -340,9 +277,9 @@ export default function NewUserOnlineSlotSelection({
                           }`}
                         >
                           <div className="text-sm font-semibold">{slot.displayTime}</div>
-                          {slot.consultantName && (
-                            <div className="text-xs text-gray-500 mt-1">{slot.consultantName}</div>
-                          )}
+                          <div className="text-xs text-gray-500 mt-1">
+                            {slot.consultantName} • {slot.centerName}
+                          </div>
                         </button>
                       );
                     })}
@@ -372,15 +309,6 @@ export default function NewUserOnlineSlotSelection({
         </button>
       </div>
 
-      <ConsultantSelectionModal
-        isOpen={showConsultantModal}
-        onClose={() => setShowConsultantModal(false)}
-        consultants={consultants}
-        sessionType="online"
-        centerId={centerId}
-        onSelect={handleConsultantSelect}
-        selectedConsultant={selectedConsultant}
-      />
     </div>
   );
 }
