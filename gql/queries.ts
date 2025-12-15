@@ -812,9 +812,15 @@ export const CREATE_APPOINTMENT = gql`
     createAppointment(input: $input) {
       _id
       seqNo
+      meetingLink
       patient {
         _id
         phone
+      }
+      event {
+        _id
+        startTime
+        endTime
       }
     }
   }
@@ -2339,6 +2345,7 @@ export const GET_APPOINTMENT_BY_ID = gql`
       medium
       seqNo
       notes
+      meetingLink
 
       patient {
         _id

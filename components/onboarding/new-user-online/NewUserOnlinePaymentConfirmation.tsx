@@ -23,7 +23,7 @@ interface BookingData {
 
 interface NewUserOnlinePaymentConfirmationProps {
   bookingData: BookingData;
-  onNext: () => void;
+  onNext: (appointmentId: string) => void;
 }
 
 export default function NewUserOnlinePaymentConfirmation({
@@ -117,15 +117,17 @@ export default function NewUserOnlinePaymentConfirmation({
         consultantId={bookingData.consultantId}
         treatmentId={bookingData.treatmentId}
         onPaymentSuccess={async (paymentId, invoiceId) => {
+          const storedAppointmentId = sessionStorage.getItem('appointmentId');
           sessionStorage.removeItem('appointmentId');
           sessionStorage.removeItem('paymentType');
           sessionStorage.removeItem('paymentAmount');
           setIsProcessingPayment(false);
-          onNext();
+          if (storedAppointmentId) {
+            onNext(storedAppointmentId);
+          }
         }}
         onPaymentFailure={async (error) => {
           setIsProcessingPayment(false);
-          sessionStorage.removeItem('appointmentId');
           sessionStorage.removeItem('paymentType');
           sessionStorage.removeItem('paymentAmount');
           const errorMsg = typeof error === 'string' ? error : error?.description || error?.message || 'Payment failed';

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { toast } from 'sonner';
 import { useMutation, useQuery, useLazyQuery } from '@apollo/client';
+import { useRouter } from 'next/navigation';
 import {
   User,
   Mail,
@@ -57,6 +58,7 @@ export default function MobilePatientOnboarding({
   onNext,
   onPatientCreated,
 }: MobilePatientOnboardingProps) {
+  const router = useRouter();
   const mobileAnalytics = useMobileFlowAnalytics();
   const [isPhoneVerified, setIsPhoneVerified] = useState(false);
   const [isUserExists, setIsUserExists] = useState(false);
@@ -279,7 +281,7 @@ export default function MobilePatientOnboarding({
 
   const handlePopupClose = () => {
     setShowPopup(false);
-    window.location.href = "/onboarding-patient";
+    router.push("/onboarding-patient");
   };
 
   const handleLeadModalClose = () => {

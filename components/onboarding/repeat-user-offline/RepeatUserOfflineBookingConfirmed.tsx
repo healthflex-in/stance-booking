@@ -4,12 +4,14 @@ import React from 'react';
 import { useQuery } from '@apollo/client';
 import { GET_CENTERS, GET_SERVICES } from '@/gql/queries';
 import { CheckCircle, Shirt, Droplets, Package } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 interface RepeatUserOfflineBookingConfirmedProps {
   bookingData: any;
 }
 
 export default function RepeatUserOfflineBookingConfirmed({ bookingData }: RepeatUserOfflineBookingConfirmedProps) {
+  const router = useRouter();
   const { data: centersData } = useQuery(GET_CENTERS);
   const { data: servicesData } = useQuery(GET_SERVICES, {
     variables: { centerId: [bookingData.centerId] },
@@ -100,7 +102,7 @@ export default function RepeatUserOfflineBookingConfirmed({ bookingData }: Repea
 
       <div className="flex-shrink-0 bg-white border-t border-gray-200 p-4">
         <button
-          onClick={() => window.location.href = '/book-prepaid'}
+          onClick={() => router.push('/book-prepaid')}
           className="w-full py-4 text-black rounded-xl font-semibold transition-all"
           style={{ backgroundColor: '#DDFE71' }}
         >
