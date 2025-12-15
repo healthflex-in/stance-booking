@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useQuery } from '@apollo/client';
 import { Clock, UserCircle, ChevronRight } from 'lucide-react';
 import { GET_CONSULTANTS } from '@/gql/queries';
-import { useAvailableSlots } from '@/hooks/useAvailableSlots';
+import { useAvailability } from '@/hooks';
 import { useContainerDetection } from '@/hooks/useContainerDetection';
 import { ConsultantSelectionModal } from '../shared';
 
@@ -76,16 +76,39 @@ export default function PrepaidSlotSelection({
     });
   }, [consultantsData]);
 
-  const { availableSlots, loading: slotsLoading } = useAvailableSlots({
-    centerId,
-    date: currentSelectedDate || new Date(),
-    serviceDurationInMinutes: serviceDuration,
-    consultantId: selectedConsultant?._id || null,
-    isReturningUser: selectedConsultant ? false : false,
-    consultantIds: selectedConsultant ? [selectedConsultant._id] : consultants.map((c: any) => c._id),
-    preFilteredConsultants: selectedConsultant ? [selectedConsultant] : consultants,
-    allConsultantsForLookup: selectedConsultant ? undefined : allConsultants,
+  const organizationId = process.env.NEXT_PUBLIC_ORGANIZATION_ID || '67fe35f25e42152fb5185a5e';
+  
+  const startOfDay = React.useMemo(() => {
+    if (!currentSelectedDate) return new Date();
+    const start = new Date(currentSelectedDate);
+    start.setHours(0, 0, 0, 0);
+    return start;
+  }, [currentSelectedDate]);
+
+  const endOfDay = React.useMemo(() => {
+    if (!currentSelectedDate) return new Date();
+    const end = new Date(currentSelectedDate);
+    end.setHours(23, 59, 59, 999);
+    return end;
+  }, [currentSelectedDate]);
+
+  const { consultants: availabilityConsultants, loading: slotsLoading } = useAvailability({
+    organizationId,
+    startDate: startOfDay,
+    endDate: endOfDay,
+    serviceDuration,
+    enabled: !!currentSelectedDate,
   });
+
+  const availableSlots = React.useMemo(() => {
+    return availabilityConsultants.flatMap(consultant => 
+      consultant.availableSlots.map(slot => ({
+        startTime: new Date(slot.startTime * 1000),
+        endTime: new Date(slot.endTime * 1000),
+        consultantId: consultant.consultantId,
+      }))
+    );
+  }, [availabilityConsultants]);
 
   // Generate next 14 days
   const generateNext14Days = (): DateOption[] => {
@@ -166,7 +189,7 @@ export default function PrepaidSlotSelection({
         return date;
       })
     );
-  }, [currentSelectedDate, availableSlots, slotsLoading, consultants, allConsultants]);
+  }, [currentSelectedDate, availableSlots, slotsLoading, consultants]);
 
   const handleDateSelect = (date: DateOption) => {
     const dateKey = `${date.day}, ${date.date} ${date.month}`;

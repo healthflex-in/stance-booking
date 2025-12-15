@@ -2502,3 +2502,18 @@ export const VERIFY_PAYMENT = gql`
     }
   }
 `;
+
+export const GET_ORGANIZATION_AVAILABILITY = gql`
+  query GetOrganizationAvailability($input: OrganizationAvailabilityInput!) {
+    getOrganizationAvailability(input: $input) {
+      consultantId
+      consultantName
+      availableSlots {
+        startTime
+        endTime
+        centerId
+        centerName
+      }
+    }
+  }
+`;

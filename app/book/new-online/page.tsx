@@ -31,6 +31,8 @@ interface BookingData {
   selectedTimeSlot: { startTime: string; endTime: string; displayTime: string };
   isNewUser: boolean;
   appointmentId?: string;
+  centerName?: string;
+  consultantName?: string;
 }
 
 export default function NewOnlinePage() {
@@ -40,7 +42,7 @@ export default function NewOnlinePage() {
   const [bookingData, setBookingData] = useState<BookingData>({
     sessionType: 'online',
     patientId: '',
-    centerId: process.env.NEXT_PUBLIC_DEFAULT_CENTER_ID || '67fe36545e42152fb5185a6c',
+    centerId: '',
     consultantId: '',
     treatmentId: '',
     treatmentPrice: 0,
@@ -58,16 +60,16 @@ export default function NewOnlinePage() {
     if (!mounted) return;
     
     const storedPatientId = sessionStorage.getItem('patientId');
-    const storedCenterId = sessionStorage.getItem('centerId');
     
-    if (storedPatientId && storedCenterId) {
+    if (storedPatientId) {
       setBookingData(prev => ({
         ...prev,
         patientId: storedPatientId,
-        centerId: storedCenterId,
       }));
       sessionStorage.removeItem('patientId');
-      sessionStorage.removeItem('centerId');
+    } else {
+      console.warn('⚠️ No patientId found in sessionStorage');
+      router.push('/book');
     }
   }, [mounted]);
 
@@ -158,11 +160,9 @@ export default function NewOnlinePage() {
           {currentStep === 'session-details' && (
             <NewUserOnlineSessionDetails
               patientId={bookingData.patientId}
-              centerId={bookingData.centerId}
               onBack={goToPreviousStep}
               onContinue={(data) => {
                 updateBookingData({
-                  centerId: data.centerId,
                   treatmentId: data.serviceId,
                   treatmentDuration: data.serviceDuration,
                   treatmentPrice: data.servicePrice,
@@ -174,12 +174,14 @@ export default function NewOnlinePage() {
 
           {currentStep === 'slot-selection' && (
             <NewUserOnlineSlotSelection
-              centerId={bookingData.centerId}
               serviceDuration={bookingData.treatmentDuration}
-              onSlotSelect={(consultantId, slot) => {
+              onSlotSelect={(consultantId, centerId, slot) => {
                 const slotDate = new Date(slot.startTimeRaw);
                 updateBookingData({
                   consultantId,
+                  centerId,
+                  consultantName: slot.consultantName,
+                  centerName: slot.centerName,
                   selectedTimeSlot: {
                     startTime: new Date(slot.startTimeRaw).toISOString(),
                     endTime: new Date(slot.endTimeRaw).toISOString(),

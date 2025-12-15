@@ -58,8 +58,13 @@ export default function NewUserOnlinePaymentConfirmation({
 
   const handleProceedToPayment = async () => {
     try {
+      if (!bookingData.patientId) {
+        setAmountError('Patient ID is missing. Please start over.');
+        return;
+      }
+
       console.log('📋 Creating appointment with data:', {
-        patient: bookingData.patientId || null,
+        patient: bookingData.patientId,
         consultant: bookingData.consultantId,
         center: bookingData.centerId,
         treatment: bookingData.treatmentId,
@@ -70,7 +75,7 @@ export default function NewUserOnlinePaymentConfirmation({
       const appointmentResult = await createAppointment({
         variables: {
           input: {
-            patient: bookingData.patientId || null,
+            patient: bookingData.patientId,
             consultant: bookingData.consultantId,
             center: bookingData.centerId,
             treatment: bookingData.treatmentId,
