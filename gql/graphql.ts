@@ -557,6 +557,7 @@ export type Appointment = DataRow & {
   isPrepaid?: Maybe<Scalars['Boolean']['output']>;
   isWaitlisted: Scalars['Boolean']['output'];
   medium: AppointmentMedium;
+  meetingLink?: Maybe<Scalars['String']['output']>;
   notes?: Maybe<Scalars['String']['output']>;
   patient: User;
   report?: Maybe<Report>;
@@ -585,6 +586,7 @@ export type AppointmentEvent = BaseEvent & DataRow & {
   hostType: EventHostType;
   isActive: Scalars['Boolean']['output'];
   isWaitlisted: Scalars['Boolean']['output'];
+  meetingLink?: Maybe<Scalars['String']['output']>;
   organization: Organization;
   recurrenceRule?: Maybe<Recurrence>;
   seqNo: Scalars['String']['output'];
@@ -696,6 +698,14 @@ export type AvailabilityEvent = BaseEvent & DataRow & {
   version: Scalars['Int']['output'];
 };
 
+export type AvailabilitySlot = {
+  __typename?: 'AvailabilitySlot';
+  centerId: Scalars['ObjectID']['output'];
+  centerName: Scalars['String']['output'];
+  endTime: Scalars['Time']['output'];
+  startTime: Scalars['Time']['output'];
+};
+
 export enum AvailabilityStatus {
   Available = 'AVAILABLE',
   Break = 'BREAK',
@@ -767,6 +777,15 @@ export type Center = DataRow & {
   version: Scalars['Int']['output'];
 };
 
+export type CenterAvailabilityInput = {
+  centerId: Scalars['ObjectID']['input'];
+  consultantId?: InputMaybe<Scalars['ObjectID']['input']>;
+  designation?: InputMaybe<Scalars['String']['input']>;
+  endDate: Scalars['Timestamp']['input'];
+  serviceDuration: Scalars['Int']['input'];
+  startDate: Scalars['Timestamp']['input'];
+};
+
 export type ClinicalRecord = {
   __typename?: 'ClinicalRecord';
   bodyChart?: Maybe<Scalars['URL']['output']>;
@@ -799,6 +818,13 @@ export type Consultant = {
   profilePicture?: Maybe<Scalars['String']['output']>;
   services: Array<Service>;
   specialization: Specialization;
+};
+
+export type ConsultantAvailability = {
+  __typename?: 'ConsultantAvailability';
+  availableSlots: Array<AvailabilitySlot>;
+  consultantId: Scalars['ObjectID']['output'];
+  consultantName: Scalars['String']['output'];
 };
 
 export type ConsultantFilterInput = {
@@ -2475,6 +2501,14 @@ export type Organization = DataRow & {
   version: Scalars['Int']['output'];
 };
 
+export type OrganizationAvailabilityInput = {
+  designation?: InputMaybe<Scalars['String']['input']>;
+  endDate: Scalars['Timestamp']['input'];
+  organizationId: Scalars['ObjectID']['input'];
+  serviceDuration: Scalars['Int']['input'];
+  startDate: Scalars['Timestamp']['input'];
+};
+
 export type Package = DataRow & {
   __typename?: 'Package';
   _id: Scalars['ObjectID']['output'];
@@ -2747,7 +2781,11 @@ export type Query = {
   /** Get all files */
   files: Array<File>;
   generateInvoicePDFOnDemand: Scalars['String']['output'];
+  /** Get center-level availability for consultants */
+  getCenterAvailability: Array<ConsultantAvailability>;
   getFilteredConsultants: Array<User>;
+  /** Get organization-level availability for online consultants */
+  getOrganizationAvailability: Array<ConsultantAvailability>;
   /** get a goal */
   goal: Goal;
   /** Get all goals in a goal lineage (parent chain) */
@@ -2887,8 +2925,18 @@ export type QueryGenerateInvoicePdfOnDemandArgs = {
 };
 
 
+export type QueryGetCenterAvailabilityArgs = {
+  input: CenterAvailabilityInput;
+};
+
+
 export type QueryGetFilteredConsultantsArgs = {
   filter: ConsultantFilterInput;
+};
+
+
+export type QueryGetOrganizationAvailabilityArgs = {
+  input: OrganizationAvailabilityInput;
 };
 
 
@@ -3246,6 +3294,7 @@ export type SendAppointmentEmailInput = {
   email: Scalars['String']['input'];
   endDateTime?: InputMaybe<Scalars['String']['input']>;
   isOnlineAssessment?: InputMaybe<Scalars['Boolean']['input']>;
+  meetingLink?: InputMaybe<Scalars['String']['input']>;
   patientName: Scalars['String']['input'];
   startDateTime?: InputMaybe<Scalars['String']['input']>;
   time: Scalars['String']['input'];
@@ -3257,6 +3306,7 @@ export type SendConsultantMeetInviteInput = {
   consultantName: Scalars['String']['input'];
   date: Scalars['String']['input'];
   endDateTime: Scalars['String']['input'];
+  meetingLink?: InputMaybe<Scalars['String']['input']>;
   patientName: Scalars['String']['input'];
   startDateTime: Scalars['String']['input'];
   time: Scalars['String']['input'];
