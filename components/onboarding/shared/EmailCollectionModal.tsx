@@ -3,8 +3,9 @@
 import React, { useState } from 'react';
 import { useMutation } from '@apollo/client';
 import { X, Mail } from 'lucide-react';
-import { UPDATE_USER } from '@/gql/queries';
+import { UPDATE_PATIENT } from '@/gql/queries';
 import { toast } from 'sonner';
+import { useContainerDetection } from '@/hooks/useContainerDetection';
 
 interface EmailCollectionModalProps {
   isOpen: boolean;
@@ -23,8 +24,9 @@ export default function EmailCollectionModal({
 }: EmailCollectionModalProps) {
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
+  const { isInDesktopContainer } = useContainerDetection();
 
-  const [updateUser, { loading }] = useMutation(UPDATE_USER);
+  const [updatePatient, { loading }] = useMutation(UPDATE_PATIENT);
 
   const validateEmail = (email: string) => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -42,9 +44,9 @@ export default function EmailCollectionModal({
     }
 
     try {
-      await updateUser({
+      await updatePatient({
         variables: {
-          userId: patientId,
+          patientId: patientId,
           input: {
             email: email.trim(),
           },
@@ -62,8 +64,8 @@ export default function EmailCollectionModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl max-w-md w-full p-6">
+    <div className={`${isInDesktopContainer ? 'absolute' : 'fixed'} inset-0 bg-black/50 flex items-center justify-center z-50 p-4`}>
+      <div className="bg-white rounded-2xl max-w-md w-full p-6 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-xl font-semibold text-gray-900">Email Required</h3>
           <button
