@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useApolloClient, gql } from '@apollo/client';
 
 const GET_ORGANIZATION_AVAILABILITY = gql`
@@ -46,6 +46,8 @@ interface UseAvailabilityReturn {
   refetch: () => void;
 }
 
+
+
 export const useAvailability = ({
   organizationId,
   startDate,
@@ -57,7 +59,9 @@ export const useAvailability = ({
   const [consultants, setConsultants] = useState<ConsultantAvailability[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [cache, setCache] = useState<Map<string, ConsultantAvailability[]>>(new Map());
   const client = useApolloClient();
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const centers = useMemo(() => {
     const centerMap = new Map<string, string>();
@@ -76,6 +80,23 @@ export const useAvailability = ({
   const fetchAvailability = async () => {
     if (!enabled || !organizationId) return;
 
+    const dateKey = startDate.toDateString();
+    const cached = cache.get(dateKey);
+    
+    if (cached) {
+      console.log('📦 Cache HIT for date:', dateKey);
+      setConsultants(cached);
+      return;
+    }
+    
+    console.log('🔍 Cache MISS for date:', dateKey, '- Fetching from API');
+
+    // Abort previous request if still pending
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+
     setLoading(true);
     setError(null);
 
@@ -92,19 +113,35 @@ export const useAvailability = ({
           },
         },
         fetchPolicy: 'network-only',
+        context: {
+          fetchOptions: {
+            signal: abortControllerRef.current.signal,
+          },
+        },
       });
 
-      setConsultants(data?.getOrganizationAvailability || []);
-    } catch (err) {
+      const result = data?.getOrganizationAvailability || [];
+      setCache(prev => new Map(prev).set(dateKey, result));
+      console.log('💾 Cached data for date:', dateKey, '- Total cached dates:', cache.size + 1);
+      setConsultants(result);
+    } catch (err: any) {
+      if (err.name === 'AbortError') return;
       console.error('Error fetching availability:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch availability');
     } finally {
       setLoading(false);
+      abortControllerRef.current = null;
     }
   };
 
   useEffect(() => {
     fetchAvailability();
+    
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
   }, [organizationId, startDate.getTime(), endDate.getTime(), serviceDuration, designation || '', enabled]);
 
   return {
