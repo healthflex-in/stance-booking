@@ -6,6 +6,7 @@ import { PrepaidSlotSelection } from '../prepaid';
 interface RepeatUserOnlineSlotSelectionProps {
   centerId: string;
   serviceDuration: number;
+  designation?: string;
   onSlotSelect: (consultantId: string, slot: any) => void;
   onBack?: () => void;
 }
@@ -13,6 +14,7 @@ interface RepeatUserOnlineSlotSelectionProps {
 export default function RepeatUserOnlineSlotSelection({
   centerId,
   serviceDuration,
+  designation,
   onSlotSelect,
   onBack = () => {},
 }: RepeatUserOnlineSlotSelectionProps) {
@@ -20,6 +22,9 @@ export default function RepeatUserOnlineSlotSelection({
     <PrepaidSlotSelection
       centerId={centerId}
       serviceDuration={serviceDuration}
+      designation={designation}
+      isNewUser={false}
+      useCenter={true}
       onSlotSelect={onSlotSelect}
       onBack={onBack}
     />
