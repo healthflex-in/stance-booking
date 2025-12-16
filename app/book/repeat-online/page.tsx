@@ -18,6 +18,7 @@ interface BookingData {
   treatmentId: string;
   treatmentPrice: number;
   treatmentDuration: number;
+  designation?: string;
   selectedDate: string;
   selectedFullDate?: Date;
   selectedTimeSlot: { startTime: string; endTime: string; displayTime: string };
@@ -133,6 +134,7 @@ export default function RepeatOnlinePage() {
                 treatmentId: data.serviceId,
                 treatmentDuration: data.serviceDuration,
                 treatmentPrice: data.servicePrice,
+                designation: data.designation,
               });
               goToNextStep();
             }}
@@ -143,6 +145,7 @@ export default function RepeatOnlinePage() {
           <RepeatUserOnlineSlotSelection
             centerId={bookingData.centerId}
             serviceDuration={bookingData.treatmentDuration}
+            designation={bookingData.designation}
             onSlotSelect={(consultantId, slot) => {
               const slotDate = new Date(slot.startTimeRaw);
               updateBookingData({

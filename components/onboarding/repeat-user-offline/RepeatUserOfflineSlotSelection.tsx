@@ -63,13 +63,9 @@ export default function RepeatUserOfflineSlotSelection({
     fetchPolicy: 'network-only',
   });
 
-  const consultants = React.useMemo(() => {
+  const allConsultants = React.useMemo(() => {
     if (!consultantsData?.users?.data) return [];
-    return consultantsData.users.data.filter((consultant: any) => {
-      return consultant.profileData?.allowOnlineBooking === true &&
-        (consultant.profileData?.allowOnlineDelivery === 'OFFLINE' ||
-         consultant.profileData?.allowOnlineDelivery === 'BOTH');
-    });
+    return consultantsData.users.data;
   }, [consultantsData]);
 
   const startOfDay = React.useMemo(() => {
@@ -96,15 +92,43 @@ export default function RepeatUserOfflineSlotSelection({
     enabled: !!currentSelectedDate,
   });
 
+  const consultants = React.useMemo(() => {
+    if (!consultantsData?.users?.data) return [];
+    return consultantsData.users.data.filter((consultant: any) => {
+      const matchesBooking = consultant.profileData?.allowOnlineBooking === true &&
+        (consultant.profileData?.allowOnlineDelivery === 'OFFLINE' ||
+         consultant.profileData?.allowOnlineDelivery === 'BOTH');
+      if (!matchesBooking) return false;
+      
+      if (designation && consultant.profileData?.designation !== designation) return false;
+      
+      const hasAvailableSlots = availabilityConsultants.some((ac: any) => ac.consultantId === consultant._id);
+      return hasAvailableSlots;
+    });
+  }, [consultantsData, designation, availabilityConsultants]);
+
   const availableSlots = React.useMemo(() => {
-    return availabilityConsultants.flatMap(consultant => 
+    let filteredConsultants = availabilityConsultants;
+    
+    if (designation) {
+      filteredConsultants = filteredConsultants.filter(ac => {
+        const consultant = allConsultants.find((c: any) => c._id === ac.consultantId);
+        return consultant && consultant.profileData?.designation === designation;
+      });
+    }
+    
+    if (selectedConsultant) {
+      filteredConsultants = filteredConsultants.filter(c => c.consultantId === selectedConsultant._id);
+    }
+    
+    return filteredConsultants.flatMap(consultant => 
       consultant.availableSlots.map(slot => ({
         startTime: new Date(slot.startTime * 1000),
         endTime: new Date(slot.endTime * 1000),
         consultantId: consultant.consultantId,
       }))
     );
-  }, [availabilityConsultants]);
+  }, [availabilityConsultants, selectedConsultant, designation, allConsultants]);
 
   const generateNext14Days = (): DateOption[] => {
     const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -151,7 +175,10 @@ export default function RepeatUserOfflineSlotSelection({
     const processedSlots = availableSlots
       .filter(slot => {
         if (!slot.consultantId) return false;
-        return consultants.some((c: any) => c._id === slot.consultantId);
+        const consultant = consultants.find((c: any) => c._id === slot.consultantId);
+        if (!consultant) return false;
+        if (designation && consultant.profileData?.designation !== designation) return false;
+        return true;
       })
       .map(slot => {
         const consultant = consultants.find((c: any) => c._id === slot.consultantId);

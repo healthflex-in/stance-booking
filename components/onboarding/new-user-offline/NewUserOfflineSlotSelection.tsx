@@ -2,11 +2,10 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useQuery } from '@apollo/client';
-import { Clock, UserCircle, ChevronRight } from 'lucide-react';
+import { Clock } from 'lucide-react';
 import { GET_CONSULTANTS } from '@/gql/queries';
 import { useCenterAvailability } from '@/hooks';
 import { useContainerDetection } from '@/hooks/useContainerDetection';
-import { ConsultantSelectionModal } from '../shared';
 import { StanceHealthLoader } from '@/components/loader/StanceHealthLoader';
 
 interface NewUserOfflineSlotSelectionProps {
@@ -44,8 +43,6 @@ export default function NewUserOfflineSlotSelection({
   onBack = () => {},
 }: NewUserOfflineSlotSelectionProps) {
   const { isInDesktopContainer } = useContainerDetection();
-  const [selectedConsultant, setSelectedConsultant] = useState<any>(null);
-  const [showConsultantModal, setShowConsultantModal] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<TimeSlot | null>(null);
   const [availableDates, setAvailableDates] = useState<DateOption[]>([]);
@@ -64,16 +61,6 @@ export default function NewUserOfflineSlotSelection({
   const allConsultants = React.useMemo(() => {
     if (!consultantsData?.users?.data) return [];
     return consultantsData.users.data;
-  }, [consultantsData]);
-
-  const consultants = React.useMemo(() => {
-    if (!consultantsData?.users?.data) return [];
-    return consultantsData.users.data.filter((consultant: any) => {
-      if (consultant.profileData?.allowOnlineBooking !== true) return false;
-      if (consultant.profileData?.designation !== 'Physiotherapist') return false;
-      const allowOnlineDelivery = consultant.profileData?.allowOnlineDelivery;
-      return allowOnlineDelivery === 'OFFLINE';
-    });
   }, [consultantsData]);
 
   const startOfDay = React.useMemo(() => {
@@ -95,10 +82,22 @@ export default function NewUserOfflineSlotSelection({
     startDate: startOfDay,
     endDate: endOfDay,
     serviceDuration,
-    consultantId: selectedConsultant?._id,
     designation: 'Physiotherapist',
     enabled: !!currentSelectedDate,
   });
+
+  const consultants = React.useMemo(() => {
+    if (!consultantsData?.users?.data) return [];
+    return consultantsData.users.data.filter((consultant: any) => {
+      if (consultant.profileData?.allowOnlineBooking !== true) return false;
+      if (consultant.profileData?.designation !== 'Physiotherapist') return false;
+      const allowOnlineDelivery = consultant.profileData?.allowOnlineDelivery;
+      if (allowOnlineDelivery !== 'OFFLINE') return false;
+      
+      const hasAvailableSlots = availabilityConsultants.some((ac: any) => ac.consultantId === consultant._id);
+      return hasAvailableSlots;
+    });
+  }, [consultantsData, availabilityConsultants]);
 
   const availableSlots = React.useMemo(() => {
     return availabilityConsultants.flatMap(consultant => 
@@ -204,14 +203,8 @@ export default function NewUserOfflineSlotSelection({
 
   const handleContinue = () => {
     if (selectedTimeSlot) {
-      const consultantId = selectedConsultant?._id || selectedTimeSlot.consultantId;
-      onSlotSelect(consultantId, selectedTimeSlot);
+      onSlotSelect(selectedTimeSlot.consultantId, selectedTimeSlot);
     }
-  };
-
-  const handleConsultantSelect = (consultant: any | null) => {
-    setSelectedConsultant(consultant);
-    setShowConsultantModal(false);
   };
 
   const currentTimeSlots = selectedDate ? (dateSlots[selectedDate] || []) : [];
@@ -221,46 +214,6 @@ export default function NewUserOfflineSlotSelection({
     <div className={`${isInDesktopContainer ? 'h-full' : 'min-h-screen'} bg-gray-50 flex flex-col`}>
       <div className="flex-1 overflow-y-auto">
         <div className={`p-4 ${isInDesktopContainer ? 'pb-6' : 'pb-32'}`}>
-          <div className="mb-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Select preferred consultant</h3>
-            <div className="bg-white rounded-2xl p-4 border border-gray-200">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-purple-50 rounded-xl flex items-center justify-center">
-                    <UserCircle className="w-5 h-5 text-purple-600" />
-                  </div>
-                  <div className="flex-1">
-                    {selectedConsultant ? (
-                      <>
-                        <p className="text-sm font-bold text-gray-900">
-                          {selectedConsultant.profileData?.firstName || selectedConsultant.profileData?.lastName ? (
-                            <>Dr. {selectedConsultant.profileData?.firstName || ''} {selectedConsultant.profileData?.lastName || ''}</>
-                          ) : (
-                            <>Consultant</>
-                          )}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          {selectedConsultant.profileData?.designation || 'Consultant'}
-                        </p>
-                      </>
-                    ) : (
-                      <>
-                        <p className="text-sm font-bold text-gray-900">Any available</p>
-                        <p className="text-xs text-gray-500">First available consultant for your session</p>
-                      </>
-                    )}
-                  </div>
-                </div>
-                <button
-                  onClick={() => setShowConsultantModal(true)}
-                  className="p-2 hover:bg-gray-50 rounded-lg transition-colors"
-                >
-                  <ChevronRight className="w-5 h-5 text-gray-400" />
-                </button>
-              </div>
-            </div>
-          </div>
-
           <div className="mb-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Visit details</h3>
 
@@ -387,16 +340,6 @@ export default function NewUserOfflineSlotSelection({
           Continue
         </button>
       </div>
-
-      <ConsultantSelectionModal
-        isOpen={showConsultantModal}
-        onClose={() => setShowConsultantModal(false)}
-        consultants={consultants}
-        sessionType="in-person"
-        centerId={centerId}
-        onSelect={handleConsultantSelect}
-        selectedConsultant={selectedConsultant}
-      />
     </div>
   );
 }

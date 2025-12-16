@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useQuery } from '@apollo/client';
 import { Clock, UserCircle, ChevronRight } from 'lucide-react';
 import { GET_CONSULTANTS } from '@/gql/queries';
-import { useAvailability } from '@/hooks';
+import { useAvailability, useCenterAvailability } from '@/hooks';
 import { useContainerDetection } from '@/hooks/useContainerDetection';
 import { ConsultantSelectionModal } from '../shared';
 import { StanceHealthLoader } from '@/components/loader/StanceHealthLoader';
@@ -15,6 +15,7 @@ interface PrepaidSlotSelectionProps {
   consultantId?: string;
   designation?: string;
   isNewUser?: boolean;
+  useCenter?: boolean;
   onSlotSelect: (consultantId: string, slot: any) => void;
   onBack: () => void;
 }
@@ -46,6 +47,7 @@ export default function PrepaidSlotSelection({
   consultantId,
   designation,
   isNewUser = false,
+  useCenter = false,
   onSlotSelect,
   onBack,
 }: PrepaidSlotSelectionProps) {
@@ -59,11 +61,18 @@ export default function PrepaidSlotSelection({
   const [dateSlots, setDateSlots] = useState<{ [key: string]: TimeSlot[] }>({});
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
+  const organizationId = process.env.NEXT_PUBLIC_ORGANIZATION_ID || '67fe35f25e42152fb5185a5e';
+
   const { data: consultantsData, loading: consultantsLoading } = useQuery(GET_CONSULTANTS, {
-    variables: {
-      userType: 'CONSULTANT',
-      centerId: [centerId],
-    },
+    variables: useCenter
+      ? {
+          userType: 'CONSULTANT',
+          centerId: [centerId],
+        }
+      : {
+          userType: 'CONSULTANT',
+          organizationId: organizationId,
+        },
     fetchPolicy: 'network-only',
   });
 
@@ -71,17 +80,6 @@ export default function PrepaidSlotSelection({
     if (!consultantsData?.users?.data) return [];
     return consultantsData.users.data;
   }, [consultantsData]);
-
-  const consultants = React.useMemo(() => {
-    if (!consultantsData?.users?.data) return [];
-    return consultantsData.users.data.filter((consultant: any) => {
-      if (consultant.profileData?.allowOnlineBooking !== true) return false;
-      const allowOnlineDelivery = consultant.profileData?.allowOnlineDelivery;
-      return allowOnlineDelivery === true || allowOnlineDelivery === 'BOTH' || allowOnlineDelivery === 'ONLINE';
-    });
-  }, [consultantsData]);
-
-  const organizationId = process.env.NEXT_PUBLIC_ORGANIZATION_ID || '67fe35f25e42152fb5185a5e';
   
   const startOfDay = React.useMemo(() => {
     if (!currentSelectedDate) return new Date();
@@ -97,24 +95,61 @@ export default function PrepaidSlotSelection({
     return end;
   }, [currentSelectedDate]);
 
-  const { consultants: availabilityConsultants, loading: slotsLoading } = useAvailability({
-    organizationId,
-    startDate: startOfDay,
-    endDate: endOfDay,
-    serviceDuration,
-    designation,
-    enabled: !!currentSelectedDate,
-  });
+  const { consultants: availabilityConsultants, loading: slotsLoading } = useCenter
+    ? useCenterAvailability({
+        centerId,
+        startDate: startOfDay,
+        endDate: endOfDay,
+        serviceDuration,
+        designation,
+        enabled: !!currentSelectedDate,
+      })
+    : useAvailability({
+        organizationId,
+        startDate: startOfDay,
+        endDate: endOfDay,
+        serviceDuration,
+        designation,
+        enabled: !!currentSelectedDate,
+      });
+
+  const consultants = React.useMemo(() => {
+    if (!consultantsData?.users?.data) return [];
+    return consultantsData.users.data.filter((consultant: any) => {
+      if (consultant.profileData?.allowOnlineBooking !== true) return false;
+      const allowOnlineDelivery = consultant.profileData?.allowOnlineDelivery;
+      const matchesDelivery = allowOnlineDelivery === true || allowOnlineDelivery === 'BOTH' || allowOnlineDelivery === 'ONLINE';
+      if (!matchesDelivery) return false;
+      
+      if (designation && consultant.profileData?.designation !== designation) return false;
+      
+      const hasAvailableSlots = availabilityConsultants.some((ac: any) => ac.consultantId === consultant._id);
+      return hasAvailableSlots;
+    });
+  }, [consultantsData, designation, availabilityConsultants]);
 
   const availableSlots = React.useMemo(() => {
-    return availabilityConsultants.flatMap(consultant => 
+    let filteredConsultants = availabilityConsultants;
+    
+    if (designation) {
+      filteredConsultants = filteredConsultants.filter(ac => {
+        const consultant = allConsultants.find((c: any) => c._id === ac.consultantId);
+        return consultant && consultant.profileData?.designation === designation;
+      });
+    }
+    
+    if (selectedConsultant) {
+      filteredConsultants = filteredConsultants.filter(c => c.consultantId === selectedConsultant._id);
+    }
+    
+    return filteredConsultants.flatMap(consultant => 
       consultant.availableSlots.map(slot => ({
         startTime: new Date(slot.startTime * 1000),
         endTime: new Date(slot.endTime * 1000),
         consultantId: consultant.consultantId,
       }))
     );
-  }, [availabilityConsultants]);
+  }, [availabilityConsultants, selectedConsultant, designation, allConsultants]);
 
   // Generate next 14 days
   const generateNext14Days = (): DateOption[] => {
@@ -162,7 +197,10 @@ export default function PrepaidSlotSelection({
     const processedSlots = availableSlots
       .filter(slot => {
         if (!slot.consultantId) return false;
-        return consultants.some((c: any) => c._id === slot.consultantId);
+        const consultant = consultants.find((c: any) => c._id === slot.consultantId);
+        if (!consultant) return false;
+        if (designation && consultant.profileData?.designation !== designation) return false;
+        return true;
       })
       .map(slot => {
         const consultant = consultants.find((c: any) => c._id === slot.consultantId);
