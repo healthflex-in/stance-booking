@@ -202,7 +202,8 @@ export default function RepeatUserOfflineSlotSelection({
           startTimeRaw: new Date(slot.startTime).toISOString(),
           endTimeRaw: new Date(slot.endTime).toISOString(),
         };
-      });
+      })
+      .sort((a, b) => new Date(a.startTimeRaw).getTime() - new Date(b.startTimeRaw).getTime());
     
     setDateSlots(prev => ({ ...prev, [dateKey]: processedSlots }));
     
@@ -382,11 +383,11 @@ export default function RepeatUserOfflineSlotSelection({
                           }`}
                         >
                           <div className="text-sm font-semibold">{slot.displayTime}</div>
-                          {process.env.NEXT_PUBLIC_ENVIRONMENT === 'development' && slot.consultantName && (
-                            <div className="text-xs text-gray-500 mt-1">{slot.consultantName}</div>
+                          {process.env.NEXT_PUBLIC_ENVIRONMENT === 'development' && (
+                            <div className="text-xs text-gray-500 mt-1">{slot.consultantName || 'No consultant'}</div>
                           )}
-                          {slot.centerName && (
-                            <div className="text-xs text-gray-400 mt-1">{slot.centerName}</div>
+                          {process.env.NEXT_PUBLIC_ENVIRONMENT === 'development' && (
+                            <div className="text-xs text-gray-400 mt-1">{slot.centerName || 'No center'}</div>
                           )}
                         </button>
                       );
