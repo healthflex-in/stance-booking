@@ -22,6 +22,7 @@ interface TimeSlot {
   isAvailable: boolean;
   consultantId: string;
   consultantName?: string;
+  centerName?: string;
   startTimeRaw: string;
   endTimeRaw: string;
 }
@@ -100,6 +101,7 @@ export default function RepeatUserOnlineSlotSelection({
         startTime: new Date(slot.startTime * 1000),
         endTime: new Date(slot.endTime * 1000),
         consultantId: consultant.consultantId,
+        centerName: slot.centerName,
       }))
     );
   }, [availabilityConsultants, selectedConsultant]);
@@ -146,22 +148,28 @@ export default function RepeatUserOnlineSlotSelection({
     
     const dateKey = `${currentSelectedDate.toLocaleDateString('en-US', { weekday: 'short' })}, ${currentSelectedDate.getDate()} ${currentSelectedDate.toLocaleDateString('en-US', { month: 'short' })}`;
     
-    const processedSlots = availableSlots
-      .map(slot => {
+    const slotMap = new Map();
+    availableSlots.forEach(slot => {
+      const timeKey = new Date(slot.startTime).toISOString();
+      if (!slotMap.has(timeKey)) {
         const consultant = availabilityConsultants.find((ac: any) => ac.consultantId === slot.consultantId);
         const consultantName = consultant?.consultantName || '';
         
-        return {
+        slotMap.set(timeKey, {
           startTime: new Date(slot.startTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
           endTime: new Date(slot.endTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
           displayTime: `${new Date(slot.startTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })} - ${new Date(slot.endTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}`,
           isAvailable: true,
           consultantId: slot.consultantId,
           consultantName: consultantName,
+          centerName: slot.centerName,
           startTimeRaw: new Date(slot.startTime).toISOString(),
           endTimeRaw: new Date(slot.endTime).toISOString(),
-        };
-      });
+        });
+      }
+    });
+    
+    const processedSlots = Array.from(slotMap.values());
     
     setDateSlots(prev => ({ ...prev, [dateKey]: processedSlots }));
     
@@ -343,6 +351,9 @@ export default function RepeatUserOnlineSlotSelection({
                           <div className="text-sm font-semibold">{slot.displayTime}</div>
                           {process.env.NEXT_PUBLIC_ENVIRONMENT === 'development' && slot.consultantName && (
                             <div className="text-xs text-gray-500 mt-1">{slot.consultantName}</div>
+                          )}
+                          {slot.centerName && (
+                            <div className="text-xs text-gray-400 mt-1">{slot.centerName}</div>
                           )}
                         </button>
                       );

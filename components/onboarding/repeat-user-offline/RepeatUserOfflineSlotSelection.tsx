@@ -24,6 +24,7 @@ interface TimeSlot {
   isAvailable: boolean;
   consultantId: string;
   consultantName?: string;
+  centerName?: string;
   startTimeRaw: string;
   endTimeRaw: string;
 }
@@ -126,6 +127,7 @@ export default function RepeatUserOfflineSlotSelection({
         startTime: new Date(slot.startTime * 1000),
         endTime: new Date(slot.endTime * 1000),
         consultantId: consultant.consultantId,
+        centerName: slot.centerName,
       }))
     );
   }, [availabilityConsultants, selectedConsultant, designation, allConsultants]);
@@ -196,6 +198,7 @@ export default function RepeatUserOfflineSlotSelection({
           isAvailable: true,
           consultantId: slot.consultantId,
           consultantName: consultantName,
+          centerName: slot.centerName,
           startTimeRaw: new Date(slot.startTime).toISOString(),
           endTimeRaw: new Date(slot.endTime).toISOString(),
         };
@@ -381,6 +384,9 @@ export default function RepeatUserOfflineSlotSelection({
                           <div className="text-sm font-semibold">{slot.displayTime}</div>
                           {process.env.NEXT_PUBLIC_ENVIRONMENT === 'development' && slot.consultantName && (
                             <div className="text-xs text-gray-500 mt-1">{slot.consultantName}</div>
+                          )}
+                          {slot.centerName && (
+                            <div className="text-xs text-gray-400 mt-1">{slot.centerName}</div>
                           )}
                         </button>
                       );

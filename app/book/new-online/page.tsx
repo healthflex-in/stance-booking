@@ -175,6 +175,7 @@ export default function NewOnlinePage() {
           {currentStep === 'slot-selection' && (
             <NewUserOnlineSlotSelection
               serviceDuration={bookingData.treatmentDuration}
+              designation="Physiotherapist"
               onSlotSelect={(consultantId, slot) => {
                 const slotDate = new Date(slot.startTimeRaw);
                 updateBookingData({
