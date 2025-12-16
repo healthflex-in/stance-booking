@@ -4,18 +4,15 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useQuery } from '@apollo/client';
 import { Clock, UserCircle, ChevronRight } from 'lucide-react';
 import { GET_CONSULTANTS } from '@/gql/queries';
-import { useAvailability, useCenterAvailability } from '@/hooks';
+import { useCenterAvailability } from '@/hooks';
 import { useContainerDetection } from '@/hooks/useContainerDetection';
 import { ConsultantSelectionModal } from '../shared';
 import { StanceHealthLoader } from '@/components/loader/StanceHealthLoader';
 
-interface PrepaidSlotSelectionProps {
+interface PrepaidRepeatSlotSelectionProps {
   centerId: string;
   serviceDuration: number;
-  consultantId?: string;
   designation?: string;
-  isNewUser?: boolean;
-  useCenter?: boolean;
   onSlotSelect: (consultantId: string, slot: any) => void;
   onBack: () => void;
 }
@@ -27,8 +24,8 @@ interface TimeSlot {
   isAvailable: boolean;
   consultantIds: string[];
   consultantNames: string[];
-  centerIds: string[];
-  centerNames: string[];
+  centerIds?: string[];
+  centerNames?: string[];
   startTimeRaw: string;
   endTimeRaw: string;
 }
@@ -43,16 +40,13 @@ interface DateOption {
   isToday?: boolean;
 }
 
-export default function PrepaidSlotSelection({
+export default function PrepaidRepeatSlotSelection({
   centerId,
   serviceDuration,
-  consultantId,
   designation,
-  isNewUser = false,
-  useCenter = false,
   onSlotSelect,
   onBack,
-}: PrepaidSlotSelectionProps) {
+}: PrepaidRepeatSlotSelectionProps) {
   const { isInDesktopContainer } = useContainerDetection();
   const [selectedConsultant, setSelectedConsultant] = useState<any>(null);
   const [showConsultantModal, setShowConsultantModal] = useState(false);
@@ -63,21 +57,8 @@ export default function PrepaidSlotSelection({
   const [dateSlots, setDateSlots] = useState<{ [key: string]: TimeSlot[] }>({});
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  const organizationId = process.env.NEXT_PUBLIC_ORGANIZATION_ID || '67fe35f25e42152fb5185a5e';
 
-  const { data: consultantsData, loading: consultantsLoading } = useQuery(GET_CONSULTANTS, {
-    variables: {
-      userType: 'CONSULTANT',
-      organizationId: organizationId,
-    },
-    fetchPolicy: 'network-only',
-  });
 
-  const allConsultants = React.useMemo(() => {
-    if (!consultantsData?.users?.data) return [];
-    return consultantsData.users.data;
-  }, [consultantsData]);
-  
   const startOfDay = React.useMemo(() => {
     if (!currentSelectedDate) return new Date();
     const start = new Date(currentSelectedDate);
@@ -92,42 +73,45 @@ export default function PrepaidSlotSelection({
     return end;
   }, [currentSelectedDate]);
 
-  const { consultants: availabilityConsultants, loading: slotsLoading } = useAvailability({
-    organizationId,
+  const { consultants: availabilityConsultants, loading: slotsLoading } = useCenterAvailability({
+    centerId,
     startDate: startOfDay,
     endDate: endOfDay,
     serviceDuration,
+    consultantId: selectedConsultant?._id,
     designation,
+    deliveryMode: 'ONLINE',
     enabled: !!currentSelectedDate,
   });
 
   const consultants = React.useMemo(() => {
-    return availabilityConsultants.map((ac: any) => {
-      const fullConsultant = allConsultants.find((c: any) => c._id === ac.consultantId);
-      return fullConsultant || {
-        _id: ac.consultantId,
-        profileData: {
-          firstName: ac.consultantName.split(' ')[0] || '',
-          lastName: ac.consultantName.split(' ').slice(1).join(' ') || '',
-          designation: designation || 'Consultant',
-        }
-      };
-    });
-  }, [availabilityConsultants, allConsultants, designation]);
+    return availabilityConsultants.map((ac: any) => ({
+      _id: ac.consultantId,
+      profileData: {
+        firstName: ac.consultantName.split(' ')[0] || '',
+        lastName: ac.consultantName.split(' ').slice(1).join(' ') || '',
+        designation: designation || 'Consultant',
+      }
+    }));
+  }, [availabilityConsultants, designation]);
 
   const availableSlots = React.useMemo(() => {
-    return availabilityConsultants.flatMap(consultant => 
+    let filteredConsultants = availabilityConsultants;
+    
+    if (selectedConsultant) {
+      filteredConsultants = filteredConsultants.filter(c => c.consultantId === selectedConsultant._id);
+    }
+    
+    return filteredConsultants.flatMap(consultant => 
       consultant.availableSlots.map(slot => ({
         startTime: new Date(slot.startTime * 1000),
         endTime: new Date(slot.endTime * 1000),
         consultantId: consultant.consultantId,
-        centerId: slot.centerId,
         centerName: slot.centerName,
       }))
     );
-  }, [availabilityConsultants]);
+  }, [availabilityConsultants, selectedConsultant]);
 
-  // Generate next 14 days
   const generateNext14Days = (): DateOption[] => {
     const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -184,7 +168,7 @@ export default function PrepaidSlotSelection({
           isAvailable: true,
           consultantIds: [slot.consultantId],
           consultantNames: consultantName ? [consultantName] : [],
-          centerIds: [slot.centerId],
+          centerIds: [slot.centerName],
           centerNames: [slot.centerName],
           startTimeRaw: new Date(slot.startTime).toISOString(),
           endTimeRaw: new Date(slot.endTime).toISOString(),
@@ -194,7 +178,7 @@ export default function PrepaidSlotSelection({
         if (!existing.consultantIds.includes(slot.consultantId)) {
           existing.consultantIds.push(slot.consultantId);
           if (consultantName) existing.consultantNames.push(consultantName);
-          existing.centerIds.push(slot.centerId);
+          existing.centerIds.push(slot.centerName);
           existing.centerNames.push(slot.centerName);
         }
       }
@@ -214,7 +198,7 @@ export default function PrepaidSlotSelection({
         return date;
       })
     );
-  }, [currentSelectedDate, availableSlots, slotsLoading, consultants]);
+  }, [currentSelectedDate, availableSlots, slotsLoading, availabilityConsultants]);
 
   const handleDateSelect = (date: DateOption) => {
     const dateKey = `${date.day}, ${date.date} ${date.month}`;
@@ -231,13 +215,12 @@ export default function PrepaidSlotSelection({
   const handleContinue = () => {
     if (selectedTimeSlot) {
       const randomIndex = Math.floor(Math.random() * selectedTimeSlot.consultantIds.length);
-      const randomConsultantId = selectedTimeSlot.consultantIds[randomIndex];
+      const consultantId = selectedConsultant?._id || selectedTimeSlot.consultantIds[randomIndex];
       const slotWithCenter = {
         ...selectedTimeSlot,
-        centerId: selectedTimeSlot.centerIds[randomIndex],
-        centerName: selectedTimeSlot.centerNames[randomIndex],
+        centerName: selectedTimeSlot.centerNames?.[randomIndex],
       };
-      onSlotSelect(randomConsultantId, slotWithCenter);
+      onSlotSelect(consultantId, slotWithCenter);
     }
   };
 
@@ -254,11 +237,44 @@ export default function PrepaidSlotSelection({
       <div className="flex-1 overflow-y-auto">
         <div className={`p-4 ${isInDesktopContainer ? 'pb-6' : 'pb-32'}`}>
           <div className="mb-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              Visit details
-            </h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Select preferred consultant</h3>
+            <div className="bg-white rounded-2xl p-4 border border-gray-200">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 bg-purple-50 rounded-xl flex items-center justify-center">
+                    <UserCircle className="w-5 h-5 text-purple-600" />
+                  </div>
+                  <div className="flex-1">
+                    {selectedConsultant ? (
+                      <>
+                        <p className="text-sm font-bold text-gray-900">
+                          Dr. {selectedConsultant.profileData?.firstName || ''} {selectedConsultant.profileData?.lastName || ''}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {selectedConsultant.profileData?.designation || 'Consultant'}
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-sm font-bold text-gray-900">Any available</p>
+                        <p className="text-xs text-gray-500">First available consultant for your session</p>
+                      </>
+                    )}
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowConsultantModal(true)}
+                  className="p-2 hover:bg-gray-50 rounded-lg transition-colors"
+                >
+                  <ChevronRight className="w-5 h-5 text-gray-400" />
+                </button>
+              </div>
+            </div>
+          </div>
 
-            {/* Date Selection */}
+          <div className="mb-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Visit details</h3>
+
             <div className="mb-4">
               <div
                 ref={scrollContainerRef}
@@ -323,9 +339,7 @@ export default function PrepaidSlotSelection({
 
             {selectedDate && (
               <div className="mb-6">
-                <h4 className="text-base font-medium text-gray-900 mb-3">
-                  Available time slots
-                </h4>
+                <h4 className="text-base font-medium text-gray-900 mb-3">Available time slots</h4>
                 
                 {slotsLoading ? (
                   <div className="flex justify-center items-center py-16">
@@ -400,7 +414,7 @@ export default function PrepaidSlotSelection({
         isOpen={showConsultantModal}
         onClose={() => setShowConsultantModal(false)}
         consultants={consultants}
-        sessionType="online"
+        sessionType="in-person"
         centerId={centerId}
         onSelect={handleConsultantSelect}
         selectedConsultant={selectedConsultant}
