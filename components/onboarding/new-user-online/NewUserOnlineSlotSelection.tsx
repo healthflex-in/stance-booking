@@ -18,10 +18,10 @@ interface TimeSlot {
   endTime: string;
   displayTime: string;
   isAvailable: boolean;
-  consultantId: string;
-  consultantName?: string;
-  centerId?: string;
-  centerName?: string;
+  consultantIds: string[];
+  consultantNames: string[];
+  centerIds: string[];
+  centerNames: string[];
   startTimeRaw: string;
   endTimeRaw: string;
 }
@@ -132,26 +132,36 @@ export default function NewUserOnlineSlotSelection({
     const slotMap = new Map();
     availableSlots.forEach(slot => {
       const timeKey = new Date(slot.startTime).toISOString();
+      const consultant = availabilityConsultants.find((ac: any) => ac.consultantId === slot.consultantId);
+      const consultantName = consultant?.consultantName?.trim() || '';
+      
       if (!slotMap.has(timeKey)) {
-        const consultant = availabilityConsultants.find((ac: any) => ac.consultantId === slot.consultantId);
-        const consultantName = consultant?.consultantName || '';
-        
         slotMap.set(timeKey, {
           startTime: new Date(slot.startTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
           endTime: new Date(slot.endTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
           displayTime: `${new Date(slot.startTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })} - ${new Date(slot.endTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}`,
           isAvailable: true,
-          consultantId: slot.consultantId,
-          consultantName: consultantName,
-          centerId: slot.centerId,
-          centerName: slot.centerName,
+          consultantIds: [slot.consultantId],
+          consultantNames: consultantName ? [consultantName] : [],
+          centerIds: [slot.centerId],
+          centerNames: [slot.centerName],
           startTimeRaw: new Date(slot.startTime).toISOString(),
           endTimeRaw: new Date(slot.endTime).toISOString(),
         });
+      } else {
+        const existing = slotMap.get(timeKey);
+        if (!existing.consultantIds.includes(slot.consultantId)) {
+          existing.consultantIds.push(slot.consultantId);
+          if (consultantName) existing.consultantNames.push(consultantName);
+          existing.centerIds.push(slot.centerId);
+          existing.centerNames.push(slot.centerName);
+        }
       }
     });
     
-    const processedSlots = Array.from(slotMap.values());
+    const processedSlots = Array.from(slotMap.values()).sort((a, b) => 
+      new Date(a.startTimeRaw).getTime() - new Date(b.startTimeRaw).getTime()
+    );
     
     setDateSlots(prev => ({ ...prev, [dateKey]: processedSlots }));
     
@@ -179,7 +189,14 @@ export default function NewUserOnlineSlotSelection({
 
   const handleContinue = () => {
     if (selectedTimeSlot) {
-      onSlotSelect(selectedTimeSlot.consultantId, selectedTimeSlot);
+      const randomIndex = Math.floor(Math.random() * selectedTimeSlot.consultantIds.length);
+      const randomConsultantId = selectedTimeSlot.consultantIds[randomIndex];
+      const slotWithCenter = {
+        ...selectedTimeSlot,
+        centerId: selectedTimeSlot.centerIds[randomIndex],
+        centerName: selectedTimeSlot.centerNames[randomIndex],
+      };
+      onSlotSelect(randomConsultantId, slotWithCenter);
     }
   };
 
@@ -285,11 +302,19 @@ export default function NewUserOnlineSlotSelection({
                           }`}
                         >
                           <div className="text-sm font-semibold">{slot.displayTime}</div>
-                          {process.env.NEXT_PUBLIC_ENVIRONMENT === 'development' && slot.consultantName && (
-                            <div className="text-xs text-gray-500 mt-1">{slot.consultantName}</div>
+                          {process.env.NEXT_PUBLIC_ENVIRONMENT === 'development' && (
+                            <div className="text-xs text-gray-500 mt-1">
+                              {slot.consultantNames && slot.consultantNames.length > 0 
+                                ? slot.consultantNames.filter(n => n).join(', ') || `${slot.consultantNames.length} consultants`
+                                : 'No consultant'}
+                            </div>
                           )}
-                          {slot.centerName && (
-                            <div className="text-xs text-gray-400 mt-1">{slot.centerName}</div>
+                          {process.env.NEXT_PUBLIC_ENVIRONMENT === 'development' && (
+                            <div className="text-xs text-gray-400 mt-1">
+                              {slot.centerNames && slot.centerNames.length > 0
+                                ? slot.centerNames.filter(n => n).join(', ')
+                                : 'No center'}
+                            </div>
                           )}
                         </button>
                       );
