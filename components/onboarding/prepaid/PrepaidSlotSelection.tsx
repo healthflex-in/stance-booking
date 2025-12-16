@@ -114,29 +114,21 @@ export default function PrepaidSlotSelection({
       });
 
   const consultants = React.useMemo(() => {
-    if (!consultantsData?.users?.data) return [];
-    return consultantsData.users.data.filter((consultant: any) => {
-      if (consultant.profileData?.allowOnlineBooking !== true) return false;
-      const allowOnlineDelivery = consultant.profileData?.allowOnlineDelivery;
-      const matchesDelivery = allowOnlineDelivery === true || allowOnlineDelivery === 'BOTH' || allowOnlineDelivery === 'ONLINE';
-      if (!matchesDelivery) return false;
-      
-      if (designation && consultant.profileData?.designation !== designation) return false;
-      
-      const hasAvailableSlots = availabilityConsultants.some((ac: any) => ac.consultantId === consultant._id);
-      return hasAvailableSlots;
+    return availabilityConsultants.map((ac: any) => {
+      const fullConsultant = allConsultants.find((c: any) => c._id === ac.consultantId);
+      return fullConsultant || {
+        _id: ac.consultantId,
+        profileData: {
+          firstName: ac.consultantName.split(' ')[0] || '',
+          lastName: ac.consultantName.split(' ').slice(1).join(' ') || '',
+          designation: designation || 'Consultant',
+        }
+      };
     });
-  }, [consultantsData, designation, availabilityConsultants]);
+  }, [availabilityConsultants, allConsultants, designation]);
 
   const availableSlots = React.useMemo(() => {
     let filteredConsultants = availabilityConsultants;
-    
-    if (designation) {
-      filteredConsultants = filteredConsultants.filter(ac => {
-        const consultant = allConsultants.find((c: any) => c._id === ac.consultantId);
-        return consultant && consultant.profileData?.designation === designation;
-      });
-    }
     
     if (selectedConsultant) {
       filteredConsultants = filteredConsultants.filter(c => c.consultantId === selectedConsultant._id);
@@ -149,7 +141,7 @@ export default function PrepaidSlotSelection({
         consultantId: consultant.consultantId,
       }))
     );
-  }, [availabilityConsultants, selectedConsultant, designation, allConsultants]);
+  }, [availabilityConsultants, selectedConsultant]);
 
   // Generate next 14 days
   const generateNext14Days = (): DateOption[] => {
@@ -195,21 +187,9 @@ export default function PrepaidSlotSelection({
     const dateKey = `${currentSelectedDate.toLocaleDateString('en-US', { weekday: 'short' })}, ${currentSelectedDate.getDate()} ${currentSelectedDate.toLocaleDateString('en-US', { month: 'short' })}`;
     
     const processedSlots = availableSlots
-      .filter(slot => {
-        if (!slot.consultantId) return false;
-        const consultant = consultants.find((c: any) => c._id === slot.consultantId);
-        if (!consultant) return false;
-        if (designation && consultant.profileData?.designation !== designation) return false;
-        return true;
-      })
       .map(slot => {
-        const consultant = consultants.find((c: any) => c._id === slot.consultantId);
-        let consultantName = '';
-        if (consultant) {
-          const firstName = consultant.profileData?.firstName || '';
-          const lastName = consultant.profileData?.lastName || '';
-          consultantName = `${firstName} ${lastName}`.trim();
-        }
+        const consultant = availabilityConsultants.find((ac: any) => ac.consultantId === slot.consultantId);
+        const consultantName = consultant?.consultantName || '';
         
         return {
           startTime: new Date(slot.startTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
