@@ -171,6 +171,7 @@ export default function NewOfflinePage() {
             <NewUserOfflineSlotSelection
               centerId={bookingData.centerId}
               serviceDuration={bookingData.treatmentDuration}
+              patientId={bookingData.patientId}
               onSlotSelect={(consultantId, slot) => {
                 const slotDate = new Date(slot.startTimeRaw);
                 updateBookingData({
