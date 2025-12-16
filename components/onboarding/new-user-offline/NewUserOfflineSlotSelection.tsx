@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useQuery } from '@apollo/client';
 import { Clock } from 'lucide-react';
-import { GET_CONSULTANTS } from '@/gql/queries';
+import { GET_CONSULTANTS, GET_USER } from '@/gql/queries';
 import { useCenterAvailability } from '@/hooks';
 import { useContainerDetection } from '@/hooks/useContainerDetection';
 import { StanceHealthLoader } from '@/components/loader/StanceHealthLoader';
@@ -11,6 +11,7 @@ import { StanceHealthLoader } from '@/components/loader/StanceHealthLoader';
 interface NewUserOfflineSlotSelectionProps {
   centerId: string;
   serviceDuration: number;
+  patientId: string;
   onSlotSelect: (consultantId: string, slot: any) => void;
   onBack?: () => void;
 }
@@ -39,6 +40,7 @@ interface DateOption {
 export default function NewUserOfflineSlotSelection({
   centerId,
   serviceDuration,
+  patientId,
   onSlotSelect,
   onBack = () => {},
 }: NewUserOfflineSlotSelectionProps) {
@@ -50,12 +52,19 @@ export default function NewUserOfflineSlotSelection({
   const [dateSlots, setDateSlots] = useState<{ [key: string]: TimeSlot[] }>({});
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
+  const [isFetchingPatient, setIsFetchingPatient] = useState(false);
+
   const { data: consultantsData, loading: consultantsLoading } = useQuery(GET_CONSULTANTS, {
     variables: {
       userType: 'CONSULTANT',
       centerId: [centerId],
     },
     fetchPolicy: 'network-only',
+  });
+
+  const { refetch: refetchPatient } = useQuery(GET_USER, {
+    variables: { userId: patientId },
+    skip: true,
   });
 
   const allConsultants = React.useMemo(() => {
@@ -201,9 +210,18 @@ export default function NewUserOfflineSlotSelection({
     setSelectedTimeSlot(slot);
   };
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     if (selectedTimeSlot) {
-      onSlotSelect(selectedTimeSlot.consultantId, selectedTimeSlot);
+      setIsFetchingPatient(true);
+      try {
+        await refetchPatient();
+        onSlotSelect(selectedTimeSlot.consultantId, selectedTimeSlot);
+      } catch (error) {
+        console.error('Error fetching patient data:', error);
+        onSlotSelect(selectedTimeSlot.consultantId, selectedTimeSlot);
+      } finally {
+        setIsFetchingPatient(false);
+      }
     }
   };
 
@@ -331,13 +349,20 @@ export default function NewUserOfflineSlotSelection({
       <div className={`${isInDesktopContainer ? 'flex-shrink-0' : 'fixed bottom-0 left-0 right-0'} bg-white border-t border-gray-200 p-4`}>
         <button
           onClick={handleContinue}
-          disabled={!canProceed}
-          className={`w-full py-4 rounded-2xl font-semibold text-black transition-all ${
-            canProceed ? '' : 'bg-gray-300 cursor-not-allowed'
+          disabled={!canProceed || isFetchingPatient}
+          className={`w-full py-4 rounded-2xl font-semibold text-black transition-all flex items-center justify-center ${
+            canProceed && !isFetchingPatient ? '' : 'bg-gray-300 cursor-not-allowed'
           }`}
-          style={{ backgroundColor: canProceed ? '#DDFE71' : '#D1D5DB' }}
+          style={{ backgroundColor: canProceed && !isFetchingPatient ? '#DDFE71' : '#D1D5DB' }}
         >
-          Continue
+          {isFetchingPatient ? (
+            <>
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-black mr-2"></div>
+              Loading...
+            </>
+          ) : (
+            'Continue'
+          )}
         </button>
       </div>
     </div>
