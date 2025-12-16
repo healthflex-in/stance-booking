@@ -356,7 +356,7 @@ export default function NewUserOfflineSlotSelection({
                           }`}
                         >
                           <div className="text-sm font-semibold">{slot.displayTime}</div>
-                          {slot.consultantName && (
+                          {process.env.NEXT_PUBLIC_ENVIRONMENT === 'development' && slot.consultantName && (
                             <div className="text-xs text-gray-500 mt-1">{slot.consultantName}</div>
                           )}
                         </button>
