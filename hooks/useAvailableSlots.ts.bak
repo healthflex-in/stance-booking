@@ -239,12 +239,12 @@ export const useAvailableSlots = ({
     const isDevelopment = process.env.NEXT_PUBLIC_ENVIRONMENT === 'development';
     
     if (isDevelopment) {
-      if (isDevelopment) console.log('\n' + '='.repeat(80));
-      if (isDevelopment) console.log(`🏥 SLOT ANALYSIS FOR ${date.toDateString().toUpperCase()}`);
-      if (isDevelopment) console.log('='.repeat(80));
-      if (isDevelopment) console.log(`📍 Center ID: ${centerId}`);
-      if (isDevelopment) console.log(`⏰ Service Duration: ${serviceDurationInMinutes} minutes`);
-      if (isDevelopment) console.log(`👤 User Type: ${isReturningUser ? 'Returning' : 'New'} User`);
+      console.log('\n' + '='.repeat(80));
+      console.log(`🏥 SLOT ANALYSIS FOR ${date.toDateString().toUpperCase()}`);
+      console.log('='.repeat(80));
+      console.log(`📍 Center ID: ${centerId}`);
+      console.log(`⏰ Service Duration: ${serviceDurationInMinutes} minutes`);
+      console.log(`👤 User Type: ${isReturningUser ? 'Returning' : 'New'} User`);
       if (consultantId) console.log(`🎯 Target Consultant: ${consultantId}`);
     }
 
@@ -253,7 +253,7 @@ export const useAvailableSlots = ({
     
     // Check if data is already cached
     if (cache.has(cacheKey)) {
-      if (isDevelopment) console.log('📦 Using cached data');
+      console.log('📦 Using cached data');
       setAvailableSlots(cache.get(cacheKey) || []);
       return;
     }
@@ -363,17 +363,17 @@ export const useAvailableSlots = ({
             );
       }
       
-      if (isDevelopment) console.log('\n' + '🏥 CENTER CONSULTANTS ANALYSIS'.padEnd(50, '-'));
-      if (isDevelopment) console.log(`📊 Total Consultants Fetched: ${preFilteredConsultants.length > 0 ? 'Pre-filtered' : 'From API'}`);
-      if (isDevelopment) console.log(`🩺 Active Consultants: ${centerConsultants.length}`);
+      console.log('\n' + '🏥 CENTER CONSULTANTS ANALYSIS'.padEnd(50, '-'));
+      console.log(`📊 Total Consultants Fetched: ${preFilteredConsultants.length > 0 ? 'Pre-filtered' : 'From API'}`);
+      console.log(`🩺 Active Consultants: ${centerConsultants.length}`);
       
-      if (isDevelopment) console.log('\n👥 CONSULTANT DETAILS:');
+      console.log('\n👥 CONSULTANT DETAILS:');
       centerConsultants.forEach((consultant:any , idx:any) => {
-        if (isDevelopment) console.log(`${idx + 1}. ${consultant.profileData?.firstName} ${consultant.profileData?.lastName}`);
-        if (isDevelopment) console.log(`   ID: ${consultant._id}`);
-        if (isDevelopment) console.log(`   Active: ${consultant.isActive}`);
-        if (isDevelopment) console.log(`   Phone: ${consultant.phone}`);
-        if (isDevelopment) console.log(`   Email: ${consultant.email}`);
+        console.log(`${idx + 1}. ${consultant.profileData?.firstName} ${consultant.profileData?.lastName}`);
+        console.log(`   ID: ${consultant._id}`);
+        console.log(`   Active: ${consultant.isActive}`);
+        console.log(`   Phone: ${consultant.phone}`);
+        console.log(`   Email: ${consultant.email}`);
       });
       
       // Process booked slots
@@ -393,15 +393,15 @@ export const useAvailableSlots = ({
           return isAttendee || isHost;
         });
         
-        if (isDevelopment) console.log(`\n📅 RETURNING USER APPOINTMENTS FOR CONSULTANT ${consultantId}:`);
-        if (isDevelopment) console.log(`📊 Total Appointments: ${consultantSpecificAppointments.length}`);
+        console.log(`\n📅 RETURNING USER APPOINTMENTS FOR CONSULTANT ${consultantId}:`);
+        console.log(`📊 Total Appointments: ${consultantSpecificAppointments.length}`);
         if (consultantSpecificAppointments.length > 0) {
           consultantSpecificAppointments.forEach((apt:any, idx:any) => {
             const start = new Date(apt.startTime);
             const end = new Date(apt.endTime);
-            if (isDevelopment) console.log(`${idx + 1}. 📅 ${start.toLocaleTimeString()} - ${end.toLocaleTimeString()}`);
-            if (isDevelopment) console.log(`   👤 Patient: ${apt.title?.split(' with ')[1]?.split(' at ')[0] || 'Unknown'}`);
-            if (isDevelopment) console.log(`   🏷️ Status: ${apt.isWaitlisted ? 'WAITLISTED' : 'CONFIRMED'}`);
+            console.log(`${idx + 1}. 📅 ${start.toLocaleTimeString()} - ${end.toLocaleTimeString()}`);
+            console.log(`   👤 Patient: ${apt.title?.split(' with ')[1]?.split(' at ')[0] || 'Unknown'}`);
+            console.log(`   🏷️ Status: ${apt.isWaitlisted ? 'WAITLISTED' : 'CONFIRMED'}`);
           });
         }
         
@@ -424,22 +424,22 @@ export const useAvailableSlots = ({
       // Process center availability
       const centerEvents = centerAvailabilityData.data?.events?.data || [];
       
-      if (isDevelopment) console.log('\n' + '🏢 CENTER AVAILABILITY ANALYSIS'.padEnd(50, '-'));
-      if (isDevelopment) console.log(`📊 Total Center Events: ${centerEvents.length}`);
+      console.log('\n' + '🏢 CENTER AVAILABILITY ANALYSIS'.padEnd(50, '-'));
+      console.log(`📊 Total Center Events: ${centerEvents.length}`);
       
       if (centerEvents.length > 0) {
-        if (isDevelopment) console.log('\n📋 CENTER AVAILABILITY EVENTS:');
+        console.log('\n📋 CENTER AVAILABILITY EVENTS:');
         centerEvents.forEach((event:any, idx:any) => {
           const start = event.startTime ? new Date(hhmmToTimestamp(event.startTime, startOfDayTime) || 0) : null;
           const end = event.endTime ? new Date(hhmmToTimestamp(event.endTime, startOfDayTime) || 0) : null;
           const matchesDate = isDateInRecurrenceRule(startOfDayTime, event.recurrenceRule);
           
-          if (isDevelopment) console.log(`${idx + 1}. ${event.title || 'Untitled Event'}`);
-          if (isDevelopment) console.log(`   📅 Status: ${event.availabilityStatus} | Available: ${event.isAvailable}`);
-          if (isDevelopment) console.log(`   ⏰ Time: ${start?.toLocaleTimeString()} - ${end?.toLocaleTimeString()}`);
-          if (isDevelopment) console.log(`   🎯 Matches Date: ${matchesDate} | Active: ${event.isActive}`);
+          console.log(`${idx + 1}. ${event.title || 'Untitled Event'}`);
+          console.log(`   📅 Status: ${event.availabilityStatus} | Available: ${event.isAvailable}`);
+          console.log(`   ⏰ Time: ${start?.toLocaleTimeString()} - ${end?.toLocaleTimeString()}`);
+          console.log(`   🎯 Matches Date: ${matchesDate} | Active: ${event.isActive}`);
           if (event.recurrenceRule?.rrule) {
-            if (isDevelopment) console.log(`   🔄 Recurrence: ${event.recurrenceRule.rrule.split('\n')[1]}`);
+            console.log(`   🔄 Recurrence: ${event.recurrenceRule.rrule.split('\n')[1]}`);
           }
         });
       }
@@ -455,26 +455,26 @@ export const useAvailableSlots = ({
         'NEGATIVE'
       );
       
-      if (isDevelopment) console.log('\n🟢 CENTER AVAILABLE TIMES:');
+      console.log('\n🟢 CENTER AVAILABLE TIMES:');
       if (positiveCenterSlots.length > 0) {
         positiveCenterSlots.forEach((slot, idx) => {
           const start = new Date(slot.startTime);
           const end = new Date(slot.endTime);
-          if (isDevelopment) console.log(`${idx + 1}. ✅ ${start.toLocaleTimeString()} - ${end.toLocaleTimeString()}`);
+          console.log(`${idx + 1}. ✅ ${start.toLocaleTimeString()} - ${end.toLocaleTimeString()}`);
         });
       } else {
-        if (isDevelopment) console.log('❌ NO AVAILABLE TIMES - Center is closed!');
+        console.log('❌ NO AVAILABLE TIMES - Center is closed!');
       }
       
-      if (isDevelopment) console.log('\n🔴 CENTER BLOCKED TIMES:');
+      console.log('\n🔴 CENTER BLOCKED TIMES:');
       if (negativeCenterSlots.length > 0) {
         negativeCenterSlots.forEach((slot, idx) => {
           const start = new Date(slot.startTime);
           const end = new Date(slot.endTime);
-          if (isDevelopment) console.log(`${idx + 1}. ❌ ${start.toLocaleTimeString()} - ${end.toLocaleTimeString()}`);
+          console.log(`${idx + 1}. ❌ ${start.toLocaleTimeString()} - ${end.toLocaleTimeString()}`);
         });
       } else {
-        if (isDevelopment) console.log('✅ No blocked times');
+        console.log('✅ No blocked times');
       }
 
       // Process consultant availability
@@ -545,16 +545,16 @@ export const useAvailableSlots = ({
       };
 
       if (!isReturningUser) {
-        if (isDevelopment) console.log('\n' + '👨⚕️ INDIVIDUAL CONSULTANT ANALYSIS'.padEnd(60, '-'));
+        console.log('\n' + '👨⚕️ INDIVIDUAL CONSULTANT ANALYSIS'.padEnd(60, '-'));
         
         // For first-time users, generate slots for each Physiotherapist consultant individually
         // Only show slots when the specific consultant is actually available
         for (const consultant of centerConsultants) {
           const consultantName = `${consultant.profileData?.firstName || ''} ${consultant.profileData?.lastName || ''}`.trim() || 'Consultant';
           
-          if (isDevelopment) console.log('\n' + '─'.repeat(50));
-          if (isDevelopment) console.log(`👨⚕️ ANALYZING: ${consultantName.toUpperCase()}`);
-          if (isDevelopment) console.log(`🆔 ID: ${consultant._id}`);
+          console.log('\n' + '─'.repeat(50));
+          console.log(`👨⚕️ ANALYZING: ${consultantName.toUpperCase()}`);
+          console.log(`🆔 ID: ${consultant._id}`);
           
           // Get consultant-specific appointments only
           // Check if consultant is in attendees array (appointments) or if they are the host
@@ -566,8 +566,8 @@ export const useAvailableSlots = ({
             return isAttendee || isHost;
           });
           
-          if (isDevelopment) console.log(`\n📅 APPOINTMENTS FOR ${consultantName}:`);
-          if (isDevelopment) console.log(`📊 Total Appointments: ${consultantAppointments.length}`);
+          console.log(`\n📅 APPOINTMENTS FOR ${consultantName}:`);
+          console.log(`📊 Total Appointments: ${consultantAppointments.length}`);
           
           if (consultantAppointments.length > 0) {
             consultantAppointments.forEach((apt:any, idx:any) => {
@@ -575,21 +575,21 @@ export const useAvailableSlots = ({
               const end = new Date(apt.endTime);
               const patientName = apt.title?.split(' with ')[1]?.split(' at ')[0] || 'Unknown';
               
-              if (isDevelopment) console.log(`${idx + 1}. 📅 ${start.toLocaleTimeString()} - ${end.toLocaleTimeString()}`);
-              if (isDevelopment) console.log(`   👤 Patient: ${patientName}`);
-              if (isDevelopment) console.log(`   🏷️ Status: ${apt.isWaitlisted ? 'WAITLISTED' : 'CONFIRMED'}`);
-              if (isDevelopment) console.log(`   🆔 Event ID: ${apt._id}`);
-              if (isDevelopment) console.log(`   👥 Attendees: ${apt.attendees?.length || 0} people`);
+              console.log(`${idx + 1}. 📅 ${start.toLocaleTimeString()} - ${end.toLocaleTimeString()}`);
+              console.log(`   👤 Patient: ${patientName}`);
+              console.log(`   🏷️ Status: ${apt.isWaitlisted ? 'WAITLISTED' : 'CONFIRMED'}`);
+              console.log(`   🆔 Event ID: ${apt._id}`);
+              console.log(`   👥 Attendees: ${apt.attendees?.length || 0} people`);
               if (apt.attendees?.length > 0) {
                 apt.attendees.forEach((attendee: any, aIdx: number) => {
-                  if (isDevelopment) console.log(`      ${aIdx + 1}. ${attendee._id}`);
+                  console.log(`      ${aIdx + 1}. ${attendee._id}`);
                 });
               }
-              if (isDevelopment) console.log(`   🏢 Host: ${apt.host}`);
-              if (isDevelopment) console.log(`   📝 Description: ${apt.description || 'None'}`);
+              console.log(`   🏢 Host: ${apt.host}`);
+              console.log(`   📝 Description: ${apt.description || 'None'}`);
             });
           } else {
-            if (isDevelopment) console.log('✅ No appointments booked');
+            console.log('✅ No appointments booked');
           }
           
           const consultantBookedSlots: TimeSlot[] = [];
@@ -628,9 +628,9 @@ export const useAvailableSlots = ({
             return event.center && event.center._id === centerId;
           });
 
-          if (isDevelopment) console.log(`\n🕐 AVAILABILITY EVENTS FOR ${consultantName}:`);
-          if (isDevelopment) console.log(`📊 Total Events: ${consultantEvents.length}`);
-          if (isDevelopment) console.log(`📊 Events for Selected Center: ${filteredConsultantEvents.length}`);
+          console.log(`\n🕐 AVAILABILITY EVENTS FOR ${consultantName}:`);
+          console.log(`📊 Total Events: ${consultantEvents.length}`);
+          console.log(`📊 Events for Selected Center: ${filteredConsultantEvents.length}`);
 
           if (filteredConsultantEvents.length > 0) {
             filteredConsultantEvents.forEach((event:any, idx:any) => {
@@ -638,48 +638,48 @@ export const useAvailableSlots = ({
               const end = event.endTime ? new Date(hhmmToTimestamp(event.endTime, startOfDayTime) || 0) : null;
               const matchesDate = isDateInRecurrenceRule(startOfDayTime, event.recurrenceRule);
 
-              if (isDevelopment) console.log(`${idx + 1}. ${event.title || 'Untitled'}`);
-              if (isDevelopment) console.log(`   📅 Status: ${event.availabilityStatus} | Available: ${event.isAvailable}`);
-              if (isDevelopment) console.log(`   ⏰ Time: ${start?.toLocaleTimeString()} - ${end?.toLocaleTimeString()}`);
-              if (isDevelopment) console.log(`   🎯 Matches Date: ${matchesDate} | Active: ${event.isActive}`);
+              console.log(`${idx + 1}. ${event.title || 'Untitled'}`);
+              console.log(`   📅 Status: ${event.availabilityStatus} | Available: ${event.isAvailable}`);
+              console.log(`   ⏰ Time: ${start?.toLocaleTimeString()} - ${end?.toLocaleTimeString()}`);
+              console.log(`   🎯 Matches Date: ${matchesDate} | Active: ${event.isActive}`);
             });
           } else {
-            if (isDevelopment) console.log('❌ No availability events found for this center');
+            console.log('❌ No availability events found for this center');
           }
 
           const consultantPositiveSlots = processAvailabilityEvents(filteredConsultantEvents, startOfDayTime, 'POSITIVE');
           const consultantNegativeSlots = processAvailabilityEvents(filteredConsultantEvents, startOfDayTime, 'NEGATIVE');
 
-          if (isDevelopment) console.log(`\n🟢 AVAILABLE TIMES FOR ${consultantName}:`);
+          console.log(`\n🟢 AVAILABLE TIMES FOR ${consultantName}:`);
           if (consultantPositiveSlots.length > 0) {
             consultantPositiveSlots.forEach((slot, idx) => {
               const start = new Date(slot.startTime);
               const end = new Date(slot.endTime);
-              if (isDevelopment) console.log(`${idx + 1}. ✅ ${start.toLocaleTimeString()} - ${end.toLocaleTimeString()}`);
+              console.log(`${idx + 1}. ✅ ${start.toLocaleTimeString()} - ${end.toLocaleTimeString()}`);
             });
           } else {
-            if (isDevelopment) console.log('❌ No available times');
+            console.log('❌ No available times');
           }
           
-          if (isDevelopment) console.log(`\n🔴 BLOCKED TIMES FOR ${consultantName}:`);
+          console.log(`\n🔴 BLOCKED TIMES FOR ${consultantName}:`);
           if (consultantNegativeSlots.length > 0) {
             consultantNegativeSlots.forEach((slot, idx) => {
               const start = new Date(slot.startTime);
               const end = new Date(slot.endTime);
-              if (isDevelopment) console.log(`${idx + 1}. ❌ ${start.toLocaleTimeString()} - ${end.toLocaleTimeString()}`);
+              console.log(`${idx + 1}. ❌ ${start.toLocaleTimeString()} - ${end.toLocaleTimeString()}`);
             });
           } else {
-            if (isDevelopment) console.log('✅ No blocked times');
+            console.log('✅ No blocked times');
           }
 
           // CRITICAL FIX: Only generate slots if consultant has positive availability
           if (consultantPositiveSlots.length === 0) {
-            if (isDevelopment) console.log(`\n❌ SKIPPING ${consultantName} - No positive availability`);
+            console.log(`\n❌ SKIPPING ${consultantName} - No positive availability`);
             continue;
           }
           
-          if (isDevelopment) console.log(`\n✅ GENERATING SLOTS FOR ${consultantName}`);
-          if (isDevelopment) console.log(`🔄 Checking overlaps with ${positiveCenterSlots.length} center available slots`);
+          console.log(`\n✅ GENERATING SLOTS FOR ${consultantName}`);
+          console.log(`🔄 Checking overlaps with ${positiveCenterSlots.length} center available slots`);
 
           // Find overlapping availability windows between center and this consultant
           for (const centerSlot of positiveCenterSlots) {
@@ -845,13 +845,13 @@ export const useAvailableSlots = ({
         arr.findIndex(s => s.startTime === slot.startTime && s.endTime === slot.endTime && s.consultantId === slot.consultantId) === index
       );
       
-      if (isDevelopment) console.log('\n' + '🎯 FINAL SLOT RESULTS'.padEnd(50, '-'));
-      if (isDevelopment) console.log(`📊 Raw Slots Generated: ${slots.length}`);
-      if (isDevelopment) console.log(`📊 After Rounding: ${roundedSlots.length}`);
-      if (isDevelopment) console.log(`📊 Final Unique Slots: ${uniqueSlots.length}`);
+      console.log('\n' + '🎯 FINAL SLOT RESULTS'.padEnd(50, '-'));
+      console.log(`📊 Raw Slots Generated: ${slots.length}`);
+      console.log(`📊 After Rounding: ${roundedSlots.length}`);
+      console.log(`📊 Final Unique Slots: ${uniqueSlots.length}`);
       
       if (uniqueSlots.length > 0) {
-        if (isDevelopment) console.log('\n✅ AVAILABLE BOOKING SLOTS:');
+        console.log('\n✅ AVAILABLE BOOKING SLOTS:');
         const slotsByConsultant = new Map();
         uniqueSlots.forEach(slot => {
           // First try to find in centerConsultants, then in allConsultantsForLookupFinal
@@ -870,25 +870,25 @@ export const useAvailableSlots = ({
         });
         
         slotsByConsultant.forEach((consultantSlots, consultantName) => {
-          if (isDevelopment) console.log(`\n👨⚕️ ${consultantName} (${consultantSlots.length} slots):`);
+          console.log(`\n👨⚕️ ${consultantName} (${consultantSlots.length} slots):`);
           consultantSlots.forEach((slot:any, idx:any) => {
             const start = new Date(slot.startTime);
             const end = new Date(slot.endTime);
-            if (isDevelopment) console.log(`   ${idx + 1}. ${start.toLocaleTimeString()} - ${end.toLocaleTimeString()}`);
+            console.log(`   ${idx + 1}. ${start.toLocaleTimeString()} - ${end.toLocaleTimeString()}`);
           });
         });
       } else {
-        if (isDevelopment) console.log('\n❌ NO AVAILABLE SLOTS FOUND');
-        if (isDevelopment) console.log('\n🔍 POSSIBLE REASONS:');
-        if (isDevelopment) console.log('   • No consultants have availability events for this date');
-        if (isDevelopment) console.log('   • All consultants are booked with appointments');
-        if (isDevelopment) console.log('   • Center is closed (no positive availability)');
-        if (isDevelopment) console.log('   • All available times are in the past');
+        console.log('\n❌ NO AVAILABLE SLOTS FOUND');
+        console.log('\n🔍 POSSIBLE REASONS:');
+        console.log('   • No consultants have availability events for this date');
+        console.log('   • All consultants are booked with appointments');
+        console.log('   • Center is closed (no positive availability)');
+        console.log('   • All available times are in the past');
       }
       
-      if (isDevelopment) console.log('\n' + '='.repeat(80));
-      if (isDevelopment) console.log('END OF SLOT ANALYSIS');
-      if (isDevelopment) console.log('='.repeat(80) + '\n');
+      console.log('\n' + '='.repeat(80));
+      console.log('END OF SLOT ANALYSIS');
+      console.log('='.repeat(80) + '\n');
       
       // Cache the results
       setCache(prev => new Map(prev).set(cacheKey, uniqueSlots));

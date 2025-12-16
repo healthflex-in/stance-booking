@@ -40,12 +40,16 @@ export function usePageSetup(options: UsePageSetupOptions = {}): UsePageSetupSel
     // Try to get from localStorage immediately during initialization
     if (typeof window !== 'undefined') {
       const storedCenterIds = localStorage.getItem('stance-centreID');
-      console.log('🏥 Center ID Debug - Raw localStorage:', storedCenterIds);
+      if (process.env.NEXT_PUBLIC_ENVIRONMENT === 'development') {
+        console.log('🏥 Center ID Debug - Raw localStorage:', storedCenterIds);
+      }
       if (storedCenterIds) {
         try {
           const parsedIds = JSON.parse(storedCenterIds);
           const centerArray = Array.isArray(parsedIds) ? parsedIds : [parsedIds];
-          console.log('🏥 Center ID Debug - Parsed array:', centerArray);
+          if (process.env.NEXT_PUBLIC_ENVIRONMENT === 'development') {
+            console.log('🏥 Center ID Debug - Parsed array:', centerArray);
+          }
           // Filter out empty strings, null, undefined and ensure we have valid IDs
           const validCenterIds = centerArray.filter(id => 
             id && 
@@ -54,7 +58,9 @@ export function usePageSetup(options: UsePageSetupOptions = {}): UsePageSetupSel
             id !== 'null' &&
             id !== 'undefined'
           );
-          console.log('🏥 Center ID Debug - Valid IDs:', validCenterIds);
+          if (process.env.NEXT_PUBLIC_ENVIRONMENT === 'development') {
+            console.log('🏥 Center ID Debug - Valid IDs:', validCenterIds);
+          }
           if (validCenterIds.length > 0) {
             return validCenterIds;
           }
@@ -64,7 +70,9 @@ export function usePageSetup(options: UsePageSetupOptions = {}): UsePageSetupSel
       }
     }
     // Fallback to default center ID if available
-    console.log('🏥 Center ID Debug - Using default:', defaultCenterId);
+    if (process.env.NEXT_PUBLIC_ENVIRONMENT === 'development') {
+      console.log('🏥 Center ID Debug - Using default:', defaultCenterId);
+    }
     if (defaultCenterId && defaultCenterId.trim().length > 0) {
       return [defaultCenterId];
     }
@@ -87,7 +95,9 @@ export function usePageSetup(options: UsePageSetupOptions = {}): UsePageSetupSel
 
   // Helper function to update center selection and persist to localStorage
   const updateCenterSelection = React.useCallback((centers: string[] | string) => {
-    console.log('🏥 Center ID Debug - Updating with:', centers);
+    if (process.env.NEXT_PUBLIC_ENVIRONMENT === 'development') {
+      console.log('🏥 Center ID Debug - Updating with:', centers);
+    }
     const centerArray = Array.isArray(centers) ? centers : [centers];
     const validCenterIds = centerArray.filter(id => 
       id && 
@@ -96,7 +106,9 @@ export function usePageSetup(options: UsePageSetupOptions = {}): UsePageSetupSel
       id !== 'null' &&
       id !== 'undefined'
     );
-    console.log('🏥 Center ID Debug - Final valid IDs:', validCenterIds);
+    if (process.env.NEXT_PUBLIC_ENVIRONMENT === 'development') {
+      console.log('🏥 Center ID Debug - Final valid IDs:', validCenterIds);
+    }
     
     setSelectedCenterIds(validCenterIds);
     

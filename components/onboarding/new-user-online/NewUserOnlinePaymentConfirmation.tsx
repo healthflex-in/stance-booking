@@ -74,13 +74,15 @@ export default function NewUserOnlinePaymentConfirmation({
         return;
       }
 
-      console.log('📋 Creating appointment with data:', {
-        patient: bookingData.patientId,
-        consultant: bookingData.consultantId,
-        center: bookingData.centerId,
-        treatment: bookingData.treatmentId,
-        medium: bookingData.sessionType,
-      });
+      if (process.env.NEXT_PUBLIC_ENVIRONMENT === 'development') {
+        console.log('📋 Creating appointment with data:', {
+          patient: bookingData.patientId,
+          consultant: bookingData.consultantId,
+          center: bookingData.centerId,
+          treatment: bookingData.treatmentId,
+          medium: bookingData.sessionType,
+        });
+      }
 
       // Update patient's center to the selected center
       await updatePatient({
@@ -91,7 +93,10 @@ export default function NewUserOnlinePaymentConfirmation({
           },
         },
       });
-      console.log('✅ Patient center updated to:', bookingData.centerId);
+      
+      if (process.env.NEXT_PUBLIC_ENVIRONMENT === 'development') {
+        console.log('✅ Patient center updated to:', bookingData.centerId);
+      }
       
       // Create appointment
       const appointmentResult = await createAppointment({
@@ -114,7 +119,10 @@ export default function NewUserOnlinePaymentConfirmation({
       });
 
       const appointmentId = appointmentResult?.data?.createAppointment?._id;
-      console.log('✅ Appointment created:', appointmentId);
+      
+      if (process.env.NEXT_PUBLIC_ENVIRONMENT === 'development') {
+        console.log('✅ Appointment created:', appointmentId);
+      }
       
       if (!appointmentId) {
         throw new Error('Failed to create appointment');
@@ -124,7 +132,10 @@ export default function NewUserOnlinePaymentConfirmation({
       sessionStorage.setItem('appointmentId', appointmentId);
       sessionStorage.setItem('paymentType', 'invoice');
       sessionStorage.setItem('paymentAmount', bookingData.treatmentPrice.toString());
-      console.log('💾 Stored appointmentId in sessionStorage:', appointmentId);
+      
+      if (process.env.NEXT_PUBLIC_ENVIRONMENT === 'development') {
+        console.log('💾 Stored appointmentId in sessionStorage:', appointmentId);
+      }
       setIsProcessingPayment(true);
     } catch (error: any) {
       console.error('❌ Error creating appointment:', error);

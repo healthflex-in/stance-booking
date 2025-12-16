@@ -229,10 +229,12 @@ export default function NewUserOnlineBookingConfirmed({ bookingData }: NewUserOn
           onClick={async () => {
             setResendingEmail(true);
             try {
-              console.log('=== RESEND BUTTON CLICKED ===');
-              console.log('appointmentData:', appointmentData);
-              console.log('meetingLink:', appointmentData?.appointment?.meetingLink);
-              console.log('=== END RESEND DEBUG ===');
+              if (process.env.NEXT_PUBLIC_ENVIRONMENT === 'development') {
+                console.log('=== RESEND BUTTON CLICKED ===');
+                console.log('appointmentData:', appointmentData);
+                console.log('meetingLink:', appointmentData?.appointment?.meetingLink);
+                console.log('=== END RESEND DEBUG ===');
+              }
               
               const patientName = `${patient?.profileData.firstName} ${patient?.profileData.lastName}`;
               const consultantName = `${consultant?.profileData.firstName} ${consultant?.profileData.lastName}`;
