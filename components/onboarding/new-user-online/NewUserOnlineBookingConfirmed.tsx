@@ -185,13 +185,13 @@ export default function NewUserOnlineBookingConfirmed({ bookingData }: NewUserOn
 
             <div className="space-y-4">
               <div className="space-y-2">
-                <span className="text-sm text-gray-600 font-medium block">Location</span>
+                <span className="text-sm text-gray-600 font-medium block">Service</span>
                 <div className="space-y-1">
                   <p className="text-sm font-bold text-gray-900">
-                    {currentCenter?.name || 'Online Center'}
+                    Stance Online Services
                   </p>
                   <p className="text-sm text-gray-500 leading-relaxed">
-                    Online Consultation
+                    {currentService?.name || 'Online Consultation'}
                   </p>
                 </div>
               </div>
@@ -200,13 +200,6 @@ export default function NewUserOnlineBookingConfirmed({ bookingData }: NewUserOn
                 <div className="text-gray-600 text-sm mb-1">Date & time</div>
                 <div className="font-medium text-gray-900">
                   {bookingData.selectedDate}, {bookingData.selectedTimeSlot.displayTime}
-                </div>
-              </div>
-
-              <div>
-                <div className="text-gray-600 text-sm mb-1">Type</div>
-                <div className="font-medium text-gray-900">
-                  Online Consultation ({currentService?.duration || 20} mins)
                 </div>
               </div>
             </div>

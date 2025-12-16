@@ -184,15 +184,15 @@ export default function PrepaidBookingConfirmed({ bookingData }: PrepaidBookingC
           </h3>
 
           <div className="space-y-4">
-            {/* Location */}
+            {/* Service */}
             <div className="space-y-2">
-              <span className="text-sm text-gray-600 font-medium block">Location</span>
+              <span className="text-sm text-gray-600 font-medium block">Service</span>
               <div className="space-y-1">
                 <p className="text-sm font-bold text-gray-900">
-                  {currentCenter?.name || 'Online Center'}
+                  {bookingData.isNewUser ? 'Stance PrePaid Services' : currentCenter?.name || 'Online Center'}
                 </p>
                 <p className="text-sm text-gray-500 leading-relaxed">
-                  Online Consultation
+                  {servicesData?.services?.find((s: any) => s._id === bookingData.treatmentId)?.name || 'Online Consultation'}
                 </p>
               </div>
             </div>
@@ -202,14 +202,6 @@ export default function PrepaidBookingConfirmed({ bookingData }: PrepaidBookingC
               <div className="text-gray-600 text-sm mb-1">Date & time</div>
               <div className="font-medium text-gray-900">
                 {bookingData.selectedDate}, {typeof bookingData.selectedTimeSlot === 'string' ? bookingData.selectedTimeSlot : bookingData.selectedTimeSlot.displayTime}
-              </div>
-            </div>
-
-            {/* Type */}
-            <div>
-              <div className="text-gray-600 text-sm mb-1">Type</div>
-              <div className="font-medium text-gray-900">
-                Online Consultation (20 mins)
               </div>
             </div>
           </div>

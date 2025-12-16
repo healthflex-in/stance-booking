@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { useQuery, useMutation } from '@apollo/client';
 import { useRouter } from 'next/navigation';
 import { MapPin, AlertCircle } from 'lucide-react';
-import { GET_CENTERS, GET_SERVICES, GET_USER, CREATE_APPOINTMENT } from '@/gql/queries';
+import { GET_CENTERS, GET_SERVICES, GET_USER, CREATE_APPOINTMENT, UPDATE_PATIENT } from '@/gql/queries';
 import NewUserOnlinePaymentProcessing from './NewUserOnlinePaymentProcessing';
 import { useContainerDetection } from '@/hooks/useContainerDetection';
 import { Button } from '@/components/ui-atoms';
@@ -48,6 +48,7 @@ export default function NewUserOnlinePaymentConfirmation({
   });
 
   const [createAppointment, { loading: creatingAppointment }] = useMutation(CREATE_APPOINTMENT);
+  const [updatePatient] = useMutation(UPDATE_PATIENT);
 
   const currentCenter = centersData?.centers.find((c: any) => c._id === bookingData.centerId);
   const currentService = servicesData?.services.find((s: any) => s._id === bookingData.treatmentId);
@@ -80,8 +81,19 @@ export default function NewUserOnlinePaymentConfirmation({
         treatment: bookingData.treatmentId,
         medium: bookingData.sessionType,
       });
+
+      // Update patient's center to the selected center
+      await updatePatient({
+        variables: {
+          patientId: bookingData.patientId,
+          input: {
+            centers: [bookingData.centerId],
+          },
+        },
+      });
+      console.log('✅ Patient center updated to:', bookingData.centerId);
       
-      // Create appointment FIRST
+      // Create appointment
       const appointmentResult = await createAppointment({
         variables: {
           input: {
@@ -192,11 +204,8 @@ export default function NewUserOnlinePaymentConfirmation({
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Session Details</h3>
             <div className="space-y-4">
               <div>
-                <span className="text-sm text-gray-600 font-medium block">Location</span>
-                <p className="text-sm font-bold text-gray-900">{currentCenter?.name}</p>
-                <p className="text-sm text-gray-500">
-                  {bookingData.sessionType === 'online' ? 'Online Consultation' : 'In Person Consultation'}
-                </p>
+                <p className="text-sm font-bold text-gray-900">Stance Online Services</p>
+                <p className="text-sm text-gray-500">Online Consultation</p>
               </div>
               <div>
                 <span className="text-sm text-gray-600 font-medium block">Date & Time</span>

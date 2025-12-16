@@ -2518,12 +2518,4 @@ export const GET_ORGANIZATION_AVAILABILITY = gql`
   }
 `;
 
-export const UPDATE_USER = gql`
-  mutation UpdateUser($userId: ObjectID!, $input: UpdateUserInput!) {
-    updateUser(id: $userId, input: $input) {
-      _id
-      email
-      phone
-    }
-  }
-`;
+

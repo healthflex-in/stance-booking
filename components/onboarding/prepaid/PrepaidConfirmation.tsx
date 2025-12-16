@@ -92,7 +92,9 @@ export default function PrepaidConfirmation({
             <div className="space-y-4">
               <div>
                 <span className="text-sm text-gray-600 font-medium block">Location</span>
-                <p className="text-sm font-bold text-gray-900">{currentCenter?.name}</p>
+                <p className="text-sm font-bold text-gray-900">
+                  {bookingData.isNewUser ? 'Stance PrePaid Services' : currentCenter?.name}
+                </p>
                 <p className="text-sm text-gray-500">Online Consultation</p>
               </div>
               <div>
