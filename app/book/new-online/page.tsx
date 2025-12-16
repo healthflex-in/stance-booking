@@ -175,11 +175,11 @@ export default function NewOnlinePage() {
           {currentStep === 'slot-selection' && (
             <NewUserOnlineSlotSelection
               serviceDuration={bookingData.treatmentDuration}
-              onSlotSelect={(consultantId, centerId, slot) => {
+              onSlotSelect={(consultantId, slot) => {
                 const slotDate = new Date(slot.startTimeRaw);
                 updateBookingData({
                   consultantId,
-                  centerId,
+                  centerId: slot.centerId,
                   consultantName: slot.consultantName,
                   centerName: slot.centerName,
                   selectedTimeSlot: {

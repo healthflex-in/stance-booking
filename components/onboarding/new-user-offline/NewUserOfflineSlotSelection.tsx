@@ -101,7 +101,7 @@ export default function NewUserOfflineSlotSelection({
       if (consultant.profileData?.allowOnlineBooking !== true) return false;
       if (consultant.profileData?.designation !== 'Physiotherapist') return false;
       const allowOnlineDelivery = consultant.profileData?.allowOnlineDelivery;
-      if (allowOnlineDelivery !== 'OFFLINE') return false;
+      if (allowOnlineDelivery !== 'OFFLINE' && allowOnlineDelivery !== 'BOTH') return false;
       
       const hasAvailableSlots = availabilityConsultants.some((ac: any) => ac.consultantId === consultant._id);
       return hasAvailableSlots;

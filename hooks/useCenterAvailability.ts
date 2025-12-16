@@ -36,6 +36,7 @@ interface UseCenterAvailabilityParams {
   serviceDuration: number;
   consultantId?: string;
   designation?: string;
+  deliveryMode?: 'ONLINE' | 'OFFLINE';
   enabled?: boolean;
 }
 
@@ -53,6 +54,7 @@ export const useCenterAvailability = ({
   serviceDuration,
   consultantId,
   designation,
+  deliveryMode = 'OFFLINE',
   enabled = true,
 }: UseCenterAvailabilityParams): UseCenterAvailabilityReturn => {
   const [consultants, setConsultants] = useState<ConsultantAvailability[]>([]);
@@ -77,6 +79,7 @@ export const useCenterAvailability = ({
             serviceDuration,
             consultantId: consultantId || null,
             designation: designation || null,
+            deliveryMode: deliveryMode || null,
           },
         },
         fetchPolicy: 'network-only',
@@ -93,7 +96,7 @@ export const useCenterAvailability = ({
 
   useEffect(() => {
     fetchAvailability();
-  }, [centerId, startDate.getTime(), endDate.getTime(), serviceDuration, consultantId || '', designation || '', enabled]);
+  }, [centerId, startDate.getTime(), endDate.getTime(), serviceDuration, consultantId || '', designation || '', deliveryMode, enabled]);
 
   return {
     consultants,

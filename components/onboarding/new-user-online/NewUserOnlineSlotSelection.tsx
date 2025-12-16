@@ -8,8 +8,9 @@ import { StanceHealthLoader } from '@/components/loader/StanceHealthLoader';
 
 interface NewUserOnlineSlotSelectionProps {
   serviceDuration: number;
-  onSlotSelect: (consultantId: string, centerId: string, slot: any) => void;
-  onBack?: () => void;
+  designation?: string;
+  onSlotSelect: (consultantId: string, slot: any) => void;
+  onBack: () => void;
 }
 
 interface TimeSlot {
@@ -19,8 +20,8 @@ interface TimeSlot {
   isAvailable: boolean;
   consultantId: string;
   consultantName?: string;
-  centerId: string;
-  centerName: string;
+  centerId?: string;
+  centerName?: string;
   startTimeRaw: string;
   endTimeRaw: string;
 }
@@ -37,8 +38,9 @@ interface DateOption {
 
 export default function NewUserOnlineSlotSelection({
   serviceDuration,
+  designation,
   onSlotSelect,
-  onBack = () => {},
+  onBack,
 }: NewUserOnlineSlotSelectionProps) {
   const { isInDesktopContainer } = useContainerDetection();
   const [selectedDate, setSelectedDate] = useState<string>('');
@@ -49,7 +51,7 @@ export default function NewUserOnlineSlotSelection({
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const organizationId = process.env.NEXT_PUBLIC_ORGANIZATION_ID || '67fe35f25e42152fb5185a5e';
-  
+
   const startOfDay = React.useMemo(() => {
     if (!currentSelectedDate) return new Date();
     const start = new Date(currentSelectedDate);
@@ -64,14 +66,26 @@ export default function NewUserOnlineSlotSelection({
     return end;
   }, [currentSelectedDate]);
 
-  const { consultants, loading: consultantsLoading } = useAvailability({
+  const { consultants: availabilityConsultants, loading: slotsLoading } = useAvailability({
     organizationId,
     startDate: startOfDay,
     endDate: endOfDay,
     serviceDuration,
-    designation: 'Physiotherapist',
+    designation,
     enabled: !!currentSelectedDate,
   });
+
+  const availableSlots = React.useMemo(() => {
+    return availabilityConsultants.flatMap(consultant => 
+      consultant.availableSlots.map(slot => ({
+        startTime: new Date(slot.startTime * 1000),
+        endTime: new Date(slot.endTime * 1000),
+        consultantId: consultant.consultantId,
+        centerId: slot.centerId,
+        centerName: slot.centerName,
+      }))
+    );
+  }, [availabilityConsultants]);
 
   const generateNext14Days = (): DateOption[] => {
     const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -111,33 +125,28 @@ export default function NewUserOnlineSlotSelection({
   }, []);
 
   useEffect(() => {
-    if (!currentSelectedDate || consultantsLoading) return;
+    if (!currentSelectedDate || slotsLoading) return;
     
     const dateKey = `${currentSelectedDate.toLocaleDateString('en-US', { weekday: 'short' })}, ${currentSelectedDate.getDate()} ${currentSelectedDate.toLocaleDateString('en-US', { month: 'short' })}`;
     
-    const processedSlots: TimeSlot[] = [];
-    
-    consultants.forEach(consultant => {
-      consultant.availableSlots.forEach(slot => {
-        const slotStart = new Date(slot.startTime * 1000);
-        const slotEnd = new Date(slot.endTime * 1000);
+    const processedSlots = availableSlots
+      .map(slot => {
+        const consultant = availabilityConsultants.find((ac: any) => ac.consultantId === slot.consultantId);
+        const consultantName = consultant?.consultantName || '';
         
-        processedSlots.push({
-          startTime: slotStart.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
-          endTime: slotEnd.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
-          displayTime: `${slotStart.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })} - ${slotEnd.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}`,
+        return {
+          startTime: new Date(slot.startTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
+          endTime: new Date(slot.endTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
+          displayTime: `${new Date(slot.startTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })} - ${new Date(slot.endTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}`,
           isAvailable: true,
-          consultantId: consultant.consultantId,
-          consultantName: consultant.consultantName,
+          consultantId: slot.consultantId,
+          consultantName: consultantName,
           centerId: slot.centerId,
           centerName: slot.centerName,
-          startTimeRaw: slotStart.toISOString(),
-          endTimeRaw: slotEnd.toISOString(),
-        });
+          startTimeRaw: new Date(slot.startTime).toISOString(),
+          endTimeRaw: new Date(slot.endTime).toISOString(),
+        };
       });
-    });
-    
-    processedSlots.sort((a, b) => new Date(a.startTimeRaw).getTime() - new Date(b.startTimeRaw).getTime());
     
     setDateSlots(prev => ({ ...prev, [dateKey]: processedSlots }));
     
@@ -149,7 +158,7 @@ export default function NewUserOnlineSlotSelection({
         return date;
       })
     );
-  }, [currentSelectedDate, consultants, consultantsLoading]);
+  }, [currentSelectedDate, availableSlots, slotsLoading, availabilityConsultants]);
 
   const handleDateSelect = (date: DateOption) => {
     const dateKey = `${date.day}, ${date.date} ${date.month}`;
@@ -165,7 +174,7 @@ export default function NewUserOnlineSlotSelection({
 
   const handleContinue = () => {
     if (selectedTimeSlot) {
-      onSlotSelect(selectedTimeSlot.consultantId, selectedTimeSlot.centerId, selectedTimeSlot);
+      onSlotSelect(selectedTimeSlot.consultantId, selectedTimeSlot);
     }
   };
 
@@ -188,7 +197,7 @@ export default function NewUserOnlineSlotSelection({
                 {availableDates.map((dateOption) => {
                   const dateKey = `${dateOption.day}, ${dateOption.date} ${dateOption.month}`;
                   const isCurrentDate = selectedDate === dateKey;
-                  const isDisabled = Boolean(consultantsLoading && !isCurrentDate);
+                  const isDisabled = Boolean(slotsLoading && !isCurrentDate);
                   
                   return (
                     <button
@@ -245,7 +254,7 @@ export default function NewUserOnlineSlotSelection({
               <div className="mb-6">
                 <h4 className="text-base font-medium text-gray-900 mb-3">Available time slots</h4>
                 
-                {consultantsLoading ? (
+                {slotsLoading ? (
                   <div className="flex justify-center items-center py-16">
                     <StanceHealthLoader message="Loading slots..." />
                   </div>
@@ -271,10 +280,8 @@ export default function NewUserOnlineSlotSelection({
                           }`}
                         >
                           <div className="text-sm font-semibold">{slot.displayTime}</div>
-                          {process.env.NEXT_PUBLIC_ENVIRONMENT === 'development' && (
-                            <div className="text-xs text-gray-500 mt-1">
-                              {slot.consultantName} • {slot.centerName}
-                            </div>
+                          {process.env.NEXT_PUBLIC_ENVIRONMENT === 'development' && slot.consultantName && (
+                            <div className="text-xs text-gray-500 mt-1">{slot.consultantName}</div>
                           )}
                         </button>
                       );
@@ -304,7 +311,6 @@ export default function NewUserOnlineSlotSelection({
           Continue
         </button>
       </div>
-
     </div>
   );
 }
