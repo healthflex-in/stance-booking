@@ -674,6 +674,7 @@ export type Center = DataRow & {
 export type CenterAvailabilityInput = {
   centerId: Scalars['ObjectID']['input'];
   consultantId?: InputMaybe<Scalars['ObjectID']['input']>;
+  deliveryMode?: InputMaybe<Scalars['String']['input']>;
   designation?: InputMaybe<Scalars['String']['input']>;
   endDate: Scalars['Timestamp']['input'];
   serviceDuration: Scalars['Int']['input'];
