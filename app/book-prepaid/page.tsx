@@ -12,8 +12,9 @@ import {
   PrepaidBookingConfirmed,
   PrepaidSessionDetails,
   PrepaidConfirmation,
+  PrepaidSlotSelection,
 } from '@/components/onboarding/prepaid';
-import { NewUserOnlineSlotSelection } from '@/components/onboarding/new-user-online';
+import PrepaidRepeatSlotSelection from '@/components/onboarding/prepaid/PrepaidRepeatSlotSelection';
 
 type BookingStep =
   | 'patient-onboarding'
@@ -229,12 +230,23 @@ export default function BookPrepaidPage() {
           )}
 
           {currentStep === 'slot-selection' && (
-            <NewUserOnlineSlotSelection
-              serviceDuration={bookingData.treatmentDuration}
-              designation={bookingData.designation}
-              onSlotSelect={handleSlotSelect}
-              onBack={goToPreviousStep}
-            />
+            bookingData.isNewUser ? (
+              <PrepaidSlotSelection
+                centerId={bookingData.centerId}
+                serviceDuration={bookingData.treatmentDuration}
+                designation={bookingData.designation}
+                onSlotSelect={handleSlotSelect}
+                onBack={goToPreviousStep}
+              />
+            ) : (
+              <PrepaidRepeatSlotSelection
+                centerId={bookingData.centerId}
+                serviceDuration={bookingData.treatmentDuration}
+                designation={bookingData.designation}
+                onSlotSelect={handleSlotSelect}
+                onBack={goToPreviousStep}
+              />
+            )
           )}
 
           {currentStep === 'confirmation' && (
