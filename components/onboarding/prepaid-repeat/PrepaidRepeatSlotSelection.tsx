@@ -254,6 +254,16 @@ export default function PrepaidRepeatSlotSelection({ centerId, serviceDuration, 
                       return (
                         <button key={`slot-${index}-${slot.startTimeRaw}`} onClick={() => setSelectedTimeSlot(slot)} disabled={!slot.isAvailable} className={`p-3 rounded-xl border-2 text-sm font-medium transition-all ${isSelected ? 'border-blue-500 bg-blue-50 text-blue-700' : slot.isAvailable ? 'border-gray-200 bg-white text-gray-900 hover:border-gray-300' : 'border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed'}`}>
                           <div className="text-sm font-semibold">{slot.displayTime}</div>
+                          <div className="text-xs text-gray-500 mt-1">
+                            {slot.consultantNames && slot.consultantNames.length > 0 
+                              ? slot.consultantNames.filter(n => n).join(', ') || `${slot.consultantNames.length} consultants`
+                              : 'No consultant'}
+                          </div>
+                          <div className="text-xs text-gray-400 mt-1">
+                            {slot.centerNames && slot.centerNames.length > 0
+                              ? slot.centerNames.filter(n => n).join(', ')
+                              : 'No center'}
+                          </div>
                         </button>
                       );
                     })}

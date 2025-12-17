@@ -56,33 +56,6 @@ export default function PrepaidNewSessionDetails({ patientId, onBack, onContinue
       <div className="flex-1 overflow-y-auto">
         <div className={`p-4 ${isInDesktopContainer ? 'pb-6' : 'pb-32'}`}>
           <div className="mb-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">Consultant Type</h2>
-            <p className="text-gray-600 text-sm mb-4">Select the type of consultant you need</p>
-            <div className="bg-white rounded-xl p-1 border border-gray-200 flex">
-              <button
-                type="button"
-                onClick={() => setSelectedDesignation('Physiotherapist')}
-                className={`flex-1 py-2 px-3 rounded-lg font-medium text-xs transition-all ${
-                  selectedDesignation === 'Physiotherapist' ? 'text-black shadow-sm' : 'text-gray-600 hover:text-gray-900'
-                }`}
-                style={{ backgroundColor: selectedDesignation === 'Physiotherapist' ? '#DDFE71' : 'transparent' }}
-              >
-                Physiotherapist
-              </button>
-              <button
-                type="button"
-                onClick={() => setSelectedDesignation('S&C Coach')}
-                className={`flex-1 py-2 px-3 rounded-lg font-medium text-xs transition-all ${
-                  selectedDesignation === 'S&C Coach' ? 'text-black shadow-sm' : 'text-gray-600 hover:text-gray-900'
-                }`}
-                style={{ backgroundColor: selectedDesignation === 'S&C Coach' ? '#DDFE71' : 'transparent' }}
-              >
-                S&C Coach
-              </button>
-            </div>
-          </div>
-
-          <div className="mb-6">
             <h2 className="text-xl font-semibold text-gray-900 mb-2">Service</h2>
             <p className="text-gray-600 text-sm mb-4">Choose the service you need</p>
             {prepaidServices.length === 0 ? (

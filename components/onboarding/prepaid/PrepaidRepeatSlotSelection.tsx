@@ -151,6 +151,10 @@ export default function PrepaidRepeatSlotSelection({
   useEffect(() => {
     if (!currentSelectedDate || slotsLoading) return;
     
+    console.log('Processing slots for date:', currentSelectedDate);
+    console.log('Available slots:', availableSlots);
+    console.log('Availability consultants:', availabilityConsultants);
+    
     const dateKey = `${currentSelectedDate.toLocaleDateString('en-US', { weekday: 'short' })}, ${currentSelectedDate.getDate()} ${currentSelectedDate.toLocaleDateString('en-US', { month: 'short' })}`;
     
     const slotMap = new Map();
@@ -186,6 +190,8 @@ export default function PrepaidRepeatSlotSelection({
     const processedSlots = Array.from(slotMap.values()).sort((a, b) => 
       new Date(a.startTimeRaw).getTime() - new Date(b.startTimeRaw).getTime()
     );
+    
+    console.log('Processed slots:', processedSlots);
     
     setDateSlots(prev => ({ ...prev, [dateKey]: processedSlots }));
     
@@ -356,6 +362,12 @@ export default function PrepaidRepeatSlotSelection({
                         selectedTimeSlot.endTimeRaw === slot.endTimeRaw
                       );
                       
+                      console.log('Slot data:', { 
+                        displayTime: slot.displayTime,
+                        consultantNames: slot.consultantNames, 
+                        centerNames: slot.centerNames 
+                      });
+                      
                       return (
                         <button
                           key={`slot-${index}-${slot.startTimeRaw}`}
@@ -370,20 +382,16 @@ export default function PrepaidRepeatSlotSelection({
                           }`}
                         >
                           <div className="text-sm font-semibold">{slot.displayTime}</div>
-                          {process.env.NEXT_PUBLIC_ENVIRONMENT === 'development' && (
-                            <div className="text-xs text-gray-500 mt-1">
-                              {slot.consultantNames && slot.consultantNames.length > 0 
-                                ? slot.consultantNames.filter(n => n).join(', ') || `${slot.consultantNames.length} consultants`
-                                : 'No consultant'}
-                            </div>
-                          )}
-                          {process.env.NEXT_PUBLIC_ENVIRONMENT === 'development' && (
-                            <div className="text-xs text-gray-400 mt-1">
-                              {slot.centerNames && slot.centerNames.length > 0
-                                ? slot.centerNames.filter(n => n).join(', ')
-                                : 'No center'}
-                            </div>
-                          )}
+                          <div className="text-xs text-gray-500 mt-1">
+                            {slot.consultantNames && slot.consultantNames.length > 0 
+                              ? slot.consultantNames.filter(n => n).join(', ') || `${slot.consultantNames.length} consultants`
+                              : 'No consultant'}
+                          </div>
+                          <div className="text-xs text-gray-400 mt-1">
+                            {slot.centerNames && slot.centerNames.length > 0
+                              ? slot.centerNames.filter(n => n).join(', ')
+                              : 'No center'}
+                          </div>
                         </button>
                       );
                     })}
