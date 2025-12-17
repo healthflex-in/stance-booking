@@ -7,21 +7,9 @@ import { useMutation } from '@apollo/client';
 import { toast } from 'sonner';
 import { CREATE_APPOINTMENT } from '@/gql/queries';
 
-import { MobilePatientOnboarding } from '@/components/onboarding/shared';
-import {
-  PrepaidBookingConfirmed,
-  PrepaidSessionDetails,
-  PrepaidRepeatSessionDetails,
-  PrepaidConfirmation,
-  PrepaidSlotSelection,
-} from '@/components/onboarding/prepaid';
-import PrepaidRepeatSlotSelection from '@/components/onboarding/prepaid/PrepaidRepeatSlotSelection';
+import { PrepaidPatientOnboarding } from '@/components/onboarding/shared';
 
-type BookingStep =
-  | 'session-details'
-  | 'slot-selection'
-  | 'confirmation'
-  | 'booking-confirmed';
+type BookingStep = 'patient-onboarding';
 
 interface BookingData {
   sessionType: 'in-person' | 'online' | null;
@@ -44,7 +32,7 @@ interface BookingData {
 export default function BookPrepaidPage() {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
-  const [currentStep, setCurrentStep] = useState<BookingStep>('session-details');
+  const [currentStep, setCurrentStep] = useState<BookingStep>('patient-onboarding');
   const [createAppointment] = useMutation(CREATE_APPOINTMENT);
   const [bookingData, setBookingData] = useState<BookingData>({
     sessionType: 'online',
@@ -68,124 +56,29 @@ export default function BookPrepaidPage() {
   useEffect(() => {
     if (!mounted) return;
     
-    const storedPatientId = sessionStorage.getItem('patientId');
-    const storedIsNewUser = sessionStorage.getItem('isNewUser');
-    const storedCenterId = sessionStorage.getItem('centerId');
+    const urlParams = new URLSearchParams(window.location.search);
+    const centerIdFromUrl = urlParams.get('centerId');
+    const centerIdFromStorage = localStorage.getItem('centerId');
+    const centerId = centerIdFromUrl || centerIdFromStorage || process.env.NEXT_PUBLIC_DEFAULT_CENTER_ID || '67fe36545e42152fb5185a6c';
     
-    if (storedPatientId) {
-      setBookingData(prev => ({
-        ...prev,
-        patientId: storedPatientId,
-        isNewUser: storedIsNewUser === 'true',
-        centerId: storedCenterId || prev.centerId,
-      }));
-      sessionStorage.removeItem('patientId');
-      sessionStorage.removeItem('isNewUser');
-      sessionStorage.removeItem('centerId');
+    setBookingData(prev => ({ ...prev, centerId }));
+  }, [mounted]);
+
+  const handlePatientOnboardingComplete = (patientId: string, isNewUser: boolean) => {
+    sessionStorage.setItem('patientId', patientId);
+    sessionStorage.setItem('centerId', bookingData.centerId || '');
+    sessionStorage.setItem('isNewUser', isNewUser.toString());
+    
+    if (isNewUser) {
+      router.replace('/book-prepaid/new');
     } else {
-      console.warn('⚠️ No patientId found in sessionStorage');
-      router.push('/book');
-    }
-  }, [mounted, router]);
-
-  const goToNextStep = () => {
-    const stepOrder: BookingStep[] = [
-      'session-details',
-      'slot-selection',
-      'confirmation',
-      'booking-confirmed',
-    ];
-    const currentIndex = stepOrder.indexOf(currentStep);
-    if (currentIndex < stepOrder.length - 1) {
-      setCurrentStep(stepOrder[currentIndex + 1]);
-    }
-  };
-
-  const goToPreviousStep = () => {
-    const stepOrder: BookingStep[] = [
-      'session-details',
-      'slot-selection',
-      'confirmation',
-      'booking-confirmed',
-    ];
-    const currentIndex = stepOrder.indexOf(currentStep);
-    if (currentIndex > 0) {
-      setCurrentStep(stepOrder[currentIndex - 1]);
-    } else {
-      router.push('/book');
-    }
-  };
-
-  const updateBookingData = (updates: Partial<BookingData>) => {
-    setBookingData((prev) => ({ ...prev, ...updates }));
-  };
-
-  const handleSlotSelect = (consultantId: string, slot: any) => {
-    const slotDate = new Date(slot.startTimeRaw);
-    setBookingData(prev => ({
-      ...prev,
-      consultantId,
-      centerId: slot.centerId || prev.centerId,
-      selectedTimeSlot: {
-        startTime: new Date(slot.startTimeRaw).toISOString(),
-        endTime: new Date(slot.endTimeRaw).toISOString(),
-        displayTime: slot.displayTime
-      },
-      selectedDate: slotDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
-      selectedFullDate: slotDate,
-    }));
-    goToNextStep();
-  };
-
-  const handleConfirmBooking = async () => {
-    try {
-      const input = {
-        patient: bookingData.patientId,
-        consultant: bookingData.consultantId || null,
-        treatment: bookingData.treatmentId,
-        medium: 'ONLINE',
-        notes: 'Prepaid appointment',
-        center: bookingData.centerId,
-        category: 'WEBSITE',
-        status: 'PRE_PAID',
-        visitType: bookingData.isNewUser ? 'FIRST_VISIT' : 'FOLLOW_UP',
-        event: {
-          startTime: new Date((bookingData.selectedTimeSlot as any).startTime).getTime(),
-          endTime: new Date((bookingData.selectedTimeSlot as any).endTime).getTime(),
-        },
-      };
-
-      const appointmentResult = await createAppointment({ variables: { input } });
-      const appointmentId = appointmentResult.data?.createAppointment?._id;
-      
-      if (appointmentId) {
-        setBookingData(prev => ({ ...prev, appointmentId }));
-        goToNextStep();
-      } else {
-        throw new Error('Appointment creation failed - no ID returned');
-      }
-    } catch (error: any) {
-      console.error('Error creating appointment:', error);
-      toast.error(error.message || 'Failed to create appointment. Please try again.');
+      router.replace('/book-prepaid/repeat');
     }
   };
 
   const getStepTitle = () => {
-    switch (currentStep) {
-      case 'session-details':
-        return 'Session Details';
-      case 'slot-selection':
-        return 'Slot Availability';
-      case 'confirmation':
-        return 'Confirm Booking';
-      case 'booking-confirmed':
-        return 'Booking Confirmed';
-      default:
-        return 'Pre-Paid Services';
-    }
+    return 'Stance Health';
   };
-
-  const canGoBack = currentStep !== 'session-details' && currentStep !== 'booking-confirmed';
 
   if (!mounted) {
     return (
@@ -198,97 +91,13 @@ export default function BookPrepaidPage() {
   const BookingContent = () => (
     <>
       <div className="h-full bg-gray-50 flex flex-col">
-        <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between flex-shrink-0">
-          {canGoBack && (
-            <button
-              onClick={goToPreviousStep}
-              className="p-2 -ml-2 rounded-lg hover:bg-gray-100 transition-colors"
-            >
-              <ArrowLeft className="w-6 h-6 text-gray-700" />
-            </button>
-          )}
-          {!canGoBack && (
-            <button
-              onClick={() => router.push('/book')}
-              className="p-2 -ml-2 rounded-lg hover:bg-gray-100 transition-colors"
-            >
-              <ArrowLeft className="w-6 h-6 text-gray-700" />
-            </button>
-          )}
-          <h1 className="text-lg font-semibold text-gray-900 flex-1 text-center ml-6">
-            {getStepTitle()}
-          </h1>
-          <div className="w-10" />
-        </div>
-
         <div className="flex-1 overflow-hidden">
-          {currentStep === 'session-details' && (
-            bookingData.isNewUser ? (
-              <PrepaidSessionDetails
-                patientId={bookingData.patientId}
-                centerId={bookingData.centerId}
-                isNewUser={bookingData.isNewUser}
-                onBack={goToPreviousStep}
-                onContinue={(data) => {
-                  updateBookingData({
-                    centerId: data.centerId,
-                    treatmentId: data.serviceId,
-                    treatmentDuration: data.serviceDuration,
-                    treatmentPrice: data.servicePrice,
-                    designation: data.designation,
-                  });
-                  goToNextStep();
-                }}
-              />
-            ) : (
-              <PrepaidRepeatSessionDetails
-                patientId={bookingData.patientId}
-                centerId={bookingData.centerId}
-                isNewUser={bookingData.isNewUser}
-                onBack={goToPreviousStep}
-                onContinue={(data) => {
-                  updateBookingData({
-                    centerId: data.centerId,
-                    treatmentId: data.serviceId,
-                    treatmentDuration: data.serviceDuration,
-                    treatmentPrice: data.servicePrice,
-                    designation: data.designation,
-                  });
-                  goToNextStep();
-                }}
-              />
-            )
-          )}
-
-          {currentStep === 'slot-selection' && (
-            bookingData.isNewUser ? (
-              <PrepaidSlotSelection
-                centerId={bookingData.centerId}
-                serviceDuration={bookingData.treatmentDuration}
-                designation={bookingData.designation}
-                onSlotSelect={handleSlotSelect}
-                onBack={goToPreviousStep}
-              />
-            ) : (
-              <PrepaidRepeatSlotSelection
-                centerId={bookingData.centerId}
-                serviceDuration={bookingData.treatmentDuration}
-                designation={bookingData.designation}
-                onSlotSelect={handleSlotSelect}
-                onBack={goToPreviousStep}
-              />
-            )
-          )}
-
-          {currentStep === 'confirmation' && (
-            <PrepaidConfirmation
-              bookingData={bookingData}
-              onConfirm={handleConfirmBooking}
+          {currentStep === 'patient-onboarding' && (
+            <PrepaidPatientOnboarding
+              centerId={bookingData.centerId || process.env.NEXT_PUBLIC_DEFAULT_CENTER_ID || '67fe36545e42152fb5185a6c'}
+              onComplete={handlePatientOnboardingComplete}
+              onBack={() => router.push('/book')}
             />
-          )}
-
-          {currentStep === 'booking-confirmed' && (
-            <PrepaidBookingConfirmed bookingData={bookingData} />
           )}
         </div>
       </div>

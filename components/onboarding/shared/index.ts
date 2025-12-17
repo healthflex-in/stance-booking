@@ -10,4 +10,5 @@ export { default as LocationSelectionModal } from './LocationSelectionModal';
 export { default as ServiceSelectionModal } from './ServiceSelectionModal';
 export { default as SessionTypeSelectionModal } from './SessionTypeSelectionModal';
 export { default as SimplifiedPatientOnboarding } from './SimplifiedPatientOnboarding';
+export { default as PrepaidPatientOnboarding } from './PrepaidPatientOnboarding';
 export { default as EmailCollectionModal } from './EmailCollectionModal';
