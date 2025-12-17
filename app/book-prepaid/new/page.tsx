@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { useMutation } from '@apollo/client';
 import { toast } from 'sonner';
-import { CREATE_APPOINTMENT } from '@/gql/queries';
+import { CREATE_APPOINTMENT, UPDATE_PATIENT } from '@/gql/queries';
 import { PrepaidNewSessionDetails } from '@/components/onboarding/prepaid-new';
 import { PrepaidNewSlotSelection } from '@/components/onboarding/prepaid-new';
 import { PrepaidNewConfirmation } from '@/components/onboarding/prepaid-new';
@@ -33,6 +33,7 @@ export default function PrepaidNewPage() {
   const [currentStep, setCurrentStep] = useState<BookingStep>('session-details');
   const [isCreatingAppointment, setIsCreatingAppointment] = useState(false);
   const [createAppointment] = useMutation(CREATE_APPOINTMENT);
+  const [updatePatient] = useMutation(UPDATE_PATIENT);
   const [bookingData, setBookingData] = useState<BookingData>({
     patientId: '',
     centerId: '',
@@ -119,6 +120,23 @@ export default function PrepaidNewPage() {
       const appointmentId = appointmentResult.data?.createAppointment?._id;
       
       if (appointmentId) {
+        // Update patient status to ACTIVE for prepaid bookings
+        try {
+          await updatePatient({
+            variables: {
+              patientId: bookingData.patientId,
+              input: {
+                status: 'ACTIVE',
+              },
+            },
+          });
+          if (process.env.NEXT_PUBLIC_ENVIRONMENT === 'development') {
+            console.log('✅ Patient status updated to ACTIVE');
+          }
+        } catch (error) {
+          console.error('❌ Failed to update patient status:', error);
+        }
+        
         setBookingData(prev => ({ ...prev, appointmentId }));
         goToNextStep();
       } else {

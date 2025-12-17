@@ -3663,6 +3663,14 @@ export type VerifyPaymentMutationVariables = Exact<{
 
 export type VerifyPaymentMutation = { __typename?: 'Mutation', verifyPayment: { __typename?: 'WebhookResponse', success: boolean, message?: string | null } };
 
+export type UpdatePatientMutationVariables = Exact<{
+  patientId: Scalars['ObjectID']['input'];
+  input: UpdatePatient;
+}>;
+
+
+export type UpdatePatientMutation = { __typename?: 'Mutation', updatePatient: { __typename?: 'User', _id: any, profileData?: { __typename?: 'Consultant' } | { __typename?: 'Patient', centers: Array<{ __typename?: 'Center', _id: any, name: string }> } | { __typename?: 'Staff' } | null } };
+
 export type GetCentersQueryVariables = Exact<{ [key: string]: never; }>;
 
 
@@ -3799,6 +3807,48 @@ export function useVerifyPaymentMutation(baseOptions?: Apollo.MutationHookOption
 export type VerifyPaymentMutationHookResult = ReturnType<typeof useVerifyPaymentMutation>;
 export type VerifyPaymentMutationResult = Apollo.MutationResult<VerifyPaymentMutation>;
 export type VerifyPaymentMutationOptions = Apollo.BaseMutationOptions<VerifyPaymentMutation, VerifyPaymentMutationVariables>;
+export const UpdatePatientDocument = gql`
+    mutation UpdatePatient($patientId: ObjectID!, $input: UpdatePatient!) {
+  updatePatient(id: $patientId, input: $input) {
+    _id
+    profileData {
+      ... on Patient {
+        centers {
+          _id
+          name
+        }
+      }
+    }
+  }
+}
+    `;
+export type UpdatePatientMutationFn = Apollo.MutationFunction<UpdatePatientMutation, UpdatePatientMutationVariables>;
+
+/**
+ * __useUpdatePatientMutation__
+ *
+ * To run a mutation, you first call `useUpdatePatientMutation` within a React component and pass it any options that fit your needs.
+ * When your component renders, `useUpdatePatientMutation` returns a tuple that includes:
+ * - A mutate function that you can call at any time to execute the mutation
+ * - An object with fields that represent the current status of the mutation's execution
+ *
+ * @param baseOptions options that will be passed into the mutation, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options-2;
+ *
+ * @example
+ * const [updatePatientMutation, { data, loading, error }] = useUpdatePatientMutation({
+ *   variables: {
+ *      patientId: // value for 'patientId'
+ *      input: // value for 'input'
+ *   },
+ * });
+ */
+export function useUpdatePatientMutation(baseOptions?: Apollo.MutationHookOptions<UpdatePatientMutation, UpdatePatientMutationVariables>) {
+        const options = {...defaultOptions, ...baseOptions}
+        return Apollo.useMutation<UpdatePatientMutation, UpdatePatientMutationVariables>(UpdatePatientDocument, options);
+      }
+export type UpdatePatientMutationHookResult = ReturnType<typeof useUpdatePatientMutation>;
+export type UpdatePatientMutationResult = Apollo.MutationResult<UpdatePatientMutation>;
+export type UpdatePatientMutationOptions = Apollo.BaseMutationOptions<UpdatePatientMutation, UpdatePatientMutationVariables>;
 export const GetCentersDocument = gql`
     query GetCenters {
   centers {
