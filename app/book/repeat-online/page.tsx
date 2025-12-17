@@ -150,6 +150,7 @@ export default function RepeatOnlinePage() {
               const slotDate = new Date(slot.startTimeRaw);
               updateBookingData({
                 consultantId,
+                centerId: slot.centerId || bookingData.centerId,
                 selectedTimeSlot: {
                   startTime: new Date(slot.startTimeRaw).toISOString(),
                   endTime: new Date(slot.endTimeRaw).toISOString(),

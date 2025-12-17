@@ -178,10 +178,10 @@ export default function NewOnlinePage() {
               designation="Physiotherapist"
               onSlotSelect={(consultantId, slot) => {
                 const slotDate = new Date(slot.startTimeRaw);
+                // Use the consultant's center from the slot
                 updateBookingData({
                   consultantId,
                   centerId: slot.centerId,
-                  consultantName: slot.consultantName,
                   centerName: slot.centerName,
                   selectedTimeSlot: {
                     startTime: new Date(slot.startTimeRaw).toISOString(),

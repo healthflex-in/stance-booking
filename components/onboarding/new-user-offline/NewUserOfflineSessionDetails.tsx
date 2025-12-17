@@ -33,7 +33,7 @@ export default function NewUserOfflineSessionDetails({
 
   const filteredCenters = React.useMemo(() => {
     if (!centersData?.centers) return [];
-    return centersData.centers.filter((center: any) => !center.isOnline);
+    return centersData.centers.filter((center: any) => center.isOnline === true);
   }, [centersData]);
 
   useEffect(() => {
