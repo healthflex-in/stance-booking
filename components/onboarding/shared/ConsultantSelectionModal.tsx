@@ -9,7 +9,8 @@ interface ConsultantSelectionModalProps {
   onClose: () => void;
   consultants: any[];
   sessionType: 'in-person' | 'online';
-  centerId: string;
+  centerId?: string;
+  organizationId?: string;
   onSelect: (consultant: any | null) => void;
   selectedConsultant?: any | null;
 }
@@ -20,6 +21,7 @@ export default function ConsultantSelectionModal({
   consultants,
   sessionType,
   centerId,
+  organizationId,
   onSelect,
   selectedConsultant = null,
 }: ConsultantSelectionModalProps) {

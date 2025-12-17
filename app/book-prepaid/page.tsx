@@ -66,10 +66,11 @@ export default function BookPrepaidPage() {
 
   const handlePatientOnboardingComplete = (patientId: string, isNewUser: boolean) => {
     sessionStorage.setItem('patientId', patientId);
-    sessionStorage.setItem('centerId', bookingData.centerId || '');
+    sessionStorage.setItem('organizationId', process.env.NEXT_PUBLIC_ORGANIZATION_ID || '');
     sessionStorage.setItem('isNewUser', isNewUser.toString());
     
     if (isNewUser) {
+      sessionStorage.setItem('centerId', bookingData.centerId || '');
       router.replace('/book-prepaid/new');
     } else {
       router.replace('/book-prepaid/repeat');

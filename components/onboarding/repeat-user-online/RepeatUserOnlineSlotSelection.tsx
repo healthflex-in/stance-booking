@@ -2,13 +2,13 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Clock, UserCircle, ChevronRight } from 'lucide-react';
-import { useCenterAvailability } from '@/hooks';
+import { useAvailability } from '@/hooks';
 import { useContainerDetection } from '@/hooks/useContainerDetection';
 import { ConsultantSelectionModal } from '../shared';
 import { StanceHealthLoader } from '@/components/loader/StanceHealthLoader';
 
 interface RepeatUserOnlineSlotSelectionProps {
-  centerId: string;
+  organizationId: string;
   serviceDuration: number;
   designation?: string;
   onSlotSelect: (consultantId: string, slot: any) => void;
@@ -39,7 +39,7 @@ interface DateOption {
 }
 
 export default function RepeatUserOnlineSlotSelection({
-  centerId,
+  organizationId,
   serviceDuration,
   designation,
   onSlotSelect,
@@ -69,13 +69,12 @@ export default function RepeatUserOnlineSlotSelection({
     return end;
   }, [currentSelectedDate]);
 
-  const { consultants: availabilityConsultants, loading: slotsLoading } = useCenterAvailability({
-    centerId,
+  const { consultants: availabilityConsultants, loading: slotsLoading } = useAvailability({
+    organizationId,
     startDate: startOfDay,
     endDate: endOfDay,
     serviceDuration,
     designation,
-    deliveryMode: 'ONLINE',
     enabled: !!currentSelectedDate,
   });
 
@@ -416,7 +415,7 @@ export default function RepeatUserOnlineSlotSelection({
         onClose={() => setShowConsultantModal(false)}
         consultants={consultants}
         sessionType="online"
-        centerId={centerId}
+        organizationId={organizationId}
         onSelect={handleConsultantSelect}
         selectedConsultant={selectedConsultant}
       />

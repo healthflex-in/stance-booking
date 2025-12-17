@@ -13,7 +13,8 @@ type BookingStep = 'session-details' | 'slot-selection' | 'payment-confirmation'
 
 interface BookingData {
   patientId: string;
-  centerId: string;
+  organizationId: string;
+  centerId?: string;
   consultantId: string;
   treatmentId: string;
   treatmentPrice: number;
@@ -32,7 +33,7 @@ export default function RepeatOnlinePage() {
   const [currentStep, setCurrentStep] = useState<BookingStep>('session-details');
   const [bookingData, setBookingData] = useState<BookingData>({
     patientId: '',
-    centerId: process.env.NEXT_PUBLIC_DEFAULT_CENTER_ID || '67fe36545e42152fb5185a6c',
+    organizationId: process.env.NEXT_PUBLIC_ORGANIZATION_ID || '67fe35f25e42152fb5185a5e',
     consultantId: '',
     treatmentId: '',
     treatmentPrice: 0,
@@ -45,11 +46,9 @@ export default function RepeatOnlinePage() {
   useEffect(() => {
     setMounted(true);
     const storedPatientId = sessionStorage.getItem('patientId');
-    const storedCenterId = sessionStorage.getItem('centerId');
-    if (storedPatientId && storedCenterId) {
-      updateBookingData({ patientId: storedPatientId, centerId: storedCenterId });
+    if (storedPatientId) {
+      updateBookingData({ patientId: storedPatientId });
       sessionStorage.removeItem('patientId');
-      sessionStorage.removeItem('centerId');
     }
   }, []);
 
@@ -126,11 +125,11 @@ export default function RepeatOnlinePage() {
         {currentStep === 'session-details' && (
           <RepeatUserOnlineSessionDetails
             patientId={bookingData.patientId}
-            centerId={bookingData.centerId}
+            organizationId={bookingData.organizationId}
             onBack={goToPreviousStep}
             onContinue={(data) => {
               updateBookingData({
-                centerId: data.centerId,
+                organizationId: data.organizationId,
                 treatmentId: data.serviceId,
                 treatmentDuration: data.serviceDuration,
                 treatmentPrice: data.servicePrice,
@@ -143,14 +142,14 @@ export default function RepeatOnlinePage() {
 
         {currentStep === 'slot-selection' && (
           <RepeatUserOnlineSlotSelection
-            centerId={bookingData.centerId}
+            organizationId={bookingData.organizationId}
             serviceDuration={bookingData.treatmentDuration}
             designation={bookingData.designation}
             onSlotSelect={(consultantId, slot) => {
               const slotDate = new Date(slot.startTimeRaw);
               updateBookingData({
                 consultantId,
-                centerId: slot.centerId || bookingData.centerId,
+                centerId: slot.centerId,
                 selectedTimeSlot: {
                   startTime: new Date(slot.startTimeRaw).toISOString(),
                   endTime: new Date(slot.endTimeRaw).toISOString(),

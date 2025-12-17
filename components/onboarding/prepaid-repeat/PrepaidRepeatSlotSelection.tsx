@@ -2,13 +2,13 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Clock, UserCircle, ChevronRight } from 'lucide-react';
-import { useCenterAvailability } from '@/hooks';
+import { useAvailability } from '@/hooks';
 import { useContainerDetection } from '@/hooks/useContainerDetection';
 import { ConsultantSelectionModal } from '../shared';
 import { StanceHealthLoader } from '@/components/loader/StanceHealthLoader';
 
 interface PrepaidRepeatSlotSelectionProps {
-  centerId: string;
+  organizationId: string;
   serviceDuration: number;
   designation?: string;
   onSlotSelect: (consultantId: string, slot: any) => void;
@@ -38,7 +38,7 @@ interface DateOption {
   isToday?: boolean;
 }
 
-export default function PrepaidRepeatSlotSelection({ centerId, serviceDuration, designation, onSlotSelect, onBack }: PrepaidRepeatSlotSelectionProps) {
+export default function PrepaidRepeatSlotSelection({ organizationId, serviceDuration, designation, onSlotSelect, onBack }: PrepaidRepeatSlotSelectionProps) {
   const { isInDesktopContainer } = useContainerDetection();
   const [selectedConsultant, setSelectedConsultant] = useState<any>(null);
   const [showConsultantModal, setShowConsultantModal] = useState(false);
@@ -63,13 +63,12 @@ export default function PrepaidRepeatSlotSelection({ centerId, serviceDuration, 
     return end;
   }, [currentSelectedDate]);
 
-  const { consultants: availabilityConsultants, loading: slotsLoading } = useCenterAvailability({
-    centerId,
+  const { consultants: availabilityConsultants, loading: slotsLoading } = useAvailability({
+    organizationId,
     startDate: startOfDay,
     endDate: endOfDay,
     serviceDuration,
     designation,
-    deliveryMode: 'ONLINE',
     enabled: !!currentSelectedDate,
   });
 
@@ -94,6 +93,7 @@ export default function PrepaidRepeatSlotSelection({ centerId, serviceDuration, 
         startTime: new Date(slot.startTime * 1000),
         endTime: new Date(slot.endTime * 1000),
         consultantId: consultant.consultantId,
+        centerId: slot.centerId,
         centerName: slot.centerName,
       }))
     );
@@ -146,7 +146,7 @@ export default function PrepaidRepeatSlotSelection({ centerId, serviceDuration, 
           isAvailable: true,
           consultantIds: [slot.consultantId],
           consultantNames: consultantName ? [consultantName] : [],
-          centerIds: [slot.centerName],
+          centerIds: [slot.centerId],
           centerNames: [slot.centerName],
           startTimeRaw: new Date(slot.startTime).toISOString(),
           endTimeRaw: new Date(slot.endTime).toISOString(),
@@ -156,7 +156,7 @@ export default function PrepaidRepeatSlotSelection({ centerId, serviceDuration, 
         if (!existing.consultantIds.includes(slot.consultantId)) {
           existing.consultantIds.push(slot.consultantId);
           if (consultantName) existing.consultantNames.push(consultantName);
-          existing.centerIds.push(slot.centerName);
+          existing.centerIds.push(slot.centerId);
           existing.centerNames.push(slot.centerName);
         }
       }
@@ -178,6 +178,7 @@ export default function PrepaidRepeatSlotSelection({ centerId, serviceDuration, 
       const consultantId = selectedConsultant?._id || selectedTimeSlot.consultantIds[randomIndex];
       const slotWithCenter = {
         ...selectedTimeSlot,
+        centerId: selectedTimeSlot.centerIds?.[randomIndex] || '',
         centerName: selectedTimeSlot.centerNames?.[randomIndex] || '',
       };
       onSlotSelect(consultantId, slotWithCenter);
@@ -286,7 +287,7 @@ export default function PrepaidRepeatSlotSelection({ centerId, serviceDuration, 
         </button>
       </div>
 
-      <ConsultantSelectionModal isOpen={showConsultantModal} onClose={() => setShowConsultantModal(false)} consultants={consultants} sessionType="in-person" centerId={centerId} onSelect={(consultant) => { setSelectedConsultant(consultant); setShowConsultantModal(false); }} selectedConsultant={selectedConsultant} />
+      <ConsultantSelectionModal isOpen={showConsultantModal} onClose={() => setShowConsultantModal(false)} consultants={consultants} sessionType="online" organizationId={organizationId} onSelect={(consultant) => { setSelectedConsultant(consultant); setShowConsultantModal(false); }} selectedConsultant={selectedConsultant} />
     </div>
   );
 }

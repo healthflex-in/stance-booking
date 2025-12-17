@@ -45,6 +45,7 @@ export default function NewUserOfflineSlotSelection({
   onSlotSelect,
   onBack = () => {},
 }: NewUserOfflineSlotSelectionProps) {
+  console.log('🚀 NewUserOfflineSlotSelection RENDERED - centerId:', centerId);
   const { isInDesktopContainer } = useContainerDetection();
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<TimeSlot | null>(null);
@@ -96,21 +97,18 @@ export default function NewUserOfflineSlotSelection({
     enabled: !!currentSelectedDate,
   });
 
-  const consultants = React.useMemo(() => {
-    if (!consultantsData?.users?.data) return [];
-    return consultantsData.users.data.filter((consultant: any) => {
-      if (consultant.profileData?.allowOnlineBooking !== true) return false;
-      if (consultant.profileData?.designation !== 'Physiotherapist') return false;
-      const allowOnlineDelivery = consultant.profileData?.allowOnlineDelivery;
-      if (allowOnlineDelivery !== 'OFFLINE' && allowOnlineDelivery !== 'BOTH') return false;
-      
-      const hasAvailableSlots = availabilityConsultants.some((ac: any) => ac.consultantId === consultant._id);
-      return hasAvailableSlots;
-    });
-  }, [consultantsData, availabilityConsultants]);
-
   const availableSlots = React.useMemo(() => {
-    return availabilityConsultants.flatMap(consultant => 
+    console.log('📊 Backend returned consultants:', availabilityConsultants.length);
+    availabilityConsultants.forEach(c => {
+      console.log(`  - ${c.consultantName}: ${c.availableSlots.length} slots`);
+      c.availableSlots.forEach((s, i) => {
+        const start = new Date(s.startTime * 1000);
+        const end = new Date(s.endTime * 1000);
+        console.log(`    ${i+1}. ${start.toLocaleTimeString()} - ${end.toLocaleTimeString()}`);
+      });
+    });
+    
+    const slots = availabilityConsultants.flatMap(consultant => 
       consultant.availableSlots.map(slot => ({
         startTime: new Date(slot.startTime * 1000),
         endTime: new Date(slot.endTime * 1000),
@@ -118,6 +116,8 @@ export default function NewUserOfflineSlotSelection({
         centerName: slot.centerName,
       }))
     );
+    console.log('✅ Total slots after flatMap:', slots.length);
+    return slots;
   }, [availabilityConsultants]);
 
   const generateNext14Days = (): DateOption[] => {
@@ -161,14 +161,17 @@ export default function NewUserOfflineSlotSelection({
     if (!currentSelectedDate || slotsLoading) return;
     
     const dateKey = `${currentSelectedDate.toLocaleDateString('en-US', { weekday: 'short' })}, ${currentSelectedDate.getDate()} ${currentSelectedDate.toLocaleDateString('en-US', { month: 'short' })}`;
+    console.log('\n🔄 Processing slots for:', dateKey);
+    console.log('📥 Available slots to process:', availableSlots.length);
     
     const slotMap = new Map();
     availableSlots.forEach(slot => {
-      if (!slot.consultantId || !consultants.some((c: any) => c._id === slot.consultantId)) return;
+      if (!slot.consultantId) return;
       
-      const timeKey = new Date(slot.startTime).toISOString();
-      const consultant = consultants.find((c: any) => c._id === slot.consultantId);
-      const consultantName = consultant ? `${consultant.profileData?.firstName || ''} ${consultant.profileData?.lastName || ''}`.trim() : '';
+      const startDate = new Date(slot.startTime);
+      const timeKey = `${startDate.getFullYear()}-${startDate.getMonth()}-${startDate.getDate()}-${startDate.getHours()}-${startDate.getMinutes()}`;
+      const consultant = availabilityConsultants.find((ac: any) => ac.consultantId === slot.consultantId);
+      const consultantName = consultant ? consultant.consultantName : '';
       
       if (!slotMap.has(timeKey)) {
         slotMap.set(timeKey, {
@@ -195,6 +198,12 @@ export default function NewUserOfflineSlotSelection({
       new Date(a.startTimeRaw).getTime() - new Date(b.startTimeRaw).getTime()
     );
     
+    console.log('✅ Processed into', processedSlots.length, 'unique time slots');
+    console.log('📋 Displaying slots:');
+    processedSlots.forEach((s, i) => {
+      console.log(`  ${i+1}. ${s.displayTime} - ${s.consultantNames.join(', ')}`);
+    });
+    
     setDateSlots(prev => ({ ...prev, [dateKey]: processedSlots }));
     
     setAvailableDates(prev =>
@@ -205,7 +214,7 @@ export default function NewUserOfflineSlotSelection({
         return date;
       })
     );
-  }, [currentSelectedDate, availableSlots, slotsLoading, consultants, allConsultants]);
+  }, [currentSelectedDate, availableSlots, slotsLoading, availabilityConsultants]);
 
   const handleDateSelect = (date: DateOption) => {
     const dateKey = `${date.day}, ${date.date} ${date.month}`;

@@ -3,9 +3,9 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
-import { useMutation } from '@apollo/client';
+import { useMutation, useQuery } from '@apollo/client';
 import { toast } from 'sonner';
-import { CREATE_APPOINTMENT } from '@/gql/queries';
+import { CREATE_APPOINTMENT, UPDATE_PATIENT, GET_USER } from '@/gql/queries';
 import { PrepaidRepeatSessionDetails } from '@/components/onboarding/prepaid-repeat';
 import { PrepaidRepeatSlotSelection } from '@/components/onboarding/prepaid-repeat';
 import { PrepaidRepeatConfirmation } from '@/components/onboarding/prepaid-repeat';
@@ -15,6 +15,7 @@ type BookingStep = 'session-details' | 'slot-selection' | 'confirmation' | 'book
 
 interface BookingData {
   patientId: string;
+  organizationId: string;
   centerId: string;
   consultantId: string;
   treatmentId: string;
@@ -33,8 +34,10 @@ export default function PrepaidRepeatPage() {
   const [currentStep, setCurrentStep] = useState<BookingStep>('session-details');
   const [isCreatingAppointment, setIsCreatingAppointment] = useState(false);
   const [createAppointment] = useMutation(CREATE_APPOINTMENT);
+  const [updatePatient] = useMutation(UPDATE_PATIENT);
   const [bookingData, setBookingData] = useState<BookingData>({
     patientId: '',
+    organizationId: '',
     centerId: '',
     consultantId: '',
     treatmentId: '',
@@ -42,6 +45,11 @@ export default function PrepaidRepeatPage() {
     treatmentDuration: 20,
     selectedDate: '',
     selectedTimeSlot: { startTime: '', endTime: '', displayTime: '' },
+  });
+
+  const { data: patientData } = useQuery(GET_USER, {
+    variables: { userId: bookingData.patientId },
+    skip: !bookingData.patientId,
   });
 
   useEffect(() => {
@@ -52,8 +60,10 @@ export default function PrepaidRepeatPage() {
     if (!mounted) return;
     
     const storedPatientId = sessionStorage.getItem('patientId');
-    if (storedPatientId) {
-      setBookingData(prev => ({ ...prev, patientId: storedPatientId }));
+    const storedOrganizationId = sessionStorage.getItem('organizationId');
+    
+    if (storedPatientId && storedOrganizationId) {
+      setBookingData(prev => ({ ...prev, patientId: storedPatientId, organizationId: storedOrganizationId }));
       sessionStorage.removeItem('patientId');
     } else {
       router.push('/book');
@@ -82,6 +92,7 @@ export default function PrepaidRepeatPage() {
     setBookingData(prev => ({
       ...prev,
       consultantId,
+      centerId: slot.centerId || prev.centerId,
       selectedTimeSlot: {
         startTime: new Date(slot.startTimeRaw).toISOString(),
         endTime: new Date(slot.endTimeRaw).toISOString(),
@@ -98,6 +109,24 @@ export default function PrepaidRepeatPage() {
     
     setIsCreatingAppointment(true);
     try {
+      const existingCenters = patientData?.user?.profileData?.centers || [];
+      const centerIds = existingCenters.map((c: any) => c._id);
+      
+      if (!centerIds.includes(bookingData.centerId)) {
+        try {
+          await updatePatient({
+            variables: {
+              patientId: bookingData.patientId,
+              input: {
+                centers: [...centerIds, bookingData.centerId],
+              },
+            },
+          });
+        } catch (error) {
+          console.error('Failed to add center to patient:', error);
+        }
+      }
+      
       const input = {
         patient: bookingData.patientId,
         consultant: bookingData.consultantId || null,
@@ -171,12 +200,12 @@ export default function PrepaidRepeatPage() {
         {currentStep === 'session-details' && (
           <PrepaidRepeatSessionDetails
             patientId={bookingData.patientId}
-            centerId={bookingData.centerId}
+            organizationId={bookingData.organizationId}
             isNewUser={false}
             onBack={goToPreviousStep}
             onContinue={(data) => {
               updateBookingData({
-                centerId: data.centerId,
+                organizationId: data.organizationId,
                 treatmentId: data.serviceId,
                 treatmentDuration: data.serviceDuration,
                 treatmentPrice: data.servicePrice,
@@ -189,7 +218,7 @@ export default function PrepaidRepeatPage() {
 
         {currentStep === 'slot-selection' && (
           <PrepaidRepeatSlotSelection
-            centerId={bookingData.centerId}
+            organizationId={bookingData.organizationId}
             serviceDuration={bookingData.treatmentDuration}
             designation={bookingData.designation}
             onSlotSelect={handleSlotSelect}
