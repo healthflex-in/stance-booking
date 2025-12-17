@@ -23,9 +23,10 @@ interface BookingData {
 interface PrepaidNewConfirmationProps {
   bookingData: BookingData;
   onConfirm: () => void;
+  isCreating?: boolean;
 }
 
-export default function PrepaidNewConfirmation({ bookingData, onConfirm }: PrepaidNewConfirmationProps) {
+export default function PrepaidNewConfirmation({ bookingData, onConfirm, isCreating = false }: PrepaidNewConfirmationProps) {
   const { isInDesktopContainer } = useContainerDetection();
   const [error, setError] = useState('');
   const [showEmailModal, setShowEmailModal] = useState(false);
@@ -160,8 +161,8 @@ export default function PrepaidNewConfirmation({ bookingData, onConfirm }: Prepa
       <div className={`${isInDesktopContainer ? 'flex-shrink-0' : 'fixed bottom-0 left-0 right-0'} bg-white border-t border-gray-200 p-4`}>
         <Button
           onClick={handleConfirmBooking}
-          disabled={updatingPatient}
-          isLoading={updatingPatient}
+          disabled={updatingPatient || isCreating}
+          isLoading={updatingPatient || isCreating}
           fullWidth
           variant="primary"
           size="lg"

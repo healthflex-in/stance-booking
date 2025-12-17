@@ -31,6 +31,7 @@ export default function PrepaidRepeatPage() {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [currentStep, setCurrentStep] = useState<BookingStep>('session-details');
+  const [isCreatingAppointment, setIsCreatingAppointment] = useState(false);
   const [createAppointment] = useMutation(CREATE_APPOINTMENT);
   const [bookingData, setBookingData] = useState<BookingData>({
     patientId: '',
@@ -93,6 +94,9 @@ export default function PrepaidRepeatPage() {
   };
 
   const handleConfirmBooking = async () => {
+    if (isCreatingAppointment) return;
+    
+    setIsCreatingAppointment(true);
     try {
       const input = {
         patient: bookingData.patientId,
@@ -121,6 +125,8 @@ export default function PrepaidRepeatPage() {
       }
     } catch (error: any) {
       toast.error(error.message || 'Failed to create appointment');
+    } finally {
+      setIsCreatingAppointment(false);
     }
   };
 
@@ -195,6 +201,7 @@ export default function PrepaidRepeatPage() {
           <PrepaidRepeatConfirmation
             bookingData={bookingData}
             onConfirm={handleConfirmBooking}
+            isCreating={isCreatingAppointment}
           />
         )}
 

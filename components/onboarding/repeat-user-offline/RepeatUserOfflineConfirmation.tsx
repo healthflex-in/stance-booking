@@ -21,14 +21,15 @@ interface BookingData {
 interface RepeatUserOfflineConfirmationProps {
   bookingData: BookingData;
   onConfirm: () => void;
+  isCreating?: boolean;
 }
 
 export default function RepeatUserOfflineConfirmation({
   bookingData,
   onConfirm,
+  isCreating = false,
 }: RepeatUserOfflineConfirmationProps) {
   const { isInDesktopContainer } = useContainerDetection();
-  const [isCreating, setIsCreating] = useState(false);
 
   const { data: centersData, loading: centersLoading } = useQuery(GET_CENTERS);
   const { data: servicesData, loading: servicesLoading } = useQuery(GET_SERVICES, {
@@ -51,7 +52,6 @@ export default function RepeatUserOfflineConfirmation({
   const isLoading = centersLoading || servicesLoading || userLoading;
 
   const handleConfirm = async () => {
-    setIsCreating(true);
     await onConfirm();
   };
 
