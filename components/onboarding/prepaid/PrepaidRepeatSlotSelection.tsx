@@ -78,7 +78,6 @@ export default function PrepaidRepeatSlotSelection({
     startDate: startOfDay,
     endDate: endOfDay,
     serviceDuration,
-    consultantId: selectedConsultant?._id,
     designation,
     deliveryMode: 'ONLINE',
     enabled: !!currentSelectedDate,
@@ -248,7 +247,11 @@ export default function PrepaidRepeatSlotSelection({
                     {selectedConsultant ? (
                       <>
                         <p className="text-sm font-bold text-gray-900">
-                          Dr. {selectedConsultant.profileData?.firstName || ''} {selectedConsultant.profileData?.lastName || ''}
+                          {selectedConsultant.profileData?.firstName || selectedConsultant.profileData?.lastName ? (
+                            <>Dr. {selectedConsultant.profileData?.firstName || ''} {selectedConsultant.profileData?.lastName || ''}</>
+                          ) : (
+                            <>Consultant</>
+                          )}
                         </p>
                         <p className="text-xs text-gray-500">
                           {selectedConsultant.profileData?.designation || 'Consultant'}
@@ -414,7 +417,7 @@ export default function PrepaidRepeatSlotSelection({
         isOpen={showConsultantModal}
         onClose={() => setShowConsultantModal(false)}
         consultants={consultants}
-        sessionType="in-person"
+        sessionType="online"
         centerId={centerId}
         onSelect={handleConsultantSelect}
         selectedConsultant={selectedConsultant}

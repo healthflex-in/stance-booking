@@ -5,3 +5,4 @@ export { default as PrepaidSlotSelection } from './PrepaidSlotSelection';
 export { default as PrepaidConfirmation } from './PrepaidConfirmation';
 export { default as PrepaidBookingConfirmed } from './PrepaidBookingConfirmed';
 export { default as PrepaidSessionDetails } from './PrepaidSessionDetails';
+export { default as PrepaidRepeatSessionDetails } from './PrepaidRepeatSessionDetails';
