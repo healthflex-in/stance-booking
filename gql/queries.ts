@@ -1963,6 +1963,10 @@ export const UPDATE_PATIENT = gql`
           patientType
           cohort
           status
+          centers {
+            _id
+            name
+          }
           consultant {
             _id
           }

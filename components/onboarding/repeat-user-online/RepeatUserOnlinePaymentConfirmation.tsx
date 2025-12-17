@@ -15,7 +15,7 @@ import { EmailCollectionModal } from '@/components/onboarding/shared';
 interface BookingData {
   sessionType: 'online';
   patientId: string;
-  centerId: string;
+  centerId?: string;
   consultantId: string;
   treatmentId: string;
   treatmentPrice: number;
@@ -135,7 +135,7 @@ export default function RepeatUserOnlinePaymentConfirmation({
         amount={bookingData.treatmentPrice}
         patientDetails={patientDetails}
         patientId={bookingData.patientId}
-        centerId={bookingData.centerId}
+        centerId={bookingData.centerId || ''}
         consultantId={bookingData.consultantId}
         treatmentId={bookingData.treatmentId}
         onPaymentSuccess={handlePaymentSuccess}

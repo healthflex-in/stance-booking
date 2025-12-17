@@ -10,30 +10,25 @@ import { LocationSelectionModal, ServiceSelectionModal } from '@/components/onbo
 
 interface RepeatUserOnlineSessionDetailsProps {
   patientId: string;
-  centerId: string;
+  organizationId: string;
   onBack: () => void;
-  onContinue: (data: { centerId: string; serviceId: string; serviceDuration: number; servicePrice: number; designation: string }) => void;
+  onContinue: (data: { organizationId: string; serviceId: string; serviceDuration: number; servicePrice: number; designation: string }) => void;
 }
 
 export default function RepeatUserOnlineSessionDetails({
   patientId,
-  centerId,
+  organizationId,
   onBack,
   onContinue,
 }: RepeatUserOnlineSessionDetailsProps) {
   const { isInDesktopContainer } = useContainerDetection();
-  const [selectedCenter, setSelectedCenter] = useState<any>(null);
   const [selectedService, setSelectedService] = useState<any>(null);
   const [selectedDesignation, setSelectedDesignation] = useState<string>('Physiotherapist');
 
   // Modal states
-  const [showLocationModal, setShowLocationModal] = useState(false);
   const [showServiceModal, setShowServiceModal] = useState(false);
 
-  // Fetch centers
-  const { data: centersData, loading: centersLoading } = useQuery(GET_CENTERS, {
-    fetchPolicy: 'cache-first',
-  });
+
 
   // Fetch patient data for welcome message
   const { data: patientData } = useQuery(GET_USER, {
@@ -51,26 +46,13 @@ export default function RepeatUserOnlineSessionDetails({
     ? `${patientFirstName} ${patientLastName}`.trim()
     : patientFirstName || '';
 
-  // Filter centers for online
-  const filteredCenters = React.useMemo(() => {
-    if (!centersData?.centers) return [];
-    return centersData.centers.filter((center: any) => {
-      return center.allowOnlineBooking === true || center.isOnline === true;
-    });
-  }, [centersData]);
 
-
-
-  // Reset service when center changes
-  useEffect(() => {
-    setSelectedService(null);
-  }, [selectedCenter]);
 
   const handleContinue = () => {
-    if (!selectedService || !selectedCenter) return;
+    if (!selectedService) return;
 
     onContinue({
-      centerId: selectedCenter._id,
+      organizationId,
       serviceId: selectedService._id,
       serviceDuration: selectedService.duration,
       servicePrice: selectedService.bookingAmount || selectedService.price || 0,
@@ -78,7 +60,7 @@ export default function RepeatUserOnlineSessionDetails({
     });
   };
 
-  const canProceed = selectedService && selectedCenter;
+  const canProceed = selectedService;
 
   return (
     <div className={`${isInDesktopContainer ? 'h-full' : 'min-h-screen'} bg-gray-50 flex flex-col`}>
@@ -97,40 +79,7 @@ export default function RepeatUserOnlineSessionDetails({
             </div>
           </div>
 
-          {/* Location Section */}
-          <div className="mb-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">
-              Location
-            </h2>
-            <p className="text-gray-600 text-sm mb-4">
-              Select your preferred location
-            </p>
-            <button
-              onClick={() => setShowLocationModal(true)}
-              className="w-full"
-            >
-              <div className="bg-white rounded-2xl p-4 border-2 border-gray-200 hover:border-blue-500 transition-all">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-green-50 rounded-xl flex items-center justify-center">
-                      <MapPin className="w-5 h-5 text-green-600" />
-                    </div>
-                    <div className="flex-1 text-left">
-                      <h3 className="font-semibold text-gray-900">
-                        {selectedCenter?.name || 'Tap to choose center'}
-                      </h3>
-                      <p className="text-sm text-gray-500">
-                        {selectedCenter?.address ? 
-                          `${selectedCenter.address?.street || ''}, ${selectedCenter.address?.city || ''}, ${selectedCenter.address?.state || ''}`.replace(/^,\s*|,\s*$/g, '') : 
-                          'Select your preferred location'}
-                      </p>
-                    </div>
-                  </div>
-                  <ChevronRight className="w-5 h-5 text-gray-400" />
-                </div>
-              </div>
-            </button>
-          </div>
+
 
           {/* Designation Selection */}
           <div className="mb-6">
@@ -181,19 +130,10 @@ export default function RepeatUserOnlineSessionDetails({
               Choose the service you need
             </p>
             <button
-              onClick={() => {
-                if (selectedCenter) {
-                  setShowServiceModal(true);
-                }
-              }}
-              disabled={!selectedCenter}
+              onClick={() => setShowServiceModal(true)}
               className="w-full"
             >
-              <div className={`bg-white rounded-2xl p-4 border-2 transition-all ${
-                !selectedCenter 
-                  ? 'border-gray-200 opacity-50 cursor-not-allowed' 
-                  : 'border-gray-200 hover:border-blue-500'
-              }`}>
+              <div className="bg-white rounded-2xl p-4 border-2 border-gray-200 hover:border-blue-500 transition-all">
                 <div className="flex items-center justify-between">
                   <div className="flex-1 text-left">
                     {selectedService ? (
@@ -206,13 +146,11 @@ export default function RepeatUserOnlineSessionDetails({
                     ) : (
                       <>
                         <h3 className="font-semibold text-gray-900">Select a service</h3>
-                        <p className="text-sm text-gray-500">
-                          {!selectedCenter ? 'Please select a location first' : 'Tap to choose a service'}
-                        </p>
+                        <p className="text-sm text-gray-500">Tap to choose a service</p>
                       </>
                     )}
                   </div>
-                  <ChevronRight className={`w-5 h-5 ${!selectedCenter ? 'text-gray-300' : 'text-gray-400'}`} />
+                  <ChevronRight className="w-5 h-5 text-gray-400" />
                 </div>
               </div>
             </button>
@@ -233,22 +171,11 @@ export default function RepeatUserOnlineSessionDetails({
       </div>
 
       {/* Modals */}
-      <LocationSelectionModal
-        isOpen={showLocationModal}
-        onClose={() => setShowLocationModal(false)}
-        centers={filteredCenters}
-        sessionType="online"
-        onSelect={(center) => {
-          setSelectedCenter(center);
-          setShowLocationModal(false);
-        }}
-      />
-
       <ServiceSelectionModal
         isOpen={showServiceModal}
         onClose={() => setShowServiceModal(false)}
         patientId={patientId}
-        centerId={selectedCenter?._id || centerId}
+        organizationId={organizationId}
         isNewUser={false}
         sessionType="online"
         onSelect={(service) => {

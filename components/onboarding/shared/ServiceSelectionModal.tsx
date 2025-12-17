@@ -10,7 +10,8 @@ interface ServiceSelectionModalProps {
   isOpen: boolean;
   onClose: () => void;
   patientId: string;
-  centerId: string;
+  centerId?: string;
+  organizationId?: string;
   isNewUser: boolean;
   sessionType: 'in-person' | 'online';
   isPrePaid?: boolean;
@@ -22,6 +23,7 @@ export default function ServiceSelectionModal({
   onClose,
   patientId,
   centerId,
+  organizationId,
   isNewUser,
   sessionType,
   isPrePaid = false,
@@ -31,18 +33,19 @@ export default function ServiceSelectionModal({
   const { isInDesktopContainer } = useContainerDetection();
 
   const isValidCenterId = centerId && typeof centerId === 'string' && centerId.trim() !== '';
+  const isOrganizationLevel = !!organizationId && !centerId;
   
   const { data: servicesData, loading: servicesLoading, error: servicesError, refetch } = useQuery(GET_SERVICES, {
     variables: isValidCenterId ? { centerId: [centerId] } : {},
-    skip: !isValidCenterId,
+    skip: !isValidCenterId && !isOrganizationLevel,
     fetchPolicy: 'network-only',
   });
 
   useEffect(() => {
-    if (isOpen && isValidCenterId) {
+    if (isOpen && (isValidCenterId || isOrganizationLevel)) {
       refetch();
     }
-  }, [isOpen, isValidCenterId, refetch]);
+  }, [isOpen, isValidCenterId, isOrganizationLevel, refetch]);
 
   useEffect(() => {
     if (servicesError) {
@@ -55,7 +58,7 @@ export default function ServiceSelectionModal({
       return;
     }
 
-    if (!centerId) {
+    if (!centerId && !organizationId) {
       setServices([]);
       return;
     }
@@ -111,7 +114,7 @@ export default function ServiceSelectionModal({
     }));
 
     setServices(mappedServices);
-  }, [servicesData, isNewUser, sessionType]);
+  }, [servicesData, isNewUser, sessionType, isPrePaid, centerId, organizationId]);
 
   useEffect(() => {
     if (isOpen) {

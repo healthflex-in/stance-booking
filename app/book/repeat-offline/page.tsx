@@ -3,8 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
-import { useMutation } from '@apollo/client';
-import { CREATE_APPOINTMENT } from '@/gql/queries';
+import { useMutation, useQuery } from '@apollo/client';
+import { CREATE_APPOINTMENT, UPDATE_PATIENT, GET_USER } from '@/gql/queries';
 import {
   RepeatUserOfflineSessionDetails,
   RepeatUserOfflineBookingConfirmed,
@@ -47,6 +47,12 @@ export default function RepeatOfflinePage() {
   });
 
   const [createAppointment] = useMutation(CREATE_APPOINTMENT);
+  const [updatePatient] = useMutation(UPDATE_PATIENT);
+  
+  const { data: patientData } = useQuery(GET_USER, {
+    variables: { userId: bookingData.patientId },
+    skip: !bookingData.patientId,
+  });
 
   useEffect(() => {
     setMounted(true);
@@ -117,6 +123,24 @@ export default function RepeatOfflinePage() {
     
     setIsCreatingAppointment(true);
     try {
+      const existingCenters = patientData?.user?.profileData?.centers || [];
+      const centerIds = existingCenters.map((c: any) => c._id);
+      
+      if (!centerIds.includes(bookingData.centerId)) {
+        try {
+          await updatePatient({
+            variables: {
+              patientId: bookingData.patientId,
+              input: {
+                centers: [...centerIds, bookingData.centerId],
+              },
+            },
+          });
+        } catch (error) {
+          console.error('Failed to add center to patient:', error);
+        }
+      }
+      
       const input = {
         patient: bookingData.patientId,
         consultant: bookingData.consultantId || null,
