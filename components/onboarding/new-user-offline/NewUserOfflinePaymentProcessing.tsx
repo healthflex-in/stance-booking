@@ -52,6 +52,22 @@ const VERIFY_PAYMENT = gql`
   }
 `;
 
+const UPDATE_PATIENT = gql`
+  mutation UpdatePatient($patientId: ObjectID!, $input: UpdatePatient!) {
+    updatePatient(id: $patientId, input: $input) {
+      _id
+      profileData {
+        ... on Patient {
+          centers {
+            _id
+            name
+          }
+        }
+      }
+    }
+  }
+`;
+
 const GET_CENTERS = gql`
   query GetCenters {
     centers { _id name }
@@ -74,6 +90,7 @@ export default function NewUserOfflinePaymentProcessing({
   const [createOrderMutation] = useMutation(CREATE_ORDER);
   const [updateOrderMutation] = useMutation(UPDATE_ORDER);
   const [verifyPaymentMutation] = useMutation(VERIFY_PAYMENT);
+  const [updatePatientMutation] = useMutation(UPDATE_PATIENT);
   const { data: centersData } = useQuery(GET_CENTERS);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const pollAttemptsRef = useRef(0);
@@ -135,6 +152,20 @@ export default function NewUserOfflinePaymentProcessing({
         if (data?.updateOrder?.status === 'PAID') {
           if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
           isPollingRef.current = false;
+          
+          // Update patient's center to the selected center after successful payment
+          try {
+            await updatePatientMutation({
+              variables: {
+                patientId,
+                input: { centers: [centerId] },
+              },
+            });
+            console.log('✅ Patient center updated to:', centerId);
+          } catch (updateError: any) {
+            console.error('⚠️ Failed to update patient center:', updateError);
+          }
+          
           onPaymentSuccess(
             data.updateOrder.payment?.razorpayPaymentId || 'payment_success',
             data.updateOrder.invoice?._id
@@ -150,7 +181,7 @@ export default function NewUserOfflinePaymentProcessing({
     };
 
     pollingIntervalRef.current = setInterval(doPoll, 30000);
-  }, [onPaymentSuccess, onPaymentFailure, updateOrderMutation]);
+  }, [onPaymentSuccess, onPaymentFailure, updateOrderMutation, updatePatientMutation, patientId, centerId]);
 
   const createOrder = async () => {
     try {
@@ -216,6 +247,19 @@ export default function NewUserOfflinePaymentProcessing({
           });
           
           if (verifyResult.data?.verifyPayment?.success) {
+            // Update patient's center to the selected center after successful payment
+            try {
+              await updatePatientMutation({
+                variables: {
+                  patientId,
+                  input: { centers: [centerId] },
+                },
+              });
+              console.log('✅ Patient center updated to:', centerId);
+            } catch (updateError: any) {
+              console.error('⚠️ Failed to update patient center:', updateError);
+            }
+            
             // Get the order to retrieve invoice ID
             const { data } = await updateOrderMutation({ 
               variables: { orderId: orderData.orderDbId },

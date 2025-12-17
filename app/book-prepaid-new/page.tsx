@@ -46,6 +46,7 @@ export default function BookPrepaidNewPage() {
 
   const handlePatientOnboardingComplete = (patientId: string, isNewUser: boolean, sessionType: 'in-person' | 'online') => {
     sessionStorage.setItem('patientId', patientId);
+    sessionStorage.setItem('isNewUser', String(isNewUser));
     sessionStorage.setItem('centerId', bookingData.centerId || '');
     router.replace('/book-prepaid');
   };
