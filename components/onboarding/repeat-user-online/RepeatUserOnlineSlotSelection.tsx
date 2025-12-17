@@ -102,6 +102,7 @@ export default function RepeatUserOnlineSlotSelection({
         startTime: new Date(slot.startTime * 1000),
         endTime: new Date(slot.endTime * 1000),
         consultantId: consultant.consultantId,
+        centerId: slot.centerId,
         centerName: slot.centerName,
       }))
     );
@@ -163,7 +164,7 @@ export default function RepeatUserOnlineSlotSelection({
           isAvailable: true,
           consultantIds: [slot.consultantId],
           consultantNames: consultantName ? [consultantName] : [],
-          centerIds: [slot.centerName],
+          centerIds: [slot.centerId],
           centerNames: [slot.centerName],
           startTimeRaw: new Date(slot.startTime).toISOString(),
           endTimeRaw: new Date(slot.endTime).toISOString(),
@@ -173,7 +174,7 @@ export default function RepeatUserOnlineSlotSelection({
         if (!existing.consultantIds.includes(slot.consultantId)) {
           existing.consultantIds.push(slot.consultantId);
           if (consultantName) existing.consultantNames.push(consultantName);
-          existing.centerIds.push(slot.centerName);
+          existing.centerIds.push(slot.centerId);
           existing.centerNames.push(slot.centerName);
         }
       }
@@ -213,6 +214,7 @@ export default function RepeatUserOnlineSlotSelection({
       const consultantId = selectedConsultant?._id || selectedTimeSlot.consultantIds[randomIndex];
       const slotWithCenter = {
         ...selectedTimeSlot,
+        centerId: selectedTimeSlot.centerIds[randomIndex],
         centerName: selectedTimeSlot.centerNames[randomIndex],
       };
       onSlotSelect(consultantId, slotWithCenter);
