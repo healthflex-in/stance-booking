@@ -165,6 +165,8 @@ export default function PrepaidRepeatPage() {
         {currentStep === 'session-details' && (
           <PrepaidRepeatSessionDetails
             patientId={bookingData.patientId}
+            centerId={bookingData.centerId}
+            isNewUser={false}
             onBack={goToPreviousStep}
             onContinue={(data) => {
               updateBookingData({

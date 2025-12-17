@@ -11,6 +11,7 @@ import { MobilePatientOnboarding } from '@/components/onboarding/shared';
 import {
   PrepaidBookingConfirmed,
   PrepaidSessionDetails,
+  PrepaidRepeatSessionDetails,
   PrepaidConfirmation,
   PrepaidSlotSelection,
 } from '@/components/onboarding/prepaid';
@@ -222,22 +223,41 @@ export default function BookPrepaidPage() {
 
         <div className="flex-1 overflow-hidden">
           {currentStep === 'session-details' && (
-            <PrepaidSessionDetails
-              patientId={bookingData.patientId}
-              centerId={bookingData.centerId}
-              isNewUser={bookingData.isNewUser}
-              onBack={goToPreviousStep}
-              onContinue={(data) => {
-                updateBookingData({
-                  centerId: data.centerId,
-                  treatmentId: data.serviceId,
-                  treatmentDuration: data.serviceDuration,
-                  treatmentPrice: data.servicePrice,
-                  designation: data.designation,
-                });
-                goToNextStep();
-              }}
-            />
+            bookingData.isNewUser ? (
+              <PrepaidSessionDetails
+                patientId={bookingData.patientId}
+                centerId={bookingData.centerId}
+                isNewUser={bookingData.isNewUser}
+                onBack={goToPreviousStep}
+                onContinue={(data) => {
+                  updateBookingData({
+                    centerId: data.centerId,
+                    treatmentId: data.serviceId,
+                    treatmentDuration: data.serviceDuration,
+                    treatmentPrice: data.servicePrice,
+                    designation: data.designation,
+                  });
+                  goToNextStep();
+                }}
+              />
+            ) : (
+              <PrepaidRepeatSessionDetails
+                patientId={bookingData.patientId}
+                centerId={bookingData.centerId}
+                isNewUser={bookingData.isNewUser}
+                onBack={goToPreviousStep}
+                onContinue={(data) => {
+                  updateBookingData({
+                    centerId: data.centerId,
+                    treatmentId: data.serviceId,
+                    treatmentDuration: data.serviceDuration,
+                    treatmentPrice: data.servicePrice,
+                    designation: data.designation,
+                  });
+                  goToNextStep();
+                }}
+              />
+            )
           )}
 
           {currentStep === 'slot-selection' && (

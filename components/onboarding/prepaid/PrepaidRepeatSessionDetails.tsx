@@ -11,12 +11,12 @@ import { LocationSelectionModal, ServiceSelectionModal } from '@/components/onbo
 interface PrepaidRepeatSessionDetailsProps {
   patientId: string;
   centerId: string;
-  isNewUser?: boolean;
+  isNewUser: boolean;
   onBack: () => void;
   onContinue: (data: { centerId: string; serviceId: string; serviceDuration: number; servicePrice: number; designation?: string }) => void;
 }
 
-export default function PrepaidRepeatSessionDetails({ patientId, centerId, isNewUser = false, onBack, onContinue }: PrepaidRepeatSessionDetailsProps) {
+export default function PrepaidRepeatSessionDetails({ patientId, centerId, onBack, onContinue }: PrepaidRepeatSessionDetailsProps) {
   const { isInDesktopContainer } = useContainerDetection();
   const [selectedCenter, setSelectedCenter] = useState<any>(null);
   const [selectedService, setSelectedService] = useState<any>(null);
@@ -32,19 +32,16 @@ export default function PrepaidRepeatSessionDetails({ patientId, centerId, isNew
   });
 
   const patient = patientData?.user;
-  const patientFullName = `${patient?.profileData?.firstName || ''} ${patient?.profileData?.lastName || ''}`.trim();
+  const patientFirstName = patient?.profileData?.firstName || '';
+  const patientLastName = patient?.profileData?.lastName || '';
+  const patientFullName = patientFirstName && patientLastName 
+    ? `${patientFirstName} ${patientLastName}`.trim()
+    : patientFirstName || '';
 
   const filteredCenters = React.useMemo(() => {
     if (!centersData?.centers) return [];
-    return centersData.centers.filter((center: any) => center.isOnline === true);
+    return centersData.centers.filter((center: any) => center.allowOnlineBooking === true || center.isOnline === true);
   }, [centersData]);
-
-  useEffect(() => {
-    if (filteredCenters.length > 0 && !selectedCenter) {
-      const defaultCenter = filteredCenters.find((c: any) => c._id === centerId) || filteredCenters[0];
-      setSelectedCenter(defaultCenter);
-    }
-  }, [filteredCenters, selectedCenter, centerId]);
 
   useEffect(() => {
     setSelectedService(null);
@@ -68,21 +65,25 @@ export default function PrepaidRepeatSessionDetails({ patientId, centerId, isNew
       <div className="flex-1 overflow-y-auto">
         <div className={`p-4 ${isInDesktopContainer ? 'pb-6' : 'pb-32'}`}>
           <div className="mb-6">
-            <h3 className="text-xl font-semibold text-gray-900 mb-1">
-              Welcome back{patientFullName ? `, ${patientFullName}` : ''}!
-            </h3>
-            <p className="text-sm text-gray-600">Book your prepaid session</p>
+            <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4">
+              <h3 className="text-lg font-semibold text-blue-900 mb-1">
+                Welcome back{patientFullName ? `, ${patientFullName}` : ''}!
+              </h3>
+              <p className="text-sm text-blue-700">
+                We're glad to see you again. Let's book your next session.
+              </p>
+            </div>
           </div>
 
           <div className="mb-6">
             <h2 className="text-xl font-semibold text-gray-900 mb-2">Location</h2>
             <p className="text-gray-600 text-sm mb-4">Select your preferred location</p>
             <button onClick={() => setShowLocationModal(true)} className="w-full">
-              <div className="bg-white rounded-2xl p-4 border-2 transition-all" style={{ borderColor: selectedCenter ? '#DDFE71' : '#e5e7eb' }}>
+              <div className="bg-white rounded-2xl p-4 border-2 border-gray-200 hover:border-blue-500 transition-all">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: selectedCenter ? '#DDFE71' : '#f3f4f6' }}>
-                      <MapPin className="w-5 h-5" style={{ color: selectedCenter ? '#000' : '#9ca3af' }} />
+                    <div className="w-10 h-10 bg-green-50 rounded-xl flex items-center justify-center">
+                      <MapPin className="w-5 h-5 text-green-600" />
                     </div>
                     <div className="flex-1 text-left">
                       <h3 className="font-semibold text-gray-900">
@@ -132,7 +133,11 @@ export default function PrepaidRepeatSessionDetails({ patientId, centerId, isNew
             <h2 className="text-xl font-semibold text-gray-900 mb-2">Service</h2>
             <p className="text-gray-600 text-sm mb-4">Choose the service you need</p>
             <button onClick={() => selectedCenter && setShowServiceModal(true)} disabled={!selectedCenter} className="w-full">
-              <div className="bg-white rounded-2xl p-4 border-2 transition-all" style={{ borderColor: selectedService ? '#DDFE71' : '#e5e7eb', opacity: !selectedCenter ? 0.5 : 1, cursor: !selectedCenter ? 'not-allowed' : 'pointer' }}>
+              <div className={`bg-white rounded-2xl p-4 border-2 transition-all ${
+                !selectedCenter 
+                  ? 'border-gray-200 opacity-50 cursor-not-allowed' 
+                  : 'border-gray-200 hover:border-blue-500'
+              }`}>
                 <div className="flex items-center justify-between">
                   <div className="flex-1 text-left">
                     {selectedService ? (
@@ -165,7 +170,7 @@ export default function PrepaidRepeatSessionDetails({ patientId, centerId, isNew
         isOpen={showLocationModal}
         onClose={() => setShowLocationModal(false)}
         centers={filteredCenters}
-        sessionType="in-person"
+        sessionType="online"
         onSelect={(center) => {
           setSelectedCenter(center);
           setShowLocationModal(false);
@@ -177,7 +182,7 @@ export default function PrepaidRepeatSessionDetails({ patientId, centerId, isNew
         onClose={() => setShowServiceModal(false)}
         patientId={patientId}
         centerId={selectedCenter?._id || centerId}
-        isNewUser={isNewUser}
+        isNewUser={false}
         sessionType="online"
         isPrePaid={true}
         onSelect={(service) => {
