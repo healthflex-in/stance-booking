@@ -33,6 +33,7 @@ export default function RepeatOfflinePage() {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [currentStep, setCurrentStep] = useState<BookingStep>('session-details');
+  const [isCreatingAppointment, setIsCreatingAppointment] = useState(false);
   const [bookingData, setBookingData] = useState<BookingData>({
     patientId: '',
     centerId: process.env.NEXT_PUBLIC_DEFAULT_CENTER_ID || '67fe36545e42152fb5185a6c',
@@ -112,6 +113,9 @@ export default function RepeatOfflinePage() {
   };
 
   const handleConfirmBooking = async () => {
+    if (isCreatingAppointment) return;
+    
+    setIsCreatingAppointment(true);
     try {
       const input = {
         patient: bookingData.patientId,
@@ -143,6 +147,8 @@ export default function RepeatOfflinePage() {
     } catch (error: any) {
       console.error('Error creating appointment:', error);
       alert(error.message || 'Failed to create appointment. Please try again.');
+    } finally {
+      setIsCreatingAppointment(false);
     }
   };
 
@@ -216,6 +222,7 @@ export default function RepeatOfflinePage() {
           <RepeatUserOfflineConfirmation
             bookingData={bookingData}
             onConfirm={handleConfirmBooking}
+            isCreating={isCreatingAppointment}
           />
         )}
 

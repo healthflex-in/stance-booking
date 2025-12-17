@@ -11,11 +11,11 @@ import { EmailCollectionModal } from '@/components/onboarding/shared';
 interface PrepaidRepeatConfirmationProps {
   bookingData: any;
   onConfirm: () => void;
+  isCreating?: boolean;
 }
 
-export default function PrepaidRepeatConfirmation({ bookingData, onConfirm }: PrepaidRepeatConfirmationProps) {
+export default function PrepaidRepeatConfirmation({ bookingData, onConfirm, isCreating = false }: PrepaidRepeatConfirmationProps) {
   const { isInDesktopContainer } = useContainerDetection();
-  const [isCreating, setIsCreating] = useState(false);
   const [showEmailModal, setShowEmailModal] = useState(false);
 
   const { data: centersData, loading: centersLoading } = useQuery(GET_CENTERS);
@@ -43,12 +43,7 @@ export default function PrepaidRepeatConfirmation({ bookingData, onConfirm }: Pr
       setShowEmailModal(true);
       return;
     }
-    setIsCreating(true);
-    try {
-      await onConfirm();
-    } finally {
-      setIsCreating(false);
-    }
+    await onConfirm();
   };
 
   if (isLoading) {
