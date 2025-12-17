@@ -3,38 +3,47 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@apollo/client';
 import { MapPin, ChevronRight } from 'lucide-react';
-import { GET_CENTERS } from '@/gql/queries';
+import { GET_CENTERS, GET_USER } from '@/gql/queries';
 import { useContainerDetection } from '@/hooks/useContainerDetection';
 import { PrimaryButton } from '@/components/ui-atoms';
 import { LocationSelectionModal, ServiceSelectionModal } from '@/components/onboarding/shared';
 
-interface NewUserOfflineSessionDetailsProps {
+interface PrepaidRepeatSessionDetailsProps {
   patientId: string;
   centerId: string;
   onBack: () => void;
-  onContinue: (data: { centerId: string; serviceId: string; serviceDuration: number; servicePrice: number }) => void;
+  onContinue: (data: { centerId: string; serviceId: string; serviceDuration: number; servicePrice: number; designation?: string }) => void;
 }
 
-export default function NewUserOfflineSessionDetails({
-  patientId,
-  centerId,
-  onBack,
-  onContinue,
-}: NewUserOfflineSessionDetailsProps) {
+export default function PrepaidRepeatSessionDetails({ patientId, centerId, onBack, onContinue }: PrepaidRepeatSessionDetailsProps) {
   const { isInDesktopContainer } = useContainerDetection();
   const [selectedCenter, setSelectedCenter] = useState<any>(null);
   const [selectedService, setSelectedService] = useState<any>(null);
+  const [selectedDesignation, setSelectedDesignation] = useState<string>('Physiotherapist');
   const [showLocationModal, setShowLocationModal] = useState(false);
   const [showServiceModal, setShowServiceModal] = useState(false);
 
-  const { data: centersData } = useQuery(GET_CENTERS, {
+  const { data: centersData } = useQuery(GET_CENTERS, { fetchPolicy: 'cache-first' });
+  const { data: patientData } = useQuery(GET_USER, {
+    variables: { userId: patientId },
+    skip: !patientId,
     fetchPolicy: 'cache-first',
   });
 
+  const patient = patientData?.user;
+  const patientFullName = `${patient?.profileData?.firstName || ''} ${patient?.profileData?.lastName || ''}`.trim();
+
   const filteredCenters = React.useMemo(() => {
     if (!centersData?.centers) return [];
-    return centersData.centers.filter((center: any) => !center.isOnline);
+    return centersData.centers.filter((center: any) => center.isOnline === true);
   }, [centersData]);
+
+  useEffect(() => {
+    if (filteredCenters.length > 0 && !selectedCenter) {
+      const defaultCenter = filteredCenters.find((c: any) => c._id === centerId) || filteredCenters[0];
+      setSelectedCenter(defaultCenter);
+    }
+  }, [filteredCenters, selectedCenter, centerId]);
 
   useEffect(() => {
     setSelectedService(null);
@@ -47,6 +56,7 @@ export default function NewUserOfflineSessionDetails({
       serviceId: selectedService._id,
       serviceDuration: selectedService.duration,
       servicePrice: selectedService.bookingAmount || selectedService.price || 0,
+      designation: selectedDesignation,
     });
   };
 
@@ -57,14 +67,21 @@ export default function NewUserOfflineSessionDetails({
       <div className="flex-1 overflow-y-auto">
         <div className={`p-4 ${isInDesktopContainer ? 'pb-6' : 'pb-32'}`}>
           <div className="mb-6">
+            <h3 className="text-xl font-semibold text-gray-900 mb-1">
+              Welcome back{patientFullName ? `, ${patientFullName}` : ''}!
+            </h3>
+            <p className="text-sm text-gray-600">Book your prepaid session</p>
+          </div>
+
+          <div className="mb-6">
             <h2 className="text-xl font-semibold text-gray-900 mb-2">Location</h2>
             <p className="text-gray-600 text-sm mb-4">Select your preferred location</p>
             <button onClick={() => setShowLocationModal(true)} className="w-full">
-              <div className="bg-white rounded-2xl p-4 border-2 border-gray-200 hover:border-blue-500 transition-all">
+              <div className="bg-white rounded-2xl p-4 border-2 transition-all" style={{ borderColor: selectedCenter ? '#DDFE71' : '#e5e7eb' }}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-green-50 rounded-xl flex items-center justify-center">
-                      <MapPin className="w-5 h-5 text-green-600" />
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: selectedCenter ? '#DDFE71' : '#f3f4f6' }}>
+                      <MapPin className="w-5 h-5" style={{ color: selectedCenter ? '#000' : '#9ca3af' }} />
                     </div>
                     <div className="flex-1 text-left">
                       <h3 className="font-semibold text-gray-900">
@@ -84,10 +101,37 @@ export default function NewUserOfflineSessionDetails({
           </div>
 
           <div className="mb-6">
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">Consultant Type</h2>
+            <p className="text-gray-600 text-sm mb-4">Select the type of consultant you need</p>
+            <div className="bg-white rounded-xl p-1 border border-gray-200 flex">
+              <button
+                type="button"
+                onClick={() => setSelectedDesignation('Physiotherapist')}
+                className={`flex-1 py-2 px-3 rounded-lg font-medium text-xs transition-all ${
+                  selectedDesignation === 'Physiotherapist' ? 'text-black shadow-sm' : 'text-gray-600 hover:text-gray-900'
+                }`}
+                style={{ backgroundColor: selectedDesignation === 'Physiotherapist' ? '#DDFE71' : 'transparent' }}
+              >
+                Physiotherapist
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedDesignation('S&C Coach')}
+                className={`flex-1 py-2 px-3 rounded-lg font-medium text-xs transition-all ${
+                  selectedDesignation === 'S&C Coach' ? 'text-black shadow-sm' : 'text-gray-600 hover:text-gray-900'
+                }`}
+                style={{ backgroundColor: selectedDesignation === 'S&C Coach' ? '#DDFE71' : 'transparent' }}
+              >
+                S&C Coach
+              </button>
+            </div>
+          </div>
+
+          <div className="mb-6">
             <h2 className="text-xl font-semibold text-gray-900 mb-2">Service</h2>
             <p className="text-gray-600 text-sm mb-4">Choose the service you need</p>
             <button onClick={() => selectedCenter && setShowServiceModal(true)} disabled={!selectedCenter} className="w-full">
-              <div className={`bg-white rounded-2xl p-4 border-2 transition-all ${!selectedCenter ? 'border-gray-200 opacity-50 cursor-not-allowed' : 'border-gray-200 hover:border-blue-500'}`}>
+              <div className="bg-white rounded-2xl p-4 border-2 transition-all" style={{ borderColor: selectedService ? '#DDFE71' : '#e5e7eb', opacity: !selectedCenter ? 0.5 : 1, cursor: !selectedCenter ? 'not-allowed' : 'pointer' }}>
                 <div className="flex items-center justify-between">
                   <div className="flex-1 text-left">
                     {selectedService ? (
@@ -132,8 +176,9 @@ export default function NewUserOfflineSessionDetails({
         onClose={() => setShowServiceModal(false)}
         patientId={patientId}
         centerId={selectedCenter?._id || centerId}
-        isNewUser={true}
-        sessionType="in-person"
+        isNewUser={false}
+        sessionType="online"
+        isPrePaid={true}
         onSelect={(service) => {
           setSelectedService(service);
           setShowServiceModal(false);

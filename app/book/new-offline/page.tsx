@@ -5,8 +5,7 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 
 
-import { NewUserOfflinePaymentConfirmation, NewUserOfflineSessionDetails, NewUserOfflineSlotSelection } from '@/components/onboarding/new-user-offline';
-import { NewUserOnlineBookingConfirmed } from '@/components/onboarding/new-user-online';
+import { NewUserOfflineBookingConfirmed, NewUserOfflinePaymentConfirmation, NewUserOfflineSessionDetails, NewUserOfflineSlotSelection } from '@/components/onboarding/new-user-offline';
 
 type BookingStep =
   | 'session-details'
@@ -35,7 +34,7 @@ export default function NewOfflinePage() {
   const [bookingData, setBookingData] = useState<BookingData>({
     sessionType: 'in-person',
     patientId: '',
-    centerId: process.env.NEXT_PUBLIC_DEFAULT_CENTER_ID || '67fe36545e42152fb5185a6c',
+    centerId: '',
     consultantId: '',
     treatmentId: '',
     treatmentPrice: 0,
@@ -198,7 +197,7 @@ export default function NewOfflinePage() {
           )}
 
           {currentStep === 'booking-confirmed' && (
-            <NewUserOnlineBookingConfirmed bookingData={bookingData} />
+            <NewUserOfflineBookingConfirmed bookingData={bookingData} />
           )}
         </div>
       </div>

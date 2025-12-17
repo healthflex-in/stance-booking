@@ -17,7 +17,6 @@ import {
 import PrepaidRepeatSlotSelection from '@/components/onboarding/prepaid/PrepaidRepeatSlotSelection';
 
 type BookingStep =
-  | 'patient-onboarding'
   | 'session-details'
   | 'slot-selection'
   | 'confirmation'
@@ -44,7 +43,7 @@ interface BookingData {
 export default function BookPrepaidPage() {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
-  const [currentStep, setCurrentStep] = useState<BookingStep>('patient-onboarding');
+  const [currentStep, setCurrentStep] = useState<BookingStep>('session-details');
   const [createAppointment] = useMutation(CREATE_APPOINTMENT);
   const [bookingData, setBookingData] = useState<BookingData>({
     sessionType: 'online',
@@ -56,7 +55,7 @@ export default function BookPrepaidPage() {
     treatmentPrice: 0,
     treatmentDuration: 20,
     patientId: '',
-    centerId: process.env.NEXT_PUBLIC_DEFAULT_CENTER_ID || '67fe36545e42152fb5185a6c',
+    centerId: '',
     assessmentType: 'online',
     isNewUser: true,
   });
@@ -65,9 +64,31 @@ export default function BookPrepaidPage() {
     setMounted(true);
   }, []);
 
+  useEffect(() => {
+    if (!mounted) return;
+    
+    const storedPatientId = sessionStorage.getItem('patientId');
+    const storedIsNewUser = sessionStorage.getItem('isNewUser');
+    const storedCenterId = sessionStorage.getItem('centerId');
+    
+    if (storedPatientId) {
+      setBookingData(prev => ({
+        ...prev,
+        patientId: storedPatientId,
+        isNewUser: storedIsNewUser === 'true',
+        centerId: storedCenterId || prev.centerId,
+      }));
+      sessionStorage.removeItem('patientId');
+      sessionStorage.removeItem('isNewUser');
+      sessionStorage.removeItem('centerId');
+    } else {
+      console.warn('⚠️ No patientId found in sessionStorage');
+      router.push('/book');
+    }
+  }, [mounted, router]);
+
   const goToNextStep = () => {
     const stepOrder: BookingStep[] = [
-      'patient-onboarding',
       'session-details',
       'slot-selection',
       'confirmation',
@@ -81,7 +102,6 @@ export default function BookPrepaidPage() {
 
   const goToPreviousStep = () => {
     const stepOrder: BookingStep[] = [
-      'patient-onboarding',
       'session-details',
       'slot-selection',
       'confirmation',
@@ -104,6 +124,7 @@ export default function BookPrepaidPage() {
     setBookingData(prev => ({
       ...prev,
       consultantId,
+      centerId: slot.centerId || prev.centerId,
       selectedTimeSlot: {
         startTime: new Date(slot.startTimeRaw).toISOString(),
         endTime: new Date(slot.endTimeRaw).toISOString(),
@@ -150,8 +171,6 @@ export default function BookPrepaidPage() {
 
   const getStepTitle = () => {
     switch (currentStep) {
-      case 'patient-onboarding':
-        return 'Pre-Paid Services';
       case 'session-details':
         return 'Session Details';
       case 'slot-selection':
@@ -165,7 +184,7 @@ export default function BookPrepaidPage() {
     }
   };
 
-  const canGoBack = currentStep !== 'patient-onboarding' && currentStep !== 'booking-confirmed';
+  const canGoBack = currentStep !== 'session-details' && currentStep !== 'booking-confirmed';
 
   if (!mounted) {
     return (
@@ -187,7 +206,7 @@ export default function BookPrepaidPage() {
               <ArrowLeft className="w-6 h-6 text-gray-700" />
             </button>
           )}
-          {!canGoBack && currentStep === 'patient-onboarding' && (
+          {!canGoBack && (
             <button
               onClick={() => router.push('/book')}
               className="p-2 -ml-2 rounded-lg hover:bg-gray-100 transition-colors"
@@ -202,14 +221,6 @@ export default function BookPrepaidPage() {
         </div>
 
         <div className="flex-1 overflow-hidden">
-          {currentStep === 'patient-onboarding' && (
-            <MobilePatientOnboarding
-              centerId={bookingData.centerId}
-              onNext={goToNextStep}
-              onPatientCreated={(patientId, isNewUser) => updateBookingData({ patientId, isNewUser })}
-            />
-          )}
-
           {currentStep === 'session-details' && (
             <PrepaidSessionDetails
               patientId={bookingData.patientId}
