@@ -163,6 +163,23 @@ export default function NewUserOnlinePaymentConfirmation({
         consultantId={bookingData.consultantId}
         treatmentId={bookingData.treatmentId}
         onPaymentSuccess={async (paymentId, invoiceId) => {
+          // Update patient status to ACTIVE after successful payment
+          try {
+            await updatePatient({
+              variables: {
+                patientId: bookingData.patientId,
+                input: {
+                  status: 'ACTIVE',
+                },
+              },
+            });
+            if (process.env.NEXT_PUBLIC_ENVIRONMENT === 'development') {
+              console.log('✅ Patient status updated to ACTIVE');
+            }
+          } catch (error) {
+            console.error('❌ Failed to update patient status:', error);
+          }
+          
           const storedAppointmentId = sessionStorage.getItem('appointmentId');
           sessionStorage.removeItem('appointmentId');
           sessionStorage.removeItem('paymentType');
