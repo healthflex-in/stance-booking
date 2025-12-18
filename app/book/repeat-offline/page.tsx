@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { useMutation, useQuery } from '@apollo/client';
-import { CREATE_APPOINTMENT, UPDATE_PATIENT, GET_USER } from '@/gql/queries';
+import { CREATE_APPOINTMENT, UPDATE_PATIENT, GET_USER, SEND_APPOINTMENT_EMAIL } from '@/gql/queries';
 import {
   RepeatUserOfflineSessionDetails,
   RepeatUserOfflineBookingConfirmed,
@@ -48,6 +48,7 @@ export default function RepeatOfflinePage() {
 
   const [createAppointment] = useMutation(CREATE_APPOINTMENT);
   const [updatePatient] = useMutation(UPDATE_PATIENT);
+  const [sendAppointmentEmail] = useMutation(SEND_APPOINTMENT_EMAIL);
   
   const { data: patientData } = useQuery(GET_USER, {
     variables: { userId: bookingData.patientId },
@@ -163,6 +164,19 @@ export default function RepeatOfflinePage() {
 
       const appointmentId = appointmentResult.data?.createAppointment?._id;
       if (appointmentId) {
+        // Send appointment email
+        try {
+          await sendAppointmentEmail({
+            variables: {
+              input: {
+                appointmentId,
+              },
+            },
+          });
+        } catch (emailError) {
+          console.error('Failed to send appointment email:', emailError);
+        }
+        
         setBookingData(prev => ({ ...prev, appointmentId }));
         goToNextStep();
       } else {

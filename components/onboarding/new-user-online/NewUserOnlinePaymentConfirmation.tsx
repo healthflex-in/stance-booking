@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { useQuery, useMutation } from '@apollo/client';
 import { useRouter } from 'next/navigation';
 import { MapPin, AlertCircle } from 'lucide-react';
-import { GET_CENTERS, GET_SERVICES, GET_USER, CREATE_APPOINTMENT, UPDATE_PATIENT } from '@/gql/queries';
+import { GET_CENTERS, GET_SERVICES, GET_USER, CREATE_APPOINTMENT, UPDATE_PATIENT, SEND_APPOINTMENT_EMAIL } from '@/gql/queries';
 import NewUserOnlinePaymentProcessing from './NewUserOnlinePaymentProcessing';
 import { useContainerDetection } from '@/hooks/useContainerDetection';
 import { Button } from '@/components/ui-atoms';
@@ -49,6 +49,7 @@ export default function NewUserOnlinePaymentConfirmation({
 
   const [createAppointment, { loading: creatingAppointment }] = useMutation(CREATE_APPOINTMENT);
   const [updatePatient] = useMutation(UPDATE_PATIENT);
+  const [sendAppointmentEmail] = useMutation(SEND_APPOINTMENT_EMAIL);
 
   const currentCenter = centersData?.centers.find((c: any) => c._id === bookingData.centerId);
   const currentService = servicesData?.services.find((s: any) => s._id === bookingData.treatmentId);
@@ -126,6 +127,22 @@ export default function NewUserOnlinePaymentConfirmation({
       
       if (!appointmentId) {
         throw new Error('Failed to create appointment');
+      }
+
+      // Send appointment email
+      try {
+        await sendAppointmentEmail({
+          variables: {
+            input: {
+              appointmentId,
+            },
+          },
+        });
+        if (process.env.NEXT_PUBLIC_ENVIRONMENT === 'development') {
+          console.log('✅ Appointment email sent');
+        }
+      } catch (emailError) {
+        console.error('❌ Failed to send appointment email:', emailError);
       }
 
       // Store appointment ID for payment
