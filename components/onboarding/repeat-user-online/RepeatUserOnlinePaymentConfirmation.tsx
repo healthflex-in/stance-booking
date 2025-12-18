@@ -5,7 +5,7 @@ import { useQuery, useMutation } from '@apollo/client';
 import { useRouter } from 'next/navigation';
 import { MapPin, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
-import { GET_CENTERS, GET_SERVICES, GET_USER, CREATE_APPOINTMENT } from '@/gql/queries';
+import { GET_CENTERS, GET_SERVICES, GET_USER, CREATE_APPOINTMENT, UPDATE_PATIENT, SEND_APPOINTMENT_EMAIL } from '@/gql/queries';
 import RepeatUserOnlinePaymentProcessing from './RepeatUserOnlinePaymentProcessing';
 import { useContainerDetection } from '@/hooks/useContainerDetection';
 import { Button } from '@/components/ui-atoms';
@@ -48,6 +48,8 @@ export default function RepeatUserOnlinePaymentConfirmation({
   });
 
   const [createAppointment, { loading: creatingAppointment }] = useMutation(CREATE_APPOINTMENT);
+  const [updatePatient] = useMutation(UPDATE_PATIENT);
+  const [sendAppointmentEmail] = useMutation(SEND_APPOINTMENT_EMAIL);
 
   const currentCenter = centersData?.centers.find((c: any) => c._id === bookingData.centerId);
   const currentService = servicesData?.services.find((s: any) => s._id === bookingData.treatmentId);
@@ -68,6 +70,25 @@ export default function RepeatUserOnlinePaymentConfirmation({
     }
     
     try {
+      // Add center to patient's centers array if not already present
+      const existingCenters = patient?.profileData?.centers || [];
+      const centerIds = existingCenters.map((c: any) => c._id);
+      
+      if (bookingData.centerId && !centerIds.includes(bookingData.centerId)) {
+        try {
+          await updatePatient({
+            variables: {
+              patientId: bookingData.patientId,
+              input: {
+                centers: [...centerIds, bookingData.centerId],
+              },
+            },
+          });
+        } catch (error) {
+          console.error('Failed to add center to patient:', error);
+        }
+      }
+      
       // Create appointment FIRST
       const appointmentResult = await createAppointment({
         variables: {
@@ -92,6 +113,8 @@ export default function RepeatUserOnlinePaymentConfirmation({
       if (!appointmentId) {
         throw new Error('Failed to create appointment');
       }
+
+      // Email will be sent automatically by backend or in booking confirmed screen
 
       // Store appointment ID for payment
       sessionStorage.setItem('appointmentId', appointmentId);
