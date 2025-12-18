@@ -251,6 +251,7 @@ export default function RepeatUserOfflineSessionDetails({
         centerId={selectedCenter?._id || centerId}
         isNewUser={false}
         sessionType="in-person"
+        designation={selectedDesignation}
         onSelect={(service) => {
           setSelectedService(service);
           setShowServiceModal(false);

@@ -123,6 +123,7 @@ export default function PrepaidRepeatSessionDetails({ patientId, organizationId,
         isNewUser={isNewUser}
         sessionType="online"
         isPrePaid={true}
+        designation={selectedDesignation}
         onSelect={(service) => {
           setSelectedService(service);
           setShowServiceModal(false);
