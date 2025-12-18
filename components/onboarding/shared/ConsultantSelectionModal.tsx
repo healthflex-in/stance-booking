@@ -3,6 +3,7 @@
 import React, { useEffect } from 'react';
 import { UserCircle, X } from 'lucide-react';
 import { useContainerDetection } from '@/hooks/useContainerDetection';
+import { StanceHealthLoader } from '@/components/loader/StanceHealthLoader';
 
 interface ConsultantSelectionModalProps {
   isOpen: boolean;
@@ -13,6 +14,7 @@ interface ConsultantSelectionModalProps {
   organizationId?: string;
   onSelect: (consultant: any | null) => void;
   selectedConsultant?: any | null;
+  loading?: boolean;
 }
 
 export default function ConsultantSelectionModal({
@@ -24,6 +26,7 @@ export default function ConsultantSelectionModal({
   organizationId,
   onSelect,
   selectedConsultant = null,
+  loading = false,
 }: ConsultantSelectionModalProps) {
   const { isInDesktopContainer } = useContainerDetection();
 
@@ -65,7 +68,11 @@ export default function ConsultantSelectionModal({
         </div>
 
         <div className="flex-1 overflow-y-auto px-5 py-4">
-          {consultants.length > 0 ? (
+          {loading ? (
+            <div className="flex justify-center items-center py-12">
+              <StanceHealthLoader message="Loading consultants..." />
+            </div>
+          ) : consultants.length > 0 ? (
             <div className="space-y-2">
               <button
                 onClick={() => onSelect(null)}

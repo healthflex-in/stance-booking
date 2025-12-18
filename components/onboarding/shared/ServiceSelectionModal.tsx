@@ -15,6 +15,7 @@ interface ServiceSelectionModalProps {
   isNewUser: boolean;
   sessionType: 'in-person' | 'online';
   isPrePaid?: boolean;
+  designation?: string;
   onSelect: (service: { id: string; _id: string; name: string; duration: number; price: number; bookingAmount: number }) => void;
 }
 
@@ -27,6 +28,7 @@ export default function ServiceSelectionModal({
   isNewUser,
   sessionType,
   isPrePaid = false,
+  designation,
   onSelect,
 }: ServiceSelectionModalProps) {
   const [services, setServices] = useState<any[]>([]);
@@ -103,7 +105,7 @@ export default function ServiceSelectionModal({
       return true;
     });
 
-    const mappedServices = filteredServices.map((service: any) => ({
+    let mappedServices = filteredServices.map((service: any) => ({
       id: service._id,
       _id: service._id,
       name: service.name,
@@ -113,8 +115,25 @@ export default function ServiceSelectionModal({
       description: service.description || 'Professional service',
     }));
 
+    // Frontend filtering based on designation
+    if (designation) {
+      const physioKeywords = ['physio', 'physiotherapy', 'msk'];
+      const sncKeywords = ['strength', 's & c', 's&c', 'snc', 'strength and conditioning', 'strength & conditioning'];
+      
+      mappedServices = mappedServices.filter((service: any) => {
+        const serviceName = service.name.toLowerCase();
+        
+        if (designation === 'Physiotherapist') {
+          return physioKeywords.some(keyword => serviceName.includes(keyword));
+        } else if (designation === 'S&C Coach') {
+          return sncKeywords.some(keyword => serviceName.includes(keyword));
+        }
+        return true;
+      });
+    }
+
     setServices(mappedServices);
-  }, [servicesData, isNewUser, sessionType, isPrePaid, centerId, organizationId]);
+  }, [servicesData, isNewUser, sessionType, isPrePaid, centerId, organizationId, designation]);
 
   useEffect(() => {
     if (isOpen) {

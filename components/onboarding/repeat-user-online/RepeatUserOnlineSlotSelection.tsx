@@ -418,6 +418,7 @@ export default function RepeatUserOnlineSlotSelection({
         organizationId={organizationId}
         onSelect={handleConsultantSelect}
         selectedConsultant={selectedConsultant}
+        loading={slotsLoading && consultants.length === 0}
       />
     </div>
   );
