@@ -178,6 +178,7 @@ export default function RepeatUserOnlineSessionDetails({
         organizationId={organizationId}
         isNewUser={false}
         sessionType="online"
+        designation={selectedDesignation}
         onSelect={(service) => {
           setSelectedService(service);
           setShowServiceModal(false);
