@@ -266,11 +266,13 @@ export default function RepeatUserOnlineSlotSelection({
                   onClick={() => setShowConsultantModal(true)}
                   className="p-2 hover:bg-gray-50 rounded-lg transition-colors"
                 >
-                  <ChevronRight className="w-5 h-5 text-gray-400" />
+                  <ChevronRight className="w-5 h-5" style={{ color: '#203A37' }} />
                 </button>
               </div>
             </div>
           </div>
+
+          <div className="border-t border-gray-200 mb-6"></div>
 
           <div className="mb-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Visit details</h3>
@@ -291,38 +293,22 @@ export default function RepeatUserOnlineSlotSelection({
                       key={`date-${dateOption.fullDate.getTime()}`}
                       onClick={() => handleDateSelect(dateOption)}
                       disabled={isDisabled}
-                      className={`flex-shrink-0 p-3 rounded-xl border-2 transition-all text-center min-w-[120px] ${
-                        isCurrentDate
-                          ? 'border-blue-500 bg-blue-50'
-                          : isDisabled
-                          ? 'border-gray-200 bg-gray-100 cursor-not-allowed opacity-50'
-                          : 'border-gray-200 bg-white hover:border-gray-300'
-                      }`}
+                      className="flex-shrink-0 p-3 rounded-xl border-2 transition-all text-center min-w-[120px]"
+                      style={{
+                        borderColor: isCurrentDate ? '#DDFE71' : '#e5e7eb',
+                        backgroundColor: isCurrentDate ? '#f7ffe5' : isDisabled ? '#f3f4f6' : '#fff',
+                        cursor: isDisabled ? 'not-allowed' : 'pointer',
+                        opacity: isDisabled ? 0.5 : 1
+                      }}
                     >
-                      <div
-                        className={`text-sm font-medium mb-1 ${
-                          isCurrentDate
-                            ? 'text-blue-700'
-                            : dateOption.isToday
-                            ? 'text-blue-600'
-                            : 'text-gray-900'
-                        }`}
-                      >
+                      <div className="text-sm font-medium mb-1 text-gray-900">
                         {dateOption.day}, {dateOption.date} {dateOption.month}
                       </div>
                       <div
                         className={`text-xs ${
                           typeof dateOption.slots === 'number' && dateOption.slots === 0
                             ? 'text-red-500'
-                            : dateOption.slots === 'Loading...'
-                            ? 'text-blue-600'
-                            : isCurrentDate
-                            ? 'text-blue-600'
-                            : dateOption.isToday
-                            ? 'text-blue-500'
-                            : typeof dateOption.slots === 'number' && dateOption.slots > 0
-                            ? 'text-blue-600'
-                            : 'text-gray-500'
+                            : 'text-gray-600'
                         }`}
                       >
                         {typeof dateOption.slots === 'number'
@@ -358,13 +344,13 @@ export default function RepeatUserOnlineSlotSelection({
                           key={`slot-${index}-${slot.startTimeRaw}`}
                           onClick={() => handleTimeSlotSelect(slot)}
                           disabled={!slot.isAvailable}
-                          className={`p-3 rounded-xl border-2 text-sm font-medium transition-all ${
-                            isSelected
-                              ? 'border-blue-500 bg-blue-50 text-blue-700'
-                              : slot.isAvailable
-                              ? 'border-gray-200 bg-white text-gray-900 hover:border-gray-300'
-                              : 'border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed'
-                          }`}
+                          className="p-3 rounded-xl border-2 text-sm font-medium transition-all"
+                          style={{
+                            borderColor: isSelected ? '#DDFE71' : slot.isAvailable ? '#e5e7eb' : '#f3f4f6',
+                            backgroundColor: isSelected ? '#f7ffe5' : slot.isAvailable ? '#fff' : '#f9fafb',
+                            color: slot.isAvailable ? '#111827' : '#9ca3af',
+                            cursor: slot.isAvailable ? 'pointer' : 'not-allowed'
+                          }}
                         >
                           <div className="text-sm font-semibold">{slot.displayTime}</div>
                           {process.env.NEXT_PUBLIC_ENVIRONMENT === 'development' && (

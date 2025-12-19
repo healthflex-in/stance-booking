@@ -38,10 +38,15 @@ export default function RepeatUserOfflineConfirmation({
   const { data: userData, loading: userLoading } = useQuery(GET_USER, {
     variables: { userId: bookingData.patientId },
   });
+  const { data: consultantData, loading: consultantLoading } = useQuery(GET_USER, {
+    variables: { userId: bookingData.consultantId },
+    skip: !bookingData.consultantId,
+  });
 
   const currentCenter = centersData?.centers.find((c: any) => c._id === bookingData.centerId);
   const currentService = servicesData?.services.find((s: any) => s._id === bookingData.treatmentId);
   const patient = userData?.user;
+  const consultant = consultantData?.user;
 
   const patientDetails = {
     name: patient?.profileData ? `${patient.profileData.firstName} ${patient.profileData.lastName}` : '',
@@ -49,7 +54,7 @@ export default function RepeatUserOfflineConfirmation({
     email: patient?.email || '',
   };
 
-  const isLoading = centersLoading || servicesLoading || userLoading;
+  const isLoading = centersLoading || servicesLoading || userLoading || consultantLoading;
 
   const handleConfirm = async () => {
     await onConfirm();
@@ -67,43 +72,53 @@ export default function RepeatUserOfflineConfirmation({
     <div className={`${isInDesktopContainer ? 'h-full' : 'min-h-screen'} bg-gray-50 flex flex-col`}>
       <div className="flex-1 overflow-y-auto">
         <div className={`p-4 ${isInDesktopContainer ? 'pb-6' : 'pb-32'}`}>
-          <div className="bg-white rounded-2xl border border-gray-200 p-4 mb-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Patient Details</h3>
+          <div className="bg-white rounded-2xl border border-gray-200 p-5 mb-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-3">Patient Details</h3>
+            <div className="border-t border-gray-200 mb-4"></div>
             <div className="space-y-3">
               <div>
-                <span className="text-sm text-gray-600 font-medium block">Name</span>
-                <p className="text-sm font-medium text-gray-900">{patientDetails.name}</p>
+                <span className="text-xs text-black font-bold block mb-1.5">Name</span>
+                <p className="text-sm text-gray-900">{patientDetails.name}</p>
               </div>
               <div>
-                <span className="text-sm text-gray-600 font-medium block">Phone</span>
-                <p className="text-sm font-medium text-gray-900">{patientDetails.phone}</p>
+                <span className="text-xs text-black font-bold block mb-1.5">Phone</span>
+                <p className="text-sm text-gray-900">{patientDetails.phone}</p>
               </div>
               {patientDetails.email && (
                 <div>
-                  <span className="text-sm text-gray-600 font-medium block">Email</span>
-                  <p className="text-sm font-medium text-gray-900">{patientDetails.email}</p>
+                  <span className="text-xs text-black font-bold block mb-1.5">Email</span>
+                  <p className="text-sm text-gray-900">{patientDetails.email}</p>
                 </div>
               )}
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl border border-gray-200 p-4 mb-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Session Details</h3>
-            <div className="space-y-4">
+          <div className="bg-white rounded-2xl border border-gray-200 p-5">
+            <h3 className="text-lg font-semibold text-gray-900 mb-3">Session Details</h3>
+            <div className="border-t border-gray-200 mb-4"></div>
+            <div className="space-y-3">
               <div>
-                <span className="text-sm text-gray-600 font-medium block">Location</span>
-                <p className="text-sm font-bold text-gray-900">{currentCenter?.name}</p>
-                <p className="text-sm text-gray-500">In Person Consultation</p>
+                <span className="text-xs text-black font-bold block mb-1.5">Location</span>
+                <p className="text-sm font-semibold text-gray-900">{currentCenter?.name}</p>
+                <p className="text-xs text-gray-500 mt-1">In Person Consultation</p>
               </div>
+              {bookingData.consultantId && consultant?.profileData?.firstName && (
+                <div>
+                  <span className="text-xs text-black font-bold block mb-1.5">Consultant</span>
+                  <p className="text-sm text-gray-900">
+                    Dr. {consultant.profileData.firstName} {consultant.profileData.lastName || ''}
+                  </p>
+                </div>
+              )}
               <div>
-                <span className="text-sm text-gray-600 font-medium block">Date & Time</span>
-                <p className="text-sm font-medium text-gray-900">
+                <span className="text-xs text-black font-bold block mb-1.5">Date & Time</span>
+                <p className="text-sm text-gray-900">
                   {bookingData.selectedDate}, {bookingData.selectedTimeSlot.displayTime}
                 </p>
               </div>
               <div>
-                <span className="text-sm text-gray-600 font-medium block">Service</span>
-                <p className="text-sm font-medium text-gray-900">{currentService?.name}</p>
+                <span className="text-xs text-black font-bold block mb-1.5">Service</span>
+                <p className="text-sm text-gray-900">{currentService?.name}</p>
               </div>
             </div>
           </div>

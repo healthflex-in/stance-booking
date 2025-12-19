@@ -78,12 +78,12 @@ export default function LocationSelectionModal({
                 <button
                   key={center._id}
                   onClick={() => onSelect(center)}
-                  className="w-full bg-white rounded-xl border border-gray-200 p-3 text-left hover:bg-gray-50 hover:border-gray-300 transition-all"
+                  className="w-full bg-white rounded-xl border-2 border-gray-200 p-3 text-left hover:border-gray-300 transition-all"
                   type="button"
                 >
                   <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-green-50 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <MapPin className="w-5 h-5 text-green-600" />
+                    <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <MapPin className="w-5 h-5 text-gray-600" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-medium text-gray-900 mb-0.5">

@@ -63,18 +63,13 @@ export default function SessionTypeSelectionModal({
                 onSelect('in-person');
                 onClose();
               }}
-              className={`w-full rounded-xl border-2 p-4 text-left transition-all ${
-                selectedSessionType === 'in-person'
-                  ? 'border-blue-500 bg-blue-50'
-                  : 'border-gray-200 bg-white hover:bg-gray-50 hover:border-gray-300'
-              }`}
+              className="w-full rounded-xl border-2 p-4 text-left transition-all"
+              style={{ borderColor: selectedSessionType === 'in-person' ? '#DDFE71' : '#e5e7eb' }}
               type="button"
             >
               <div className="flex items-center space-x-3">
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                  selectedSessionType === 'in-person' ? 'bg-blue-100' : 'bg-gray-100'
-                }`}>
-                  <svg className={`w-6 h-6 ${selectedSessionType === 'in-person' ? 'text-blue-600' : 'text-gray-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-gray-100">
+                  <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                   </svg>
                 </div>
@@ -82,15 +77,13 @@ export default function SessionTypeSelectionModal({
                   <h3 className="font-semibold text-gray-900">In Person</h3>
                   <p className="text-sm text-gray-500">Visit our clinic for your session</p>
                 </div>
-                <div
-                  className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
-                    selectedSessionType === 'in-person'
-                      ? 'border-blue-500 bg-blue-500'
-                      : 'border-gray-300'
-                  }`}
-                >
-                  {selectedSessionType === 'in-person' && <div className="w-2 h-2 bg-white rounded-full"></div>}
-                </div>
+                {selectedSessionType === 'in-person' && (
+                  <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ backgroundColor: '#DDFE71' }}>
+                    <svg className="w-4 h-4 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                )}
               </div>
             </button>
 
@@ -99,18 +92,13 @@ export default function SessionTypeSelectionModal({
                 onSelect('online');
                 onClose();
               }}
-              className={`w-full rounded-xl border-2 p-4 text-left transition-all ${
-                selectedSessionType === 'online'
-                  ? 'border-blue-500 bg-blue-50'
-                  : 'border-gray-200 bg-white hover:bg-gray-50 hover:border-gray-300'
-              }`}
+              className="w-full rounded-xl border-2 p-4 text-left transition-all"
+              style={{ borderColor: selectedSessionType === 'online' ? '#DDFE71' : '#e5e7eb' }}
               type="button"
             >
               <div className="flex items-center space-x-3">
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                  selectedSessionType === 'online' ? 'bg-blue-100' : 'bg-gray-100'
-                }`}>
-                  <svg className={`w-6 h-6 ${selectedSessionType === 'online' ? 'text-blue-600' : 'text-gray-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-gray-100">
+                  <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                   </svg>
                 </div>
@@ -118,15 +106,13 @@ export default function SessionTypeSelectionModal({
                   <h3 className="font-semibold text-gray-900">Online</h3>
                   <p className="text-sm text-gray-500">Join your session remotely</p>
                 </div>
-                <div
-                  className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
-                    selectedSessionType === 'online'
-                      ? 'border-blue-500 bg-blue-500'
-                      : 'border-gray-300'
-                  }`}
-                >
-                  {selectedSessionType === 'online' && <div className="w-2 h-2 bg-white rounded-full"></div>}
-                </div>
+                {selectedSessionType === 'online' && (
+                  <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ backgroundColor: '#DDFE71' }}>
+                    <svg className="w-4 h-4 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                )}
               </div>
             </button>
           </div>

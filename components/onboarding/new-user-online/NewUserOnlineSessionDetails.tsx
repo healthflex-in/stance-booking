@@ -61,7 +61,12 @@ export default function NewUserOnlineSessionDetails({
       <div className="flex-1 overflow-y-auto">
         <div className={`p-4 ${isInDesktopContainer ? 'pb-6' : 'pb-32'}`}>
           <div className="mb-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">Select Service</h2>
+            <h3 className="text-xl font-semibold text-gray-900 mb-1">Welcome!</h3>
+            <p className="text-sm text-gray-600">Book your online session</p>
+          </div>
+
+          <div className="mb-6">
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">Service</h2>
             <p className="text-gray-600 text-sm mb-4">Choose the service you need</p>
             
             {onlineServices.length === 0 ? (
@@ -75,7 +80,7 @@ export default function NewUserOnlineSessionDetails({
                   key={service._id}
                   onClick={() => setSelectedService(service)}
                   className="w-full bg-white rounded-2xl p-4 border-2 transition-all text-left"
-                  style={{ borderColor: selectedService?._id === service._id ? '#DDFE71' : '#e5e7eb', backgroundColor: selectedService?._id === service._id ? '#f7ffe5' : '#fff' }}
+                  style={{ borderColor: selectedService?._id === service._id ? '#DDFE71' : '#e5e7eb' }}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex-1">

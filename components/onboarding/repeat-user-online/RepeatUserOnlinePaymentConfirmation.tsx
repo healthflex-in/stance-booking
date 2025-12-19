@@ -114,12 +114,12 @@ export default function RepeatUserOnlinePaymentConfirmation({
         throw new Error('Failed to create appointment');
       }
 
-      // Email will be sent automatically by backend or in booking confirmed screen
-
       // Store appointment ID for payment
       sessionStorage.setItem('appointmentId', appointmentId);
       sessionStorage.setItem('paymentType', 'invoice');
       sessionStorage.setItem('paymentAmount', bookingData.treatmentPrice.toString());
+      
+      // Set processing state AFTER appointment is created and stored
       setIsProcessingPayment(true);
     } catch (error) {
       console.error('Error creating appointment:', error);
@@ -218,10 +218,17 @@ export default function RepeatUserOnlinePaymentConfirmation({
           {/* Payment Amount */}
           <div className="bg-white rounded-2xl border border-gray-200 p-4 mb-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Payment Amount</h3>
-            <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl">
-              <div className="flex items-center justify-between">
-                <span className="text-lg font-semibold text-gray-900">Total Amount</span>
-                <span className="text-2xl font-bold text-gray-900">₹{bookingData.treatmentPrice}</span>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-600 font-medium">Total Amount</span>
+              <span className="text-2xl font-bold text-gray-900">₹{bookingData.treatmentPrice}</span>
+            </div>
+            <div className="mt-4 p-3 rounded-xl bg-green-50 border border-green-200">
+              <div className="flex items-start space-x-2">
+                <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5 text-green-600" />
+                <div>
+                  <p className="text-sm font-semibold text-green-900">Full Payment Required</p>
+                  <p className="text-xs mt-1 text-green-700">Online bookings require full payment. An invoice will be generated.</p>
+                </div>
               </div>
             </div>
           </div>
