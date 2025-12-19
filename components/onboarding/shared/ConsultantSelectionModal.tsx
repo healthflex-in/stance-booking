@@ -76,20 +76,13 @@ export default function ConsultantSelectionModal({
             <div className="space-y-2">
               <button
                 onClick={() => onSelect(null)}
-                className={`w-full rounded-xl border p-3 text-left transition-all ${
-                  selectedConsultant === null
-                    ? 'border-blue-500 bg-blue-50'
-                    : 'border-gray-200 bg-white hover:bg-gray-50 hover:border-gray-300'
-                }`}
+                className="w-full rounded-xl border-2 p-3 text-left transition-all"
+                style={{ borderColor: selectedConsultant === null ? '#DDFE71' : '#e5e7eb' }}
                 type="button"
               >
                 <div className="flex items-center space-x-3">
-                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                    selectedConsultant === null ? 'bg-blue-100' : 'bg-gray-100'
-                  }`}>
-                    <UserCircle className={`w-5 h-5 ${
-                      selectedConsultant === null ? 'text-blue-600' : 'text-gray-600'
-                    }`} />
+                  <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 bg-gray-100">
+                    <UserCircle className="w-5 h-5 text-gray-600" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-medium text-gray-900 mb-0.5">
@@ -99,6 +92,13 @@ export default function ConsultantSelectionModal({
                       First available consultant for your session
                     </div>
                   </div>
+                  {selectedConsultant === null && (
+                    <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ backgroundColor: '#DDFE71' }}>
+                      <svg className="w-4 h-4 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                  )}
                 </div>
               </button>
 
@@ -108,20 +108,13 @@ export default function ConsultantSelectionModal({
                   <button
                     key={consultant._id}
                     onClick={() => onSelect(consultant)}
-                    className={`w-full rounded-xl border p-3 text-left transition-all ${
-                      isSelected
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'border-gray-200 bg-white hover:bg-gray-50 hover:border-gray-300'
-                    }`}
+                    className="w-full rounded-xl border-2 p-3 text-left transition-all"
+                    style={{ borderColor: isSelected ? '#DDFE71' : '#e5e7eb' }}
                     type="button"
                   >
                     <div className="flex items-center space-x-3">
-                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                        isSelected ? 'bg-blue-100' : 'bg-purple-50'
-                      }`}>
-                        <UserCircle className={`w-5 h-5 ${
-                          isSelected ? 'text-blue-600' : 'text-purple-600'
-                        }`} />
+                      <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 bg-gray-100">
+                        <UserCircle className="w-5 h-5 text-gray-600" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="text-sm font-medium text-gray-900 mb-0.5">
@@ -135,6 +128,13 @@ export default function ConsultantSelectionModal({
                           {consultant.profileData?.designation || consultant.profileData?.bio || 'Senior Musculoskeletal & Sports Physiotherapist'}
                         </div>
                       </div>
+                      {isSelected && (
+                        <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ backgroundColor: '#DDFE71' }}>
+                          <svg className="w-4 h-4 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                        </div>
+                      )}
                     </div>
                   </button>
                 );

@@ -64,16 +64,18 @@ export default function NewUserOnlinePaymentConfirmation({
   const isLoading = centersLoading || servicesLoading || userLoading;
 
   const handleProceedToPayment = async () => {
-    try {
-      if (!bookingData.patientId) {
-        setAmountError('Patient ID is missing. Please start over.');
-        return;
-      }
+    if (!bookingData.patientId) {
+      setAmountError('Patient ID is missing. Please start over.');
+      return;
+    }
 
-      if (!patient?.email) {
-        setShowEmailModal(true);
-        return;
-      }
+    if (!patient?.email) {
+      setShowEmailModal(true);
+      return;
+    }
+
+    setIsProcessingPayment(true);
+    try {
 
       if (process.env.NEXT_PUBLIC_ENVIRONMENT === 'development') {
         console.log('📋 Creating appointment with data:', {
@@ -129,22 +131,6 @@ export default function NewUserOnlinePaymentConfirmation({
         throw new Error('Failed to create appointment');
       }
 
-      // Send appointment email
-      try {
-        await sendAppointmentEmail({
-          variables: {
-            input: {
-              appointmentId,
-            },
-          },
-        });
-        if (process.env.NEXT_PUBLIC_ENVIRONMENT === 'development') {
-          console.log('✅ Appointment email sent');
-        }
-      } catch (emailError) {
-        console.error('❌ Failed to send appointment email:', emailError);
-      }
-
       // Store appointment ID for payment
       sessionStorage.setItem('appointmentId', appointmentId);
       sessionStorage.setItem('paymentType', 'invoice');
@@ -153,11 +139,11 @@ export default function NewUserOnlinePaymentConfirmation({
       if (process.env.NEXT_PUBLIC_ENVIRONMENT === 'development') {
         console.log('💾 Stored appointmentId in sessionStorage:', appointmentId);
       }
-      setIsProcessingPayment(true);
     } catch (error: any) {
       console.error('❌ Error creating appointment:', error);
       console.error('❌ Error details:', error.message, error.graphQLErrors);
       setAmountError('Failed to create appointment. Please try again.');
+      setIsProcessingPayment(false);
     }
   };
 

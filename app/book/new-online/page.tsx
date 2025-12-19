@@ -125,7 +125,7 @@ export default function NewOnlinePage() {
   if (!mounted) {
     return (
       <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
       </div>
     );
   }
@@ -218,7 +218,7 @@ export default function NewOnlinePage() {
   if (typeof window !== 'undefined' && window.innerWidth >= 768) {
     return (
       <div className="fixed inset-0 z-50">
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-50 to-purple-50" />
+        <div className="absolute inset-0 bg-gray-100" />
         <div className="absolute inset-0 bg-black/20 backdrop-blur-sm" />
         
         <div className="absolute inset-0 flex items-center justify-center p-4">

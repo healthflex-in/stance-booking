@@ -66,20 +66,16 @@ export default function RepeatUserOnlineSessionDetails({
     <div className={`${isInDesktopContainer ? 'h-full' : 'min-h-screen'} bg-gray-50 flex flex-col`}>
       {/* Scrollable Content */}
       <div className="flex-1 overflow-y-auto">
-        <div className={`p-4 ${isInDesktopContainer ? 'pb-6' : 'pb-32'}`}>
+        <div className={`${isInDesktopContainer ? 'pb-6' : 'pb-32'}`}>
           {/* Welcome Back Message */}
-          <div className="mb-6">
-            <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4">
-              <h3 className="text-lg font-semibold text-blue-900 mb-1">
-                Welcome back{patientFullName ? `, ${patientFullName}` : ''}!
-              </h3>
-              <p className="text-sm text-blue-700">
-                We're glad to see you again. Let's book your next session.
-              </p>
-            </div>
+          <div className="px-4 pt-4 pb-6 border-b border-gray-200">
+            <h3 className="text-xl font-semibold text-gray-900 mb-1">
+              Welcome back{patientFullName ? `, ${patientFullName}` : ''}!
+            </h3>
+            <p className="text-sm text-gray-600">Book your online session</p>
           </div>
 
-
+          <div className="px-4 pt-6">
 
           {/* Designation Selection */}
           <div className="mb-6">
@@ -133,7 +129,7 @@ export default function RepeatUserOnlineSessionDetails({
               onClick={() => setShowServiceModal(true)}
               className="w-full"
             >
-              <div className="bg-white rounded-2xl p-4 border-2 border-gray-200 hover:border-blue-500 transition-all">
+              <div className="bg-white rounded-2xl p-4 border-2 transition-all" style={{ borderColor: selectedService ? '#DDFE71' : '#e5e7eb' }}>
                 <div className="flex items-center justify-between">
                   <div className="flex-1 text-left">
                     {selectedService ? (
@@ -150,10 +146,11 @@ export default function RepeatUserOnlineSessionDetails({
                       </>
                     )}
                   </div>
-                  <ChevronRight className="w-5 h-5 text-gray-400" />
+                  <ChevronRight className="w-5 h-5" style={{ color: '#203A37' }} />
                 </div>
               </div>
             </button>
+          </div>
           </div>
         </div>
       </div>

@@ -84,18 +84,16 @@ export default function RepeatUserOfflineSessionDetails({
     <div className={`${isInDesktopContainer ? 'h-full' : 'min-h-screen'} bg-gray-50 flex flex-col`}>
       {/* Scrollable Content */}
       <div className="flex-1 overflow-y-auto">
-        <div className={`p-4 ${isInDesktopContainer ? 'pb-6' : 'pb-32'}`}>
+        <div className={`${isInDesktopContainer ? 'pb-6' : 'pb-32'}`}>
           {/* Welcome Back Message */}
-          <div className="mb-6">
-            <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4">
-              <h3 className="text-lg font-semibold text-blue-900 mb-1">
-                Welcome back{patientFullName ? `, ${patientFullName}` : ''}!
-              </h3>
-              <p className="text-sm text-blue-700">
-                We're glad to see you again. Let's book your next session.
-              </p>
-            </div>
+          <div className="px-4 pt-4 pb-6 border-b border-gray-200">
+            <h3 className="text-xl font-semibold text-gray-900 mb-1">
+              Welcome back{patientFullName ? `, ${patientFullName}` : ''}!
+            </h3>
+            <p className="text-sm text-gray-600">Book your in-person session</p>
           </div>
+
+          <div className="px-4 pt-6">
 
           {/* Location Section */}
           <div className="mb-6">
@@ -109,7 +107,7 @@ export default function RepeatUserOfflineSessionDetails({
               onClick={() => setShowLocationModal(true)}
               className="w-full"
             >
-              <div className="bg-white rounded-2xl p-4 border-2 border-gray-200 hover:border-blue-500 transition-all">
+              <div className="bg-white rounded-2xl p-4 border-2 transition-all" style={{ borderColor: selectedCenter ? '#DDFE71' : '#e5e7eb' }}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
                     <div className="w-10 h-10 bg-green-50 rounded-xl flex items-center justify-center">
@@ -126,7 +124,7 @@ export default function RepeatUserOfflineSessionDetails({
                       </p>
                     </div>
                   </div>
-                  <ChevronRight className="w-5 h-5 text-gray-400" />
+                  <ChevronRight className="w-5 h-5" style={{ color: '#203A37' }} />
                 </div>
               </div>
             </button>
@@ -189,11 +187,7 @@ export default function RepeatUserOfflineSessionDetails({
               disabled={!selectedCenter}
               className="w-full"
             >
-              <div className={`bg-white rounded-2xl p-4 border-2 transition-all ${
-                !selectedCenter 
-                  ? 'border-gray-200 opacity-50 cursor-not-allowed' 
-                  : 'border-gray-200 hover:border-blue-500'
-              }`}>
+              <div className="bg-white rounded-2xl p-4 border-2 transition-all" style={{ borderColor: selectedService ? '#DDFE71' : '#e5e7eb', opacity: !selectedCenter ? 0.5 : 1, cursor: !selectedCenter ? 'not-allowed' : 'pointer' }}>
                 <div className="flex items-center justify-between">
                   <div className="flex-1 text-left">
                     {selectedService ? (
@@ -212,10 +206,11 @@ export default function RepeatUserOfflineSessionDetails({
                       </>
                     )}
                   </div>
-                  <ChevronRight className={`w-5 h-5 ${!selectedCenter ? 'text-gray-300' : 'text-gray-400'}`} />
+                  <ChevronRight className="w-5 h-5" style={{ color: !selectedCenter ? '#d1d5db' : '#203A37' }} />
                 </div>
               </div>
             </button>
+          </div>
           </div>
         </div>
       </div>
