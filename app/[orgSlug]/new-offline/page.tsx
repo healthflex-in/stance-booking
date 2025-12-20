@@ -1,16 +1,11 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 
 
-import {
-  NewUserOnlinePaymentConfirmation,
-  NewUserOnlineBookingConfirmed,
-  NewUserOnlineSessionDetails,
-  NewUserOnlineSlotSelection,
-} from '@/components/onboarding/new-user-online';
+import { NewUserOfflineBookingConfirmed, NewUserOfflinePaymentConfirmation, NewUserOfflineSessionDetails, NewUserOfflineSlotSelection } from '@/components/onboarding/new-user-offline';
 
 type BookingStep =
   | 'session-details'
@@ -19,7 +14,7 @@ type BookingStep =
   | 'booking-confirmed';
 
 interface BookingData {
-  sessionType: 'online';
+  sessionType: 'in-person';
   patientId: string;
   centerId: string;
   consultantId: string;
@@ -30,17 +25,16 @@ interface BookingData {
   selectedFullDate?: Date;
   selectedTimeSlot: { startTime: string; endTime: string; displayTime: string };
   isNewUser: boolean;
-  appointmentId?: string;
-  centerName?: string;
-  consultantName?: string;
 }
 
-export default function NewOnlinePage() {
+export default function NewOfflinePage() {
   const router = useRouter();
+  const params = useParams();
+  const orgSlug = params.orgSlug as string;
   const [mounted, setMounted] = useState(false);
   const [currentStep, setCurrentStep] = useState<BookingStep>('session-details');
   const [bookingData, setBookingData] = useState<BookingData>({
-    sessionType: 'online',
+    sessionType: 'in-person',
     patientId: '',
     centerId: '',
     consultantId: '',
@@ -60,16 +54,16 @@ export default function NewOnlinePage() {
     if (!mounted) return;
     
     const storedPatientId = sessionStorage.getItem('patientId');
+    const storedCenterId = sessionStorage.getItem('centerId');
     
-    if (storedPatientId) {
+    if (storedPatientId && storedCenterId) {
       setBookingData(prev => ({
         ...prev,
         patientId: storedPatientId,
+        centerId: storedCenterId,
       }));
       sessionStorage.removeItem('patientId');
-    } else {
-      console.warn('⚠️ No patientId found in sessionStorage');
-      router.push('/book');
+      sessionStorage.removeItem('centerId');
     }
   }, [mounted]);
 
@@ -97,7 +91,7 @@ export default function NewOnlinePage() {
     if (currentIndex > 0) {
       setCurrentStep(stepOrder[currentIndex - 1]);
     } else {
-      router.push('/book');
+      router.push(`/${orgSlug}`);
     }
   };
 
@@ -116,7 +110,7 @@ export default function NewOnlinePage() {
       case 'booking-confirmed':
         return 'Booking Confirmed';
       default:
-        return 'New User - Online';
+        return 'New User - In Center';
     }
   };
 
@@ -144,7 +138,7 @@ export default function NewOnlinePage() {
           )}
           {!canGoBack && (
             <button
-              onClick={() => router.push('/book')}
+              onClick={() => router.push(`/${orgSlug}`)}
               className="p-2 -ml-2 rounded-lg hover:bg-gray-100 transition-colors"
             >
               <ArrowLeft className="w-6 h-6 text-gray-700" />
@@ -158,11 +152,13 @@ export default function NewOnlinePage() {
 
         <div className="flex-1 overflow-hidden">
           {currentStep === 'session-details' && (
-            <NewUserOnlineSessionDetails
+            <NewUserOfflineSessionDetails
               patientId={bookingData.patientId}
+              centerId={bookingData.centerId}
               onBack={goToPreviousStep}
               onContinue={(data) => {
                 updateBookingData({
+                  centerId: data.centerId,
                   treatmentId: data.serviceId,
                   treatmentDuration: data.serviceDuration,
                   treatmentPrice: data.servicePrice,
@@ -173,16 +169,14 @@ export default function NewOnlinePage() {
           )}
 
           {currentStep === 'slot-selection' && (
-            <NewUserOnlineSlotSelection
+            <NewUserOfflineSlotSelection
+              centerId={bookingData.centerId}
               serviceDuration={bookingData.treatmentDuration}
-              designation="Physiotherapist"
+              patientId={bookingData.patientId}
               onSlotSelect={(consultantId, slot) => {
                 const slotDate = new Date(slot.startTimeRaw);
-                // Use the consultant's center from the slot
                 updateBookingData({
                   consultantId,
-                  centerId: slot.centerId,
-                  centerName: slot.centerName,
                   selectedTimeSlot: {
                     startTime: new Date(slot.startTimeRaw).toISOString(),
                     endTime: new Date(slot.endTimeRaw).toISOString(),
@@ -198,17 +192,14 @@ export default function NewOnlinePage() {
           )}
 
           {currentStep === 'payment-confirmation' && (
-            <NewUserOnlinePaymentConfirmation
+            <NewUserOfflinePaymentConfirmation
               bookingData={bookingData}
-              onNext={(appointmentId) => {
-                updateBookingData({ appointmentId });
-                goToNextStep();
-              }}
+              onNext={goToNextStep}
             />
           )}
 
           {currentStep === 'booking-confirmed' && (
-            <NewUserOnlineBookingConfirmed bookingData={bookingData} />
+            <NewUserOfflineBookingConfirmed bookingData={bookingData} />
           )}
         </div>
       </div>
@@ -234,3 +225,4 @@ export default function NewOnlinePage() {
 
   return <BookingContent />;
 }
+

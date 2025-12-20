@@ -1,11 +1,15 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 
-
-import { NewUserOfflineBookingConfirmed, NewUserOfflinePaymentConfirmation, NewUserOfflineSessionDetails, NewUserOfflineSlotSelection } from '@/components/onboarding/new-user-offline';
+import {
+  NewUserOnlinePaymentConfirmation,
+  NewUserOnlineBookingConfirmed,
+  NewUserOnlineSessionDetails,
+  NewUserOnlineSlotSelection,
+} from '@/components/onboarding/new-user-online';
 
 type BookingStep =
   | 'session-details'
@@ -14,7 +18,7 @@ type BookingStep =
   | 'booking-confirmed';
 
 interface BookingData {
-  sessionType: 'in-person';
+  sessionType: 'online';
   patientId: string;
   centerId: string;
   consultantId: string;
@@ -25,14 +29,20 @@ interface BookingData {
   selectedFullDate?: Date;
   selectedTimeSlot: { startTime: string; endTime: string; displayTime: string };
   isNewUser: boolean;
+  appointmentId?: string;
+  centerName?: string;
+  consultantName?: string;
 }
 
-export default function NewOfflinePage() {
+export default function NewOnlinePage() {
   const router = useRouter();
+  const params = useParams();
+  const orgSlug = params.orgSlug as string;
+  
   const [mounted, setMounted] = useState(false);
   const [currentStep, setCurrentStep] = useState<BookingStep>('session-details');
   const [bookingData, setBookingData] = useState<BookingData>({
-    sessionType: 'in-person',
+    sessionType: 'online',
     patientId: '',
     centerId: '',
     consultantId: '',
@@ -52,18 +62,18 @@ export default function NewOfflinePage() {
     if (!mounted) return;
     
     const storedPatientId = sessionStorage.getItem('patientId');
-    const storedCenterId = sessionStorage.getItem('centerId');
     
-    if (storedPatientId && storedCenterId) {
+    if (storedPatientId) {
       setBookingData(prev => ({
         ...prev,
         patientId: storedPatientId,
-        centerId: storedCenterId,
       }));
       sessionStorage.removeItem('patientId');
-      sessionStorage.removeItem('centerId');
+    } else {
+      console.warn('⚠️ No patientId found in sessionStorage');
+      router.push(`/${orgSlug}`);
     }
-  }, [mounted]);
+  }, [mounted, orgSlug, router]);
 
   const goToNextStep = () => {
     const stepOrder: BookingStep[] = [
@@ -89,7 +99,7 @@ export default function NewOfflinePage() {
     if (currentIndex > 0) {
       setCurrentStep(stepOrder[currentIndex - 1]);
     } else {
-      router.push('/book');
+      router.push(`/${orgSlug}`);
     }
   };
 
@@ -108,7 +118,7 @@ export default function NewOfflinePage() {
       case 'booking-confirmed':
         return 'Booking Confirmed';
       default:
-        return 'New User - In Center';
+        return 'New User - Online';
     }
   };
 
@@ -136,13 +146,13 @@ export default function NewOfflinePage() {
           )}
           {!canGoBack && (
             <button
-              onClick={() => router.push('/book')}
+              onClick={() => router.push(`/${orgSlug}`)}
               className="p-2 -ml-2 rounded-lg hover:bg-gray-100 transition-colors"
             >
               <ArrowLeft className="w-6 h-6 text-gray-700" />
             </button>
           )}
-          <h1 className="text-lg font-semibold text-gray-900 flex-1 text-center ml-6">
+          <h1 className="text-lg font-semibold text-gray-900 flex-1 text-center">
             {getStepTitle()}
           </h1>
           <div className="w-10" />
@@ -150,13 +160,11 @@ export default function NewOfflinePage() {
 
         <div className="flex-1 overflow-hidden">
           {currentStep === 'session-details' && (
-            <NewUserOfflineSessionDetails
+            <NewUserOnlineSessionDetails
               patientId={bookingData.patientId}
-              centerId={bookingData.centerId}
               onBack={goToPreviousStep}
-              onContinue={(data) => {
+              onContinue={(data: { serviceId: string; serviceDuration: number; servicePrice: number }) => {
                 updateBookingData({
-                  centerId: data.centerId,
                   treatmentId: data.serviceId,
                   treatmentDuration: data.serviceDuration,
                   treatmentPrice: data.servicePrice,
@@ -167,14 +175,15 @@ export default function NewOfflinePage() {
           )}
 
           {currentStep === 'slot-selection' && (
-            <NewUserOfflineSlotSelection
-              centerId={bookingData.centerId}
+            <NewUserOnlineSlotSelection
               serviceDuration={bookingData.treatmentDuration}
-              patientId={bookingData.patientId}
-              onSlotSelect={(consultantId, slot) => {
+              designation="Physiotherapist"
+              onSlotSelect={(consultantId: string, slot: any) => {
                 const slotDate = new Date(slot.startTimeRaw);
                 updateBookingData({
                   consultantId,
+                  centerId: slot.centerId,
+                  centerName: slot.centerName,
                   selectedTimeSlot: {
                     startTime: new Date(slot.startTimeRaw).toISOString(),
                     endTime: new Date(slot.endTimeRaw).toISOString(),
@@ -190,20 +199,24 @@ export default function NewOfflinePage() {
           )}
 
           {currentStep === 'payment-confirmation' && (
-            <NewUserOfflinePaymentConfirmation
+            <NewUserOnlinePaymentConfirmation
               bookingData={bookingData}
-              onNext={goToNextStep}
+              onNext={(appointmentId?: string) => {
+                updateBookingData({ appointmentId });
+                goToNextStep();
+              }}
             />
           )}
 
           {currentStep === 'booking-confirmed' && (
-            <NewUserOfflineBookingConfirmed bookingData={bookingData} />
+            <NewUserOnlineBookingConfirmed bookingData={bookingData} />
           )}
         </div>
       </div>
     </>
   );
 
+  // Desktop container view
   if (typeof window !== 'undefined' && window.innerWidth >= 768) {
     return (
       <div className="fixed inset-0 z-50">
@@ -221,5 +234,7 @@ export default function NewOfflinePage() {
     );
   }
 
+  // Mobile view
   return <BookingContent />;
 }
+

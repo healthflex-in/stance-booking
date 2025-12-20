@@ -2522,4 +2522,54 @@ export const GET_ORGANIZATION_AVAILABILITY = gql`
   }
 `;
 
+export const CHECK_PATIENT_BY_PHONE = gql`
+  query CheckPatientByPhone($phone: String!, $organizationId: ObjectID!) {
+    checkPatientByPhone(phone: $phone, organizationId: $organizationId) {
+      exists
+      isInDifferentOrg
+      currentOrgId
+      patient {
+        _id
+        phone
+        email
+        profileData {
+          ... on Patient {
+            firstName
+            lastName
+            gender
+            dob
+          }
+        }
+      }
+    }
+  }
+`;
+
+export const ADD_PATIENT_TO_ORGANIZATION = gql`
+  mutation AddPatientToOrganization(
+    $patientId: ObjectID!
+    $organizationId: ObjectID!
+    $centerIds: [ObjectID!]!
+  ) {
+    addPatientToOrganization(
+      patientId: $patientId
+      organizationId: $organizationId
+      centerIds: $centerIds
+    ) {
+      _id
+      phone
+      profileData {
+        ... on Patient {
+          firstName
+          lastName
+          centers {
+            _id
+            name
+          }
+        }
+      }
+    }
+  }
+`;
+
 

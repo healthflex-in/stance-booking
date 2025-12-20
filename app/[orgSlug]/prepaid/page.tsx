@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { useMutation } from '@apollo/client';
 import { toast } from 'sonner';
@@ -31,6 +31,8 @@ interface BookingData {
 
 export default function BookPrepaidPage() {
   const router = useRouter();
+  const params = useParams();
+  const orgSlug = params.orgSlug as string;
   const [mounted, setMounted] = useState(false);
   const [currentStep, setCurrentStep] = useState<BookingStep>('patient-onboarding');
   const [createAppointment] = useMutation(CREATE_APPOINTMENT);
@@ -71,9 +73,9 @@ export default function BookPrepaidPage() {
     
     if (isNewUser) {
       sessionStorage.setItem('centerId', bookingData.centerId || '');
-      router.replace('/book-prepaid/new');
+      router.replace(`/${orgSlug}/prepaid/new`);
     } else {
-      router.replace('/book-prepaid/repeat');
+      router.replace(`/${orgSlug}/prepaid/repeat`);
     }
   };
 
@@ -97,7 +99,7 @@ export default function BookPrepaidPage() {
             <PrepaidPatientOnboarding
               centerId={bookingData.centerId || process.env.NEXT_PUBLIC_DEFAULT_CENTER_ID || '67fe36545e42152fb5185a6c'}
               onComplete={handlePatientOnboardingComplete}
-              onBack={() => router.push('/book')}
+              onBack={() => router.push(`/${orgSlug}`)}
             />
           )}
         </div>
@@ -124,3 +126,4 @@ export default function BookPrepaidPage() {
 
   return <BookingContent />;
 }
+

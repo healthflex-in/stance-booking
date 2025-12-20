@@ -204,6 +204,14 @@ export enum Action {
   View = 'VIEW'
 }
 
+/** Patient type for healthcare recipients */
+export type AdditionalOrganization = {
+  __typename?: 'AdditionalOrganization';
+  addedAt: Scalars['Timestamp']['output'];
+  centers: Array<Center>;
+  organization: Organization;
+};
+
 export type Address = {
   __typename?: 'Address';
   city: Scalars['String']['output'];
@@ -1821,6 +1829,8 @@ export type Mutation = {
   _empty?: Maybe<Scalars['String']['output']>;
   addDocumentRecord?: Maybe<Array<DocumentRecord>>;
   addObjectiveAssessmentRecord: ObjectiveAssessmentRecord;
+  /** Add patient to additional organization */
+  addPatientToOrganization: User;
   addPlanRecord: PlanRecord;
   addProvisionalRecord: ProvisionalRecord;
   addRPERecord: RpeRecord;
@@ -1915,6 +1925,8 @@ export type Mutation = {
   revokeSession: Scalars['Boolean']['output'];
   sendAppointmentEmail: EmailResponse;
   sendConsultantMeetInvite: EmailResponse;
+  /** Send OTP to the given Email and Returns a token as Response */
+  sendEmailOTP: Scalars['String']['output'];
   /** Send OTP to the given Phone Number and Returns a token as Response */
   sendOTP: Scalars['String']['output'];
   triggerPaymentReconciliation: ReconciliationResponse;
@@ -1952,6 +1964,7 @@ export type Mutation = {
   uploadFile: File;
   /** Create or update a match record */
   upsertMatch: Match;
+  verifyEmailOTP: AuthenticatedSession;
   verifyOTP: AuthenticatedSession;
   verifyPayment: WebhookResponse;
 };
@@ -1964,6 +1977,13 @@ export type MutationAddDocumentRecordArgs = {
 
 export type MutationAddObjectiveAssessmentRecordArgs = {
   input: ObjectiveAssessmentInput;
+};
+
+
+export type MutationAddPatientToOrganizationArgs = {
+  centerIds: Array<Scalars['ObjectID']['input']>;
+  organizationId: Scalars['ObjectID']['input'];
+  patientId: Scalars['ObjectID']['input'];
 };
 
 
@@ -2256,6 +2276,11 @@ export type MutationSendConsultantMeetInviteArgs = {
 };
 
 
+export type MutationSendEmailOtpArgs = {
+  email: Scalars['String']['input'];
+};
+
+
 export type MutationSendOtpArgs = {
   phone: Scalars['String']['input'];
 };
@@ -2375,6 +2400,11 @@ export type MutationUploadFileArgs = {
 
 export type MutationUpsertMatchArgs = {
   input: UpsertMatchInput;
+};
+
+
+export type MutationVerifyEmailOtpArgs = {
+  input: VerifyEmailOtpInput;
 };
 
 
@@ -2565,9 +2595,9 @@ export enum PaginationDirection {
   Forward = 'FORWARD'
 }
 
-/** Patient type for healthcare recipients */
 export type Patient = {
   __typename?: 'Patient';
+  additionalOrganizations?: Maybe<Array<AdditionalOrganization>>;
   bio?: Maybe<Scalars['String']['output']>;
   category?: Maybe<PatientCategory>;
   centers: Array<Center>;
@@ -2603,6 +2633,14 @@ export enum PatientCohort {
   ProfessionalAthlete = 'PROFESSIONAL_ATHLETE',
   Surgical = 'SURGICAL'
 }
+
+export type PatientExistsResult = {
+  __typename?: 'PatientExistsResult';
+  currentOrgId?: Maybe<Scalars['ObjectID']['output']>;
+  exists: Scalars['Boolean']['output'];
+  isInDifferentOrg: Scalars['Boolean']['output'];
+  patient?: Maybe<User>;
+};
 
 export enum PatientStatus {
   Active = 'ACTIVE',
@@ -2768,6 +2806,7 @@ export type Query = {
   center: Center;
   /** Get centres */
   centers: Array<Center>;
+  checkPatientByPhone: PatientExistsResult;
   /** get current session */
   currentSession: AuthenticatedSession;
   /** Get a specific event by ID. */
@@ -2885,6 +2924,12 @@ export type QueryAppointmentsArgs = {
 
 export type QueryCenterArgs = {
   id: Scalars['ObjectID']['input'];
+};
+
+
+export type QueryCheckPatientByPhoneArgs = {
+  organizationId: Scalars['ObjectID']['input'];
+  phone: Scalars['String']['input'];
 };
 
 
@@ -3365,10 +3410,17 @@ export type Session = DataRow & {
 export enum SessionFrequency {
   Daily = 'DAILY',
   Monthly = 'MONTHLY',
+  OneTime = 'ONE_TIME',
   Weekly = 'WEEKLY'
 }
 
 export enum SessionType {
+  GroupFormats = 'GROUP_FORMATS',
+  HomeExercisePlan = 'HOME_EXERCISE_PLAN',
+  InCenterPhysiotherapy = 'IN_CENTER_PHYSIOTHERAPY',
+  InCenterSnc = 'IN_CENTER_SNC',
+  OnlineOneOnOnePhysiotherapy = 'ONLINE_ONE_ON_ONE_PHYSIOTHERAPY',
+  OnlineOneOnOneSnc = 'ONLINE_ONE_ON_ONE_SNC',
   Physiotherapy = 'PHYSIOTHERAPY',
   SportsMassageTherapy = 'SPORTS_MASSAGE_THERAPY',
   StrengthAndConditioning = 'STRENGTH_AND_CONDITIONING'
@@ -3734,6 +3786,12 @@ export enum UserType {
   Patient = 'PATIENT',
   Staff = 'STAFF'
 }
+
+export type VerifyEmailOtpInput = {
+  email: Scalars['String']['input'];
+  otp: Scalars['String']['input'];
+  token: Scalars['String']['input'];
+};
 
 export type VerifyOtpInput = {
   otp: Scalars['String']['input'];

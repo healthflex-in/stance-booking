@@ -1,21 +1,21 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { useMutation, useQuery } from '@apollo/client';
-import { toast } from 'sonner';
-import { CREATE_APPOINTMENT, UPDATE_PATIENT, GET_USER } from '@/gql/queries';
-import { PrepaidRepeatSessionDetails } from '@/components/onboarding/prepaid-repeat';
-import { PrepaidRepeatSlotSelection } from '@/components/onboarding/prepaid-repeat';
-import { PrepaidRepeatConfirmation } from '@/components/onboarding/prepaid-repeat';
-import { PrepaidRepeatBookingConfirmed } from '@/components/onboarding/prepaid-repeat';
+import { CREATE_APPOINTMENT, UPDATE_PATIENT, GET_USER, SEND_APPOINTMENT_EMAIL } from '@/gql/queries';
+import {
+  RepeatUserOfflineSessionDetails,
+  RepeatUserOfflineBookingConfirmed,
+  RepeatUserOfflineSlotSelection,
+  RepeatUserOfflineConfirmation,
+} from '@/components/onboarding/repeat-user-offline';
 
 type BookingStep = 'session-details' | 'slot-selection' | 'confirmation' | 'booking-confirmed';
 
 interface BookingData {
   patientId: string;
-  organizationId: string;
   centerId: string;
   consultantId: string;
   treatmentId: string;
@@ -24,29 +24,34 @@ interface BookingData {
   selectedDate: string;
   selectedFullDate?: Date;
   selectedTimeSlot: { startTime: string; endTime: string; displayTime: string };
-  appointmentId?: string;
+  sessionType: 'in-person';
   designation?: string;
+  appointmentId?: string;
 }
 
-export default function PrepaidRepeatPage() {
+export default function RepeatOfflinePage() {
   const router = useRouter();
+  const params = useParams();
+  const orgSlug = params.orgSlug as string;
   const [mounted, setMounted] = useState(false);
   const [currentStep, setCurrentStep] = useState<BookingStep>('session-details');
   const [isCreatingAppointment, setIsCreatingAppointment] = useState(false);
-  const [createAppointment] = useMutation(CREATE_APPOINTMENT);
-  const [updatePatient] = useMutation(UPDATE_PATIENT);
   const [bookingData, setBookingData] = useState<BookingData>({
     patientId: '',
-    organizationId: '',
-    centerId: '',
+    centerId: process.env.NEXT_PUBLIC_DEFAULT_CENTER_ID || '67fe36545e42152fb5185a6c',
     consultantId: '',
     treatmentId: '',
     treatmentPrice: 0,
     treatmentDuration: 20,
     selectedDate: '',
     selectedTimeSlot: { startTime: '', endTime: '', displayTime: '' },
+    sessionType: 'in-person',
   });
 
+  const [createAppointment] = useMutation(CREATE_APPOINTMENT);
+  const [updatePatient] = useMutation(UPDATE_PATIENT);
+  const [sendAppointmentEmail] = useMutation(SEND_APPOINTMENT_EMAIL);
+  
   const { data: patientData } = useQuery(GET_USER, {
     variables: { userId: bookingData.patientId },
     skip: !bookingData.patientId,
@@ -60,31 +65,44 @@ export default function PrepaidRepeatPage() {
     if (!mounted) return;
     
     const storedPatientId = sessionStorage.getItem('patientId');
-    const storedOrganizationId = sessionStorage.getItem('organizationId');
-    
-    if (storedPatientId && storedOrganizationId) {
-      setBookingData(prev => ({ ...prev, patientId: storedPatientId, organizationId: storedOrganizationId }));
+    const storedCenterId = sessionStorage.getItem('centerId');
+    if (storedPatientId && storedCenterId) {
+      updateBookingData({ patientId: storedPatientId, centerId: storedCenterId });
       sessionStorage.removeItem('patientId');
-    } else {
-      router.push('/book');
+      sessionStorage.removeItem('centerId');
     }
-  }, [mounted, router]);
+  }, [mounted]);
 
   const goToNextStep = () => {
-    const stepOrder: BookingStep[] = ['session-details', 'slot-selection', 'confirmation', 'booking-confirmed'];
+    const stepOrder: BookingStep[] = [
+      'session-details',
+      'slot-selection',
+      'confirmation',
+      'booking-confirmed',
+    ];
     const currentIndex = stepOrder.indexOf(currentStep);
-    if (currentIndex < stepOrder.length - 1) setCurrentStep(stepOrder[currentIndex + 1]);
+    if (currentIndex < stepOrder.length - 1) {
+      setCurrentStep(stepOrder[currentIndex + 1]);
+    }
   };
 
   const goToPreviousStep = () => {
-    const stepOrder: BookingStep[] = ['session-details', 'slot-selection', 'confirmation', 'booking-confirmed'];
+    const stepOrder: BookingStep[] = [
+      'session-details',
+      'slot-selection',
+      'confirmation',
+      'booking-confirmed',
+    ];
     const currentIndex = stepOrder.indexOf(currentStep);
-    if (currentIndex > 0) setCurrentStep(stepOrder[currentIndex - 1]);
-    else router.push('/book');
+    if (currentIndex > 0) {
+      setCurrentStep(stepOrder[currentIndex - 1]);
+    } else {
+      router.push(`/${orgSlug}`);
+    }
   };
 
   const updateBookingData = (updates: Partial<BookingData>) => {
-    setBookingData(prev => ({ ...prev, ...updates }));
+    setBookingData((prev) => ({ ...prev, ...updates }));
   };
 
   const handleSlotSelect = (consultantId: string, slot: any) => {
@@ -92,7 +110,6 @@ export default function PrepaidRepeatPage() {
     setBookingData(prev => ({
       ...prev,
       consultantId,
-      centerId: slot.centerId || prev.centerId,
       selectedTimeSlot: {
         startTime: new Date(slot.startTimeRaw).toISOString(),
         endTime: new Date(slot.endTimeRaw).toISOString(),
@@ -131,11 +148,11 @@ export default function PrepaidRepeatPage() {
         patient: bookingData.patientId,
         consultant: bookingData.consultantId || null,
         treatment: bookingData.treatmentId,
-        medium: 'ONLINE',
-        notes: 'Prepaid appointment',
+        medium: 'IN_PERSON',
+        notes: '',
         center: bookingData.centerId,
         category: 'WEBSITE',
-        status: 'PRE_PAID',
+        status: 'BOOKED',
         visitType: 'FOLLOW_UP',
         event: {
           startTime: new Date(bookingData.selectedTimeSlot.startTime).getTime(),
@@ -143,17 +160,33 @@ export default function PrepaidRepeatPage() {
         },
       };
 
-      const appointmentResult = await createAppointment({ variables: { input } });
+      const appointmentResult = await createAppointment({
+        variables: { input },
+      });
+
       const appointmentId = appointmentResult.data?.createAppointment?._id;
-      
       if (appointmentId) {
+        // Send appointment email
+        try {
+          await sendAppointmentEmail({
+            variables: {
+              input: {
+                appointmentId,
+              },
+            },
+          });
+        } catch (emailError) {
+          console.error('Failed to send appointment email:', emailError);
+        }
+        
         setBookingData(prev => ({ ...prev, appointmentId }));
         goToNextStep();
       } else {
-        throw new Error('Appointment creation failed');
+        throw new Error('Appointment creation failed - no ID returned');
       }
     } catch (error: any) {
-      toast.error(error.message || 'Failed to create appointment');
+      console.error('Error creating appointment:', error);
+      alert(error.message || 'Failed to create appointment. Please try again.');
     } finally {
       setIsCreatingAppointment(false);
     }
@@ -165,7 +198,7 @@ export default function PrepaidRepeatPage() {
       case 'slot-selection': return 'Slot Availability';
       case 'confirmation': return 'Confirm Booking';
       case 'booking-confirmed': return 'Booking Confirmed';
-      default: return 'Prepaid Repeat User';
+      default: return 'Repeat User - In Center';
     }
   };
 
@@ -188,7 +221,7 @@ export default function PrepaidRepeatPage() {
           </button>
         )}
         {!canGoBack && (
-          <button onClick={() => router.push('/book')} className="p-2 -ml-2 rounded-lg hover:bg-gray-100 transition-colors">
+          <button onClick={() => router.push(`/${orgSlug}`)} className="p-2 -ml-2 rounded-lg hover:bg-gray-100 transition-colors">
             <ArrowLeft className="w-6 h-6 text-gray-700" />
           </button>
         )}
@@ -198,14 +231,13 @@ export default function PrepaidRepeatPage() {
 
       <div className="flex-1 overflow-hidden">
         {currentStep === 'session-details' && (
-          <PrepaidRepeatSessionDetails
+          <RepeatUserOfflineSessionDetails
             patientId={bookingData.patientId}
-            organizationId={bookingData.organizationId}
-            isNewUser={false}
+            centerId={bookingData.centerId}
             onBack={goToPreviousStep}
             onContinue={(data) => {
               updateBookingData({
-                organizationId: data.organizationId,
+                centerId: data.centerId,
                 treatmentId: data.serviceId,
                 treatmentDuration: data.serviceDuration,
                 treatmentPrice: data.servicePrice,
@@ -217,8 +249,8 @@ export default function PrepaidRepeatPage() {
         )}
 
         {currentStep === 'slot-selection' && (
-          <PrepaidRepeatSlotSelection
-            organizationId={bookingData.organizationId}
+          <RepeatUserOfflineSlotSelection
+            centerId={bookingData.centerId}
             serviceDuration={bookingData.treatmentDuration}
             designation={bookingData.designation}
             onSlotSelect={handleSlotSelect}
@@ -227,7 +259,7 @@ export default function PrepaidRepeatPage() {
         )}
 
         {currentStep === 'confirmation' && (
-          <PrepaidRepeatConfirmation
+          <RepeatUserOfflineConfirmation
             bookingData={bookingData}
             onConfirm={handleConfirmBooking}
             isCreating={isCreatingAppointment}
@@ -235,7 +267,7 @@ export default function PrepaidRepeatPage() {
         )}
 
         {currentStep === 'booking-confirmed' && (
-          <PrepaidRepeatBookingConfirmed bookingData={bookingData} />
+          <RepeatUserOfflineBookingConfirmed bookingData={bookingData} />
         )}
       </div>
     </div>
@@ -259,3 +291,4 @@ export default function PrepaidRepeatPage() {
 
   return <BookingContent />;
 }
+

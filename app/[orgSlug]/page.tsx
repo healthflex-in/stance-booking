@@ -1,10 +1,12 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import RazorpayScriptLoader from '@/components/loader/RazorpayScriptLoader';
 import { SimplifiedPatientOnboarding } from '@/components/onboarding/shared';
+import { getOrganizationBySlug, getDefaultCenterId } from '@/utils/booking-config';
+import { setBookingCookies, getBookingCookies } from '@/utils/booking-cookies';
 
 type BookingStep =
   | 'patient-onboarding'
@@ -42,21 +44,61 @@ interface BookingData {
 
 function BookPageContent() {
   const router = useRouter();
+  const params = useParams();
+  const orgSlug = params.orgSlug as string;
+  
   const [mounted, setMounted] = useState(false);
   const [currentStep, setCurrentStep] = useState<BookingStep>('patient-onboarding');
   const [bookingData, setBookingData] = useState<Partial<BookingData>>({});
+  const initializedRef = React.useRef(false);
+  const redirectingRef = React.useRef(false);
 
   useEffect(() => {
+    // Prevent double initialization
+    if (initializedRef.current) return;
+    initializedRef.current = true;
+    
     setMounted(true);
     
-    // Get centerId from URL params or localStorage
-    const urlParams = new URLSearchParams(window.location.search);
-    const centerIdFromUrl = urlParams.get('centerId');
-    const centerIdFromStorage = localStorage.getItem('centerId');
-    const centerId = centerIdFromUrl || centerIdFromStorage || process.env.NEXT_PUBLIC_DEFAULT_CENTER_ID || '67fe36545e42152fb5185a6c';
+    // Get organization config
+    const org = getOrganizationBySlug(orgSlug);
     
-    setBookingData(prev => ({ ...prev, centerId }));
-  }, []);
+    if (!org) {
+      // Invalid org slug - silently redirect to default (could be browser requests like /login, /favicon.ico, etc.)
+      if (!redirectingRef.current) {
+        redirectingRef.current = true;
+        if (orgSlug !== 'login' && orgSlug !== 'favicon.ico' && !orgSlug.startsWith('.')) {
+          console.warn('Invalid organization slug:', orgSlug);
+        }
+        router.replace('/'); // Use replace instead of push
+      }
+      return;
+    }
+    
+    // Get default center ID for this organization (used for patient creation only)
+    const defaultCenterId = getDefaultCenterId(orgSlug);
+    
+    if (!defaultCenterId) {
+      console.error('No default center found for org:', orgSlug);
+      return;
+    }
+    
+    // Only set cookies if they're different from current values
+    const currentCookies = getBookingCookies();
+    if (currentCookies.organizationId !== org.id || currentCookies.orgSlug !== org.slug) {
+      // Set cookies with org and center IDs
+      // Centers list will be fetched dynamically from backend API
+      setBookingCookies(
+        org.id,
+        defaultCenterId,
+        org.slug,
+        '' // centerSlug not needed - centers fetched from API
+      );
+    }
+    
+    // Set center ID in booking data
+    setBookingData(prev => ({ ...prev, centerId: defaultCenterId }));
+  }, [orgSlug]); // Only re-run if orgSlug changes
 
   const handlePatientOnboardingComplete = (patientId: string, isNewUser: boolean, sessionType: 'in-person' | 'online') => {
     sessionStorage.setItem('patientId', patientId);
@@ -64,15 +106,15 @@ function BookPageContent() {
     
     if (isNewUser) {
       if (sessionType === 'online') {
-        router.replace('/book/new-online');
+        router.replace(`/${orgSlug}/new-online`);
       } else {
-        router.replace('/book/new-offline');
+        router.replace(`/${orgSlug}/new-offline`);
       }
     } else {
       if (sessionType === 'online') {
-        router.replace('/book/repeat-online');
+        router.replace(`/${orgSlug}/repeat-online`);
       } else {
-        router.replace('/book/repeat-offline');
+        router.replace(`/${orgSlug}/repeat-offline`);
       }
     }
   };
@@ -160,18 +202,17 @@ function BookPageContent() {
         <div className="flex-1 overflow-hidden">
           {currentStep === 'patient-onboarding' && (
             <SimplifiedPatientOnboarding
-              centerId={bookingData.centerId || process.env.NEXT_PUBLIC_DEFAULT_CENTER_ID || '67fe36545e42152fb5185a6c'}
+              centerId={bookingData.centerId || ''}
               onComplete={handlePatientOnboardingComplete}
               onBack={() => router.push('/')}
             />
           )}
-
-
         </div>
       </div>
     </>
   );
 
+  // Desktop container view
   if (typeof window !== 'undefined' && window.innerWidth >= 768) {
     return (
       <div className="fixed inset-0 z-50">
@@ -179,8 +220,8 @@ function BookPageContent() {
         <div className="absolute inset-0 bg-black/20 backdrop-blur-sm" />
         
         <div className="absolute inset-0 flex items-center justify-center p-4">
-          <div className="w-full max-w-sm mx-auto bg-white rounded-2xl shadow-2xl overflow-hidden relative flex flex-col" style={{ height: '90vh', maxHeight: '90vh' }}>
-            <div className="flex-1 overflow-y-auto overflow-x-hidden relative">
+          <div className="w-full max-w-sm mx-auto bg-white rounded-2xl shadow-2xl overflow-hidden relative" style={{ height: '90vh' }}>
+            <div className="h-full overflow-y-auto">
               <BookingContent />
             </div>
           </div>
@@ -189,17 +230,11 @@ function BookPageContent() {
     );
   }
 
+  // Mobile view
   return <BookingContent />;
 }
 
-export default function BookPage() {
-  return (
-    <React.Suspense fallback={
-      <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
-      </div>
-    }>
-      <BookPageContent />
-    </React.Suspense>
-  );
+export default function OrgHomePage() {
+  return <BookPageContent />;
 }
+
