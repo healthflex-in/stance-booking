@@ -187,6 +187,16 @@ export function createApolloClient(initialState = {}) {
       const mobileOrgId = cookies.organizationId;
       const mobileCenterId = cookies.centerId;
 
+      // Debug logging for production issues
+      if (process.env.NODE_ENV === 'production' || process.env.NEXT_PUBLIC_DEBUG === 'true') {
+        console.log('[Apollo] Mobile booking route headers:', {
+          operation: operation.operationName,
+          orgId: mobileOrgId,
+          centerId: mobileCenterId,
+          hasApiKey: !!getMobileApiKey(),
+        });
+      }
+
       return {
         headers: {
           ...headers,

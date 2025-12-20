@@ -12,10 +12,10 @@ export interface BookingCookies {
 }
 
 const COOKIE_NAMES = {
-  ORG_ID: 'booking_org_id',
-  CENTER_ID: 'booking_center_id',
-  ORG_SLUG: 'booking_org_slug',
-  CENTER_SLUG: 'booking_center_slug',
+  ORG_ID: 'booking-organizationId',
+  CENTER_ID: 'booking-centerId',
+  ORG_SLUG: 'booking-orgSlug',
+  CENTER_SLUG: 'booking-centerSlug',
 } as const;
 
 const COOKIE_MAX_AGE = 7 * 24 * 60 * 60; // 7 days in seconds
@@ -96,6 +96,16 @@ export function getBookingCookies(): BookingCookies {
   const centerId = getCookie(COOKIE_NAMES.CENTER_ID);
   const orgSlug = getCookie(COOKIE_NAMES.ORG_SLUG);
   const centerSlug = getCookie(COOKIE_NAMES.CENTER_SLUG);
+  
+  // Debug logging
+  if (process.env.NODE_ENV === 'production' || process.env.NEXT_PUBLIC_DEBUG === 'true') {
+    console.log('[Cookies] Reading booking cookies:', {
+      orgId: orgId ? `${orgId.substring(0, 8)}...` : 'null',
+      centerId: centerId ? `${centerId.substring(0, 8)}...` : 'null',
+      orgSlug,
+      source: 'cookies'
+    });
+  }
   
   // If cookies exist, return them
   if (orgId && centerId) {
