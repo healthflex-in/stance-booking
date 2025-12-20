@@ -9,9 +9,10 @@ export const validateSession = (): boolean => {
   
   const token = localStorage.getItem('token');
   const user = localStorage.getItem('user');
-  const organizationId = localStorage.getItem('stance-organizationID');
   
-  return !!(token && user && organizationId);
+  // Organization ID is now stored in cookies, not required for session validation
+  // The booking-cookies utility handles org/center context
+  return !!(token && user);
 };
 
 export const clearSessionData = (): void => {

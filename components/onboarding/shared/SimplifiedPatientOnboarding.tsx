@@ -5,10 +5,12 @@ import { useMutation, useLazyQuery, useQuery } from '@apollo/client';
 import { toast } from 'sonner';
 import { User } from 'lucide-react';
 import { StanceHealthLoader } from '@/components/loader/StanceHealthLoader';
-import { CREATE_PATIENT, PATIENT_EXISTS, PATIENT_BY_PHONE, GET_CENTERS } from '@/gql/queries';
+import { CREATE_PATIENT, PATIENT_EXISTS, PATIENT_BY_PHONE, GET_CENTERS, CHECK_PATIENT_BY_PHONE, ADD_PATIENT_TO_ORGANIZATION } from '@/gql/queries';
 import { useContainerDetection } from '@/hooks/useContainerDetection';
 import { useMobileFlowAnalytics } from '@/services/mobile-analytics';
+import { getBookingCookies } from '@/utils/booking-cookies';
 import SessionTypeSelectionModal from './SessionTypeSelectionModal';
+import CrossOrgModal from './CrossOrgModal';
 
 interface SimplifiedPatientOnboardingProps {
   centerId: string;
@@ -42,6 +44,8 @@ export default function SimplifiedPatientOnboarding({
   const [isNewUser, setIsNewUser] = useState(false);
   const [showSessionTypeModal, setShowSessionTypeModal] = useState(false);
   const [isNavigating, setIsNavigating] = useState(false);
+  const [showCrossOrgModal, setShowCrossOrgModal] = useState(false);
+  const [crossOrgPatient, setCrossOrgPatient] = useState<any>(null);
   const [formData, setFormData] = useState<FormData>({
     phone: '',
     firstName: '',
@@ -69,7 +73,7 @@ export default function SimplifiedPatientOnboarding({
   const mobileAnalytics = useMobileFlowAnalytics();
 
   const { data: centersData } = useQuery(GET_CENTERS, {
-    fetchPolicy: 'cache-first',
+    fetchPolicy: 'network-only', // Changed to network-only to ensure fresh data per org
   });
 
   const [checkPatientExists] = useLazyQuery(PATIENT_EXISTS, {
@@ -78,6 +82,27 @@ export default function SimplifiedPatientOnboarding({
 
   const [getPatientByPhone] = useLazyQuery(PATIENT_BY_PHONE, {
     fetchPolicy: 'network-only',
+  });
+
+  const [checkPatientByPhone] = useLazyQuery(CHECK_PATIENT_BY_PHONE, {
+    fetchPolicy: 'network-only',
+  });
+
+  const [addPatientToOrg, { loading: addingToOrg }] = useMutation(ADD_PATIENT_TO_ORGANIZATION, {
+    onCompleted: (data) => {
+      toast.success('Added to organization successfully!');
+      setShowCrossOrgModal(false);
+      // Continue with the booking flow as a repeat user
+      if (crossOrgPatient && sessionType) {
+        onComplete(crossOrgPatient._id, false, sessionType);
+      } else {
+        setShowSessionTypeModal(true);
+      }
+    },
+    onError: (error) => {
+      console.error('Error adding patient to organization:', error);
+      toast.error('Failed to add to organization. Please try again.');
+    },
   });
 
   useEffect(() => {
@@ -151,23 +176,38 @@ export default function SimplifiedPatientOnboarding({
 
     setIsVerifying(true);
     try {
-      const { data } = await checkPatientExists({
-        variables: { phone: formData.phone },
+      // Get current organization from cookies
+      const cookies = getBookingCookies();
+      const currentOrgId = cookies.organizationId;
+
+      if (!currentOrgId) {
+        toast.error('Organization not found. Please refresh the page.');
+        setIsVerifying(false);
+        return;
+      }
+
+      // Check if patient exists and in which organization
+      const { data: checkData } = await checkPatientByPhone({
+        variables: { 
+          phone: formData.phone,
+          organizationId: currentOrgId 
+        },
       });
-      
-      if (data?.patientExists) {
-        const { data: patientData } = await getPatientByPhone({
-          variables: { phone: formData.phone },
-        });
-        
-        const patient = patientData?.patientByPhone;
-        if (patient) {
-          setIsNewUser(false);
-          setIsPhoneVerified(true);
-          setShowSessionTypeModal(true);
-          return;
-        }
+
+      const { exists, patient, isInDifferentOrg } = checkData?.checkPatientByPhone || {};
+
+      if (exists && isInDifferentOrg) {
+        // Patient exists in different organization - show cross-org modal
+        setCrossOrgPatient(patient);
+        setShowCrossOrgModal(true);
+        setIsPhoneVerified(true);
+      } else if (exists && !isInDifferentOrg) {
+        // Patient exists in current organization - proceed as repeat user
+        setIsNewUser(false);
+        setIsPhoneVerified(true);
+        setShowSessionTypeModal(true);
       } else {
+        // New patient - show form
         setIsNewUser(true);
         setIsPhoneVerified(true);
         toast.success('Phone number verified! Please fill in your details.');
@@ -204,6 +244,38 @@ export default function SimplifiedPatientOnboarding({
 
   const handleRepeatUserContinue = async () => {
     setShowSessionTypeModal(true);
+  };
+
+  const handleCrossOrgConfirm = async () => {
+    if (!crossOrgPatient) return;
+
+    const cookies = getBookingCookies();
+    const currentOrgId = cookies.organizationId;
+    const currentCenterId = cookies.centerId;
+
+    if (!currentOrgId || !currentCenterId) {
+      toast.error('Organization or center not found. Please refresh the page.');
+      return;
+    }
+
+    try {
+      await addPatientToOrg({
+        variables: {
+          patientId: crossOrgPatient._id,
+          organizationId: currentOrgId,
+          centerIds: [currentCenterId],
+        },
+      });
+    } catch (error) {
+      console.error('Error in cross-org confirmation:', error);
+    }
+  };
+
+  const handleCrossOrgCancel = () => {
+    setShowCrossOrgModal(false);
+    setCrossOrgPatient(null);
+    setIsPhoneVerified(false);
+    setFormData(prev => ({ ...prev, phone: '' }));
   };
 
   const handleCallNow = () => {
@@ -660,6 +732,14 @@ export default function SimplifiedPatientOnboarding({
           handleRepeatUserContinueWithSessionType(selectedSessionType);
         }}
         selectedSessionType={sessionType || undefined}
+      />
+
+      <CrossOrgModal
+        isOpen={showCrossOrgModal}
+        patient={crossOrgPatient}
+        onConfirm={handleCrossOrgConfirm}
+        onCancel={handleCrossOrgCancel}
+        loading={addingToOrg}
       />
     </div>
   );

@@ -168,30 +168,31 @@ export function createApolloClient(initialState = {}) {
       'https://devapi.stance.health/graphql',
     // Ensure fetch works on both client and server
     fetch: fetch,
+    // Disable cache for centers query to ensure fresh data per organization
+    fetchOptions: {
+      cache: 'no-cache',
+    },
   });
 
   // Auth link to add the token and organization headers to requests
   const authLink = setContext(async (operation, { headers }) => {
     // Check if this is a mobile booking route
-    const { isMobileBookingRoute, getMobileCenterId, getMobileOrganizationId, getMobileApiKey } = await import('@/utils/mobile-config');
+    const { isMobileBookingRoute, getMobileApiKey } = await import('@/utils/mobile-config');
     
     if (isMobileBookingRoute()) {
-      const isGetCentersQuery = operation.operationName === 'Centers';
-
-      // For mobile booking routes, check localStorage first, then fallback to hardcoded
-      const mobileOrgId = localStorage.getItem('mobile-organizationID') || getMobileOrganizationId();
-      const mobileCenterId = localStorage.getItem('mobile-centreID') || getMobileCenterId();
+      // For mobile booking routes, use cookies (not localStorage)
+      const { getBookingCookies } = await import('@/utils/booking-cookies');
+      const cookies = getBookingCookies();
+      
+      const mobileOrgId = cookies.organizationId;
+      const mobileCenterId = cookies.centerId;
 
       return {
         headers: {
           ...headers,
           'x-api-key': getMobileApiKey(),
-          ...(isGetCentersQuery
-            ? {} // Skip organization ID for GET_CENTERS
-            : {
-              'x-organization-id': mobileOrgId,
-              'x-center-id': mobileCenterId,
-            }),
+          'x-organization-id': mobileOrgId,
+          ...(mobileCenterId && { 'x-center-id': mobileCenterId }),
         },
       };
     }
@@ -201,15 +202,21 @@ export function createApolloClient(initialState = {}) {
     let centerId = null;
     
     if (typeof window !== 'undefined') {
-      // Use the new center utilities for consistency
-      const { getCenterIdForHeaders } = await import('@/utils/center-utils');
-      centerId = getCenterIdForHeaders();
-    }
-
-    if (typeof window !== 'undefined') {
+      // First, try to get from cookies (new multi-org system)
+      const { getBookingCookies } = await import('@/utils/booking-cookies');
+      const cookieData = getBookingCookies();
+      
+      if (cookieData.organizationId && cookieData.centerId) {
+        organizationId = cookieData.organizationId;
+        centerId = cookieData.centerId;
+      } else {
+        // Fallback to localStorage for backward compatibility
+        const { getCenterIdForHeaders } = await import('@/utils/center-utils');
+        centerId = getCenterIdForHeaders();
+        organizationId = localStorage.getItem('stance-organizationID') || organizationId;
+      }
+      
       token = localStorage.getItem('token');
-      organizationId =
-        localStorage.getItem('stance-organizationID') || organizationId;
     }
 
     return {

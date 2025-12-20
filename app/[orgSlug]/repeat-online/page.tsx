@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import {
   RepeatUserOnlinePaymentConfirmation,
@@ -29,6 +29,8 @@ interface BookingData {
 
 export default function RepeatOnlinePage() {
   const router = useRouter();
+  const params = useParams();
+  const orgSlug = params.orgSlug as string;
   const [mounted, setMounted] = useState(false);
   const [currentStep, setCurrentStep] = useState<BookingStep>('session-details');
   const [bookingData, setBookingData] = useState<BookingData>({
@@ -76,7 +78,7 @@ export default function RepeatOnlinePage() {
     if (currentIndex > 0) {
       setCurrentStep(stepOrder[currentIndex - 1]);
     } else {
-      router.push('/book');
+      router.push(`/${orgSlug}`);
     }
   };
 
@@ -113,7 +115,7 @@ export default function RepeatOnlinePage() {
           </button>
         )}
         {!canGoBack && (
-          <button onClick={() => router.push('/book')} className="p-2 -ml-2 rounded-lg hover:bg-gray-100 transition-colors">
+          <button onClick={() => router.push(`/${orgSlug}`)} className="p-2 -ml-2 rounded-lg hover:bg-gray-100 transition-colors">
             <ArrowLeft className="w-6 h-6 text-gray-700" />
           </button>
         )}
@@ -201,3 +203,4 @@ export default function RepeatOnlinePage() {
 
   return <BookingContent />;
 }
+
