@@ -8,6 +8,7 @@ import {
   RepeatUserOnlineBookingConfirmed,
 } from '@/components/onboarding/repeat-user-online';
 import { RepeatUserOnlineSessionDetails, RepeatUserOnlineSlotSelection } from '@/components/onboarding/repeat-user-online';
+import { getBookingCookies } from '@/utils/booking-cookies';
 
 type BookingStep = 'session-details' | 'slot-selection' | 'payment-confirmation' | 'booking-confirmed';
 
@@ -35,7 +36,7 @@ export default function RepeatOnlinePage() {
   const [currentStep, setCurrentStep] = useState<BookingStep>('session-details');
   const [bookingData, setBookingData] = useState<BookingData>({
     patientId: '',
-    organizationId: process.env.NEXT_PUBLIC_ORGANIZATION_ID || '67fe35f25e42152fb5185a5e',
+    organizationId: '', // Will be set from cookies
     consultantId: '',
     treatmentId: '',
     treatmentPrice: 0,
@@ -47,6 +48,13 @@ export default function RepeatOnlinePage() {
 
   useEffect(() => {
     setMounted(true);
+    
+    // Get organization ID from cookies
+    const cookies = getBookingCookies();
+    if (cookies.organizationId) {
+      updateBookingData({ organizationId: cookies.organizationId });
+    }
+    
     const storedPatientId = sessionStorage.getItem('patientId');
     if (storedPatientId) {
       updateBookingData({ patientId: storedPatientId });

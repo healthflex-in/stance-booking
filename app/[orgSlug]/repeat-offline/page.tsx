@@ -11,6 +11,7 @@ import {
   RepeatUserOfflineSlotSelection,
   RepeatUserOfflineConfirmation,
 } from '@/components/onboarding/repeat-user-offline';
+import { getBookingCookies } from '@/utils/booking-cookies';
 
 type BookingStep = 'session-details' | 'slot-selection' | 'confirmation' | 'booking-confirmed';
 
@@ -38,7 +39,7 @@ export default function RepeatOfflinePage() {
   const [isCreatingAppointment, setIsCreatingAppointment] = useState(false);
   const [bookingData, setBookingData] = useState<BookingData>({
     patientId: '',
-    centerId: process.env.NEXT_PUBLIC_DEFAULT_CENTER_ID || '67fe36545e42152fb5185a6c',
+    centerId: '', // Will be set from cookies
     consultantId: '',
     treatmentId: '',
     treatmentPrice: 0,

@@ -8,6 +8,7 @@ import { useAvailability, useCenterAvailability } from '@/hooks';
 import { useContainerDetection } from '@/hooks/useContainerDetection';
 import { ConsultantSelectionModal } from '../shared';
 import { StanceHealthLoader } from '@/components/loader/StanceHealthLoader';
+import { getBookingCookies } from '@/utils/booking-cookies';
 
 interface PrepaidSlotSelectionProps {
   centerId: string;
@@ -63,7 +64,9 @@ export default function PrepaidSlotSelection({
   const [dateSlots, setDateSlots] = useState<{ [key: string]: TimeSlot[] }>({});
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  const organizationId = process.env.NEXT_PUBLIC_ORGANIZATION_ID || '67fe35f25e42152fb5185a5e';
+  // Get organization ID from cookies
+  const cookies = getBookingCookies();
+  const organizationId = cookies.organizationId || process.env.NEXT_PUBLIC_ORGANIZATION_ID || '67fe35f25e42152fb5185a5e';
 
   const { data: consultantsData, loading: consultantsLoading } = useQuery(GET_CONSULTANTS, {
     variables: {
