@@ -5,6 +5,7 @@ import { Clock } from 'lucide-react';
 import { useAvailability } from '@/hooks';
 import { useContainerDetection } from '@/hooks/useContainerDetection';
 import { StanceHealthLoader } from '@/components/loader/StanceHealthLoader';
+import { getBookingCookies } from '@/utils/booking-cookies';
 
 interface NewUserOnlineSlotSelectionProps {
   serviceDuration: number;
@@ -50,7 +51,9 @@ export default function NewUserOnlineSlotSelection({
   const [dateSlots, setDateSlots] = useState<{ [key: string]: TimeSlot[] }>({});
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  const organizationId = process.env.NEXT_PUBLIC_ORGANIZATION_ID || '67fe35f25e42152fb5185a5e';
+  // Get organization ID from cookies
+  const cookies = getBookingCookies();
+  const organizationId = cookies.organizationId || process.env.NEXT_PUBLIC_ORGANIZATION_ID || '67fe35f25e42152fb5185a5e';
 
   const startOfDay = React.useMemo(() => {
     if (!currentSelectedDate) return new Date();

@@ -97,16 +97,6 @@ export function getBookingCookies(): BookingCookies {
   const orgSlug = getCookie(COOKIE_NAMES.ORG_SLUG);
   const centerSlug = getCookie(COOKIE_NAMES.CENTER_SLUG);
   
-  // Debug logging
-  if (process.env.NODE_ENV === 'production' || process.env.NEXT_PUBLIC_DEBUG === 'true') {
-    console.log('[Cookies] Reading booking cookies:', {
-      orgId: orgId ? `${orgId.substring(0, 8)}...` : 'null',
-      centerId: centerId ? `${centerId.substring(0, 8)}...` : 'null',
-      orgSlug,
-      source: 'cookies'
-    });
-  }
-  
   // If cookies exist, return them
   if (orgId && centerId) {
     return {

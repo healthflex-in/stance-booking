@@ -60,10 +60,14 @@ export default function BookPrepaidPage() {
     
     const urlParams = new URLSearchParams(window.location.search);
     const centerIdFromUrl = urlParams.get('centerId');
-    const centerIdFromStorage = localStorage.getItem('centerId');
-    const centerId = centerIdFromUrl || centerIdFromStorage || process.env.NEXT_PUBLIC_DEFAULT_CENTER_ID || '67fe36545e42152fb5185a6c';
     
-    setBookingData(prev => ({ ...prev, centerId }));
+    // Get center ID from cookies
+    const cookies = getBookingCookies();
+    const centerId = centerIdFromUrl || cookies.centerId || '';
+    
+    if (centerId) {
+      setBookingData(prev => ({ ...prev, centerId }));
+    }
   }, [mounted]);
 
   const handlePatientOnboardingComplete = (patientId: string, isNewUser: boolean) => {
@@ -95,9 +99,9 @@ export default function BookPrepaidPage() {
     <>
       <div className="h-full bg-gray-50 flex flex-col">
         <div className="flex-1 overflow-hidden">
-          {currentStep === 'patient-onboarding' && (
+          {currentStep === 'patient-onboarding' && bookingData.centerId && (
             <PrepaidPatientOnboarding
-              centerId={bookingData.centerId || process.env.NEXT_PUBLIC_DEFAULT_CENTER_ID || '67fe36545e42152fb5185a6c'}
+              centerId={bookingData.centerId}
               onComplete={handlePatientOnboardingComplete}
               onBack={() => router.push(`/${orgSlug}`)}
             />

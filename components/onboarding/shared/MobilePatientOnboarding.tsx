@@ -26,6 +26,7 @@ import { useMobileFlowAnalytics } from '@/services/mobile-analytics';
 import WhatsAppButton from './WhatsAppButton';
 import Popup from "./Popup";
 import LeadDetectionModal from './LeadDetectionModal';
+import { getBookingCookies } from '@/utils/booking-cookies';
 
 interface MobilePatientOnboardingProps {
   centerId: string;
@@ -76,7 +77,7 @@ export default function MobilePatientOnboarding({
     category: 'WEBSITE', // This ensures mobile web patients are marked as WEBSITE category
     bio: '',
     cohort: 'SURGICAL',
-    centers: [centerId || '67fe36545e42152fb5185a6c'],
+    centers: [centerId || ''],
     referral: {
       type: '',
       user: '',
@@ -132,10 +133,9 @@ export default function MobilePatientOnboarding({
 
   // Set organization ID when centers data is loaded
   React.useEffect(() => {
-    if (centersData?.centers) {
-      const targetCenterId = centerId || '67fe36545e42152fb5185a6c';
+    if (centersData?.centers && centerId) {
       const defaultCenter = centersData.centers.find(
-        (center: any) => center._id === targetCenterId
+        (center: any) => center._id === centerId
       );
       
       if (defaultCenter?.organization?._id) {
@@ -292,14 +292,19 @@ export default function MobilePatientOnboarding({
   const handleBookSlotsForLead = () => {
     // Continue with the booking flow using the lead user's ID
     if (leadUser?.id) {
-      // Set organization ID and center ID for existing users
-      const organizationId = '67fe35f25e42152fb5185a5e';
-      const finalCenterId = '67fe36545e42152fb5185a6c';
+      // Get organization and center IDs from cookies
+      const cookies = getBookingCookies();
+      const organizationId = cookies.organizationId || '';
+      const finalCenterId = cookies.centerId || centerId || '';
       
-      localStorage.setItem('organizationId', organizationId);
-      localStorage.setItem('stance-organizationID', organizationId);
-      localStorage.setItem('centerId', finalCenterId);
-      localStorage.setItem('stance-centreID', finalCenterId);
+      if (organizationId) {
+          localStorage.setItem('organizationId', organizationId);
+        localStorage.setItem('stance-organizationID', organizationId);
+      }
+      if (finalCenterId) {
+        localStorage.setItem('centerId', finalCenterId);
+        localStorage.setItem('stance-centreID', finalCenterId);
+      }
       
       onPatientCreated(leadUser.id, false);
       onNext(); // Continue to the next step in the booking flow
@@ -354,9 +359,15 @@ export default function MobilePatientOnboarding({
       HOME: 'Home_Patient',
     };
 
-    // Use hardcoded values for mobile booking
-    const organizationId = '67fe35f25e42152fb5185a5e';
-    const finalCenterId = '67fe36545e42152fb5185a6c';
+    // Get organization and center IDs from cookies
+    const cookies = getBookingCookies();
+    const organizationId = cookies.organizationId || '';
+    const finalCenterId = cookies.centerId || centerId || '';
+
+    if (!organizationId || !finalCenterId) {
+      toast.error('Organization or center information is missing');
+      return;
+    }
 
     // Set mobile-specific keys in localStorage before mutation
     localStorage.setItem('mobile-organizationID', organizationId);

@@ -34,11 +34,11 @@ export default function ServiceSelectionModal({
   const [services, setServices] = useState<any[]>([]);
   const { isInDesktopContainer } = useContainerDetection();
 
-  const isValidCenterId = centerId && typeof centerId === 'string' && centerId.trim() !== '';
-  const isOrganizationLevel = !!organizationId && !centerId;
+  const isValidCenterId = !!(centerId && typeof centerId === 'string' && centerId.trim() !== '');
+  const isOrganizationLevel = !!organizationId && !isValidCenterId;
   
   const { data: servicesData, loading: servicesLoading, error: servicesError, refetch } = useQuery(GET_SERVICES, {
-    variables: isValidCenterId ? { centerId: [centerId] } : {},
+    variables: isValidCenterId ? { centerId: [centerId] } : { centerId: null },
     skip: !isValidCenterId && !isOrganizationLevel,
     fetchPolicy: 'network-only',
   });
