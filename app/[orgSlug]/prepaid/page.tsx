@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { CREATE_APPOINTMENT } from '@/gql/queries';
 
 import { PrepaidPatientOnboarding } from '@/components/onboarding/shared';
+import { getBookingCookies } from '@/utils/booking-cookies';
 
 type BookingStep = 'patient-onboarding';
 
