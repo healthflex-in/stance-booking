@@ -106,15 +106,15 @@ function BookPageContent() {
     
     if (isNewUser) {
       if (sessionType === 'online') {
-        router.replace(`/${orgSlug}/new-online`);
+        router.replace(`/${orgSlug}/online/new`);
       } else {
-        router.replace(`/${orgSlug}/new-offline`);
+        router.replace(`/${orgSlug}/offline/new`);
       }
     } else {
       if (sessionType === 'online') {
-        router.replace(`/${orgSlug}/repeat-online`);
+        router.replace(`/${orgSlug}/online/repeat`);
       } else {
-        router.replace(`/${orgSlug}/repeat-offline`);
+        router.replace(`/${orgSlug}/offline/repeat`);
       }
     }
   };
