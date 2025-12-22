@@ -125,7 +125,7 @@ export default function ServiceSelectionModal({
         
         if (designation === 'Physiotherapist') {
           return physioKeywords.some(keyword => serviceName.includes(keyword));
-        } else if (designation === 'S&C Coach') {
+        } else if (designation === 'SNC_Coach' || designation === 'S&C Coach') {
           return sncKeywords.some(keyword => serviceName.includes(keyword));
         }
         return true;

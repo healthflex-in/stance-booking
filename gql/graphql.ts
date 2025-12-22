@@ -817,7 +817,7 @@ export type Consultant = {
   allowOnlineDelivery: DeliveryMode;
   bio?: Maybe<Scalars['String']['output']>;
   centers: Array<Center>;
-  designation: Scalars['String']['output'];
+  designation: Designation;
   dob?: Maybe<Scalars['Timestamp']['output']>;
   firstName: Scalars['String']['output'];
   gender: Gender;
@@ -936,7 +936,7 @@ export type CreateConsultantInput = {
   allowOnlineDelivery?: InputMaybe<DeliveryMode>;
   bio?: InputMaybe<Scalars['String']['input']>;
   centers: Array<Scalars['ObjectID']['input']>;
-  designation: Scalars['String']['input'];
+  designation: Designation;
   dob: Scalars['Timestamp']['input'];
   email: Scalars['String']['input'];
   firstName: Scalars['String']['input'];
@@ -1175,6 +1175,13 @@ export enum DeliveryMode {
   Both = 'BOTH',
   Offline = 'OFFLINE',
   Online = 'ONLINE'
+}
+
+export enum Designation {
+  OrthopaedicDoctor = 'Orthopaedic_Doctor',
+  Physiotherapist = 'Physiotherapist',
+  SncCoach = 'SNC_Coach',
+  SportsMassageTherapist = 'Sports_Massage_Therapist'
 }
 
 export enum DifficultyLevel {
@@ -3576,7 +3583,7 @@ export type UpdateConsultantInput = {
   allowOnlineDelivery?: InputMaybe<DeliveryMode>;
   bio?: InputMaybe<Scalars['String']['input']>;
   centers?: InputMaybe<Array<Scalars['ObjectID']['input']>>;
-  designation?: InputMaybe<Scalars['String']['input']>;
+  designation?: InputMaybe<Designation>;
   dob?: InputMaybe<Scalars['Timestamp']['input']>;
   email?: InputMaybe<Scalars['String']['input']>;
   firstName?: InputMaybe<Scalars['String']['input']>;
