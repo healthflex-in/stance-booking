@@ -26,11 +26,17 @@ const ORGANIZATIONS: Record<string, OrganizationConfig> = {
     slug: 'stance-health',
     defaultCenterId: process.env.NEXT_PUBLIC_DEFAULT_CENTER_ID || '67fe36545e42152fb5185a6c',
   },
-  'hyfit': {
+  'devhyfit': {
     id: '680a022b4016433614c80d73',
+    name: 'devHyFit',
+    slug: 'devhyfit',
+    defaultCenterId: '693ba0c1e21301823761c77d',
+  },
+    'hyfit': {
+    id: '680a021e4016433614c80d6b',
     name: 'HyFit',
     slug: 'hyfit',
-    defaultCenterId: '693ba0c1e21301823761c77d',
+    defaultCenterId: '6948e9e3d2c4d4de0979ce93',
   },
   // Add more organizations here as needed:
   // 'partner-clinic': {
