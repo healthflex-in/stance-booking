@@ -202,7 +202,7 @@ export default function PrepaidRepeatSlotSelection({ organizationId, serviceDura
                   <div className="flex-1">
                     {selectedConsultant ? (
                       <>
-                        <p className="text-sm font-bold text-gray-900">Dr. {selectedConsultant.profileData?.firstName || ''} {selectedConsultant.profileData?.lastName || ''}</p>
+                        <p className="text-sm font-bold text-gray-900">{selectedConsultant.profileData?.firstName || ''} {selectedConsultant.profileData?.lastName || ''}</p>
                         <p className="text-xs text-gray-500">{selectedConsultant.profileData?.designation || 'Consultant'}</p>
                       </>
                     ) : (

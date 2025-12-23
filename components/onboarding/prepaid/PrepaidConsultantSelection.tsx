@@ -74,7 +74,7 @@ export default function PrepaidConsultantSelection({
               </div>
               <div>
                 <div className="text-lg font-bold">
-                  Dr. {consultant.profileData?.firstName} {consultant.profileData?.lastName}
+                  {consultant.profileData?.firstName} {consultant.profileData?.lastName}
                 </div>
                 {consultant.profileData?.specialization && (
                   <div className="text-sm text-gray-600">{consultant.profileData.specialization}</div>

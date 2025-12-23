@@ -55,9 +55,11 @@ export default function EmailCollectionModal({
 
       toast.success('Email saved successfully');
       onEmailSaved(email.trim());
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error saving email:', err);
-      toast.error('Failed to save email. Please try again.');
+      const errorMessage = err?.message || 'Failed to save email. Please try again.';
+      setError(errorMessage);
+      toast.error(errorMessage);
     }
   };
 

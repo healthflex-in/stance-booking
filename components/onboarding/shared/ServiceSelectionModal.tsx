@@ -50,26 +50,44 @@ export default function ServiceSelectionModal({
   }, [isOpen, isValidCenterId, isOrganizationLevel, refetch]);
 
   useEffect(() => {
+    console.log('ServiceSelectionModal - Debug:', {
+      centerId,
+      organizationId,
+      isNewUser,
+      isPrePaid,
+      sessionType,
+      designation,
+      servicesData: servicesData?.services?.length,
+      servicesError,
+    });
+
     if (servicesError) {
+      console.log('Services error:', servicesError);
       setServices([]);
       return;
     }
 
     if (!servicesData?.services) {
+      console.log('No services data');
       setServices([]);
       return;
     }
 
     if (!centerId && !organizationId) {
+      console.log('No centerId or organizationId');
       setServices([]);
       return;
     }
 
+    console.log('Raw services:', servicesData.services);
+
     const filteredServices = servicesData.services.filter((service: any) => {
+      // Must have online booking enabled
       if (!service.allowOnlineBooking) {
         return false;
       }
       
+      // For prepaid services
       if (isPrePaid) {
         if (!service.isPrePaid) {
           return false;
@@ -77,20 +95,26 @@ export default function ServiceSelectionModal({
         if (!service.allowOnlineDelivery) {
           return false;
         }
+        // Filter by new user vs repeat user
+        if (isNewUser && !service.isNewUserService) {
+          return false;
+        }
+        if (!isNewUser && service.isNewUserService) {
+          return false;
+        }
       } else {
+        // For non-prepaid services
         if (service.isPrePaid) {
           return false;
         }
-      }
-      
-      if (isNewUser && !service.isNewUserService) {
-        return false;
-      }
-      if (!isNewUser && service.isNewUserService) {
-        return false;
-      }
-      
-      if (!isPrePaid) {
+        // Filter by new user vs repeat user
+        if (isNewUser && !service.isNewUserService) {
+          return false;
+        }
+        if (!isNewUser && service.isNewUserService) {
+          return false;
+        }
+        // Session type filtering for non-prepaid
         if (sessionType === 'online') {
           if (!service.allowOnlineDelivery) {
             return false;
@@ -132,6 +156,8 @@ export default function ServiceSelectionModal({
       });
     }
 
+    console.log('Filtered services:', filteredServices.length);
+    console.log('Mapped services after designation filter:', mappedServices.length);
     setServices(mappedServices);
   }, [servicesData, isNewUser, sessionType, isPrePaid, centerId, organizationId, designation]);
 

@@ -8,5 +8,5 @@ interface RepeatUserOnlineBookingConfirmedProps {
 }
 
 export default function RepeatUserOnlineBookingConfirmed({ bookingData }: RepeatUserOnlineBookingConfirmedProps) {
-  return <PrepaidBookingConfirmed bookingData={{ ...bookingData, isNewUser: false }} />;
+  return <PrepaidBookingConfirmed bookingData={{ ...bookingData, isNewUser: false, sessionType: 'online' }} />;
 }

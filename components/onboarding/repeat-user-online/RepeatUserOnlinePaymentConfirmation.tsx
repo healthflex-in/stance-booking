@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useQuery, useMutation } from '@apollo/client';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { MapPin, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { GET_CENTERS, GET_SERVICES, GET_USER, CREATE_APPOINTMENT, UPDATE_PATIENT, SEND_APPOINTMENT_EMAIL } from '@/gql/queries';
@@ -35,6 +35,8 @@ export default function RepeatUserOnlinePaymentConfirmation({
   onNext,
 }: RepeatUserOnlinePaymentConfirmationProps) {
   const router = useRouter();
+  const params = useParams();
+  const orgSlug = params.orgSlug as string;
   const { isInDesktopContainer } = useContainerDetection();
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [showEmailModal, setShowEmailModal] = useState(false);
@@ -43,7 +45,7 @@ export default function RepeatUserOnlinePaymentConfirmation({
   const { data: servicesData, loading: servicesLoading } = useQuery(GET_SERVICES, {
     variables: { centerId: [bookingData.centerId] },
   });
-  const { data: userData, loading: userLoading } = useQuery(GET_USER, {
+  const { data: userData, loading: userLoading, refetch: refetchUser } = useQuery(GET_USER, {
     variables: { userId: bookingData.patientId },
   });
 
@@ -69,13 +71,28 @@ export default function RepeatUserOnlinePaymentConfirmation({
       return;
     }
     
+    const startTime = Date.now();
+    
+    // Timeout handler
+    const timeoutId = setTimeout(() => {
+      console.warn('⚠️ Appointment creation taking longer than expected...');
+      toast.info('Setting up your online session...', { 
+        duration: 3000,
+        position: 'top-center',
+        className: 'text-sm',
+      });
+    }, 3000);
+    
     try {
-      // Add center to patient's centers array if not already present
+      console.log('⏱️ Starting appointment creation...');
+      
+      // Add center to patient's centers array if not already present (non-blocking)
       const existingCenters = patient?.profileData?.centers || [];
       const centerIds = existingCenters.map((c: any) => c._id);
       
       if (bookingData.centerId && !centerIds.includes(bookingData.centerId)) {
         try {
+          const updateStart = Date.now();
           await updatePatient({
             variables: {
               patientId: bookingData.patientId,
@@ -84,12 +101,15 @@ export default function RepeatUserOnlinePaymentConfirmation({
               },
             },
           });
-        } catch (error) {
-          console.error('Failed to add center to patient:', error);
+          console.log(`✅ Patient center updated in ${Date.now() - updateStart}ms`);
+        } catch (updateError) {
+          console.warn('⚠️ Failed to update patient centers (non-critical):', updateError);
+          // Continue anyway - this is not critical for appointment creation
         }
       }
       
-      // Create appointment FIRST
+      // Create appointment
+      const appointmentStart = Date.now();
       const appointmentResult = await createAppointment({
         variables: {
           input: {
@@ -108,20 +128,33 @@ export default function RepeatUserOnlinePaymentConfirmation({
           },
         },
       });
+      console.log(`✅ Appointment created in ${Date.now() - appointmentStart}ms`);
 
       const appointmentId = appointmentResult?.data?.createAppointment?._id;
       if (!appointmentId) {
         throw new Error('Failed to create appointment');
       }
 
-      // Store appointment ID for payment
+      console.log('✅ Appointment ID:', appointmentId);
       sessionStorage.setItem('appointmentId', appointmentId);
       sessionStorage.setItem('paymentType', 'invoice');
       sessionStorage.setItem('paymentAmount', bookingData.treatmentPrice.toString());
       
-      // Set processing state AFTER appointment is created and stored
+      // Verify sessionStorage was written
+      const storedId = sessionStorage.getItem('appointmentId');
+      console.log('✅ Verified stored appointment ID:', storedId);
+      
+      if (!storedId) {
+        throw new Error('Failed to store appointment ID');
+      }
+      
+      clearTimeout(timeoutId);
+      console.log(`⏱️ Total time: ${Date.now() - startTime}ms`);
+      
+      // Only NOW transition to payment screen
       setIsProcessingPayment(true);
     } catch (error) {
+      clearTimeout(timeoutId);
       console.error('Error creating appointment:', error);
       toast.error('Failed to create appointment. Please try again.');
     }
@@ -141,7 +174,7 @@ export default function RepeatUserOnlinePaymentConfirmation({
     sessionStorage.removeItem('paymentType');
     sessionStorage.removeItem('paymentAmount');
     const errorMsg = typeof error === 'string' ? error : error?.description || error?.message || 'Payment failed';
-    router.push(`/onboarding-patient/failure?error=${encodeURIComponent(errorMsg)}`);
+    router.push(`/${orgSlug}/failure?error=${encodeURIComponent(errorMsg)}`);
   };
 
   if (isLoading) {
@@ -249,13 +282,13 @@ export default function RepeatUserOnlinePaymentConfirmation({
       <div className={`${isInDesktopContainer ? 'flex-shrink-0' : 'fixed bottom-0 left-0 right-0'} bg-white border-t border-gray-200 p-4`}>
         <Button
           onClick={handleProceedToPayment}
-          disabled={creatingAppointment}
-          isLoading={creatingAppointment}
+          disabled={creatingAppointment || isProcessingPayment}
+          isLoading={creatingAppointment || isProcessingPayment}
           fullWidth
           variant="primary"
           size="lg"
         >
-          Proceed to Payment
+          {creatingAppointment || isProcessingPayment ? 'Creating Appointment...' : 'Proceed to Payment'}
         </Button>
       </div>
 
@@ -263,7 +296,10 @@ export default function RepeatUserOnlinePaymentConfirmation({
         isOpen={showEmailModal}
         patientId={bookingData.patientId}
         patientName={patientDetails.name}
-        onEmailSaved={() => setShowEmailModal(false)}
+        onEmailSaved={async () => {
+          await refetchUser();
+          setShowEmailModal(false);
+        }}
         onClose={() => setShowEmailModal(false)}
       />
     </div>

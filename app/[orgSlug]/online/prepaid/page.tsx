@@ -25,6 +25,7 @@ export default function PrepaidPage() {
 
   const handleComplete = (patientId: string, isNewUser: boolean) => {
     sessionStorage.setItem('patientId', patientId);
+    sessionStorage.setItem('organizationId', organizationId);
     
     if (isNewUser) {
       router.push(`/${orgSlug}/online/prepaid/new`);

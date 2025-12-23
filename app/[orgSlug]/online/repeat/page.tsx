@@ -49,8 +49,15 @@ export default function RepeatOnlinePage() {
   useEffect(() => {
     setMounted(true);
     
-    // Get organization ID from cookies
+    // Block HyFit from accessing online routes
     const cookies = getBookingCookies();
+    const isHyfit = cookies.orgSlug === 'hyfit' || cookies.orgSlug === 'devhyfit';
+    if (isHyfit) {
+      router.replace(`/${orgSlug}`);
+      return;
+    }
+    
+    // Get organization ID from cookies
     if (cookies.organizationId) {
       updateBookingData({ organizationId: cookies.organizationId });
     }
@@ -60,7 +67,7 @@ export default function RepeatOnlinePage() {
       updateBookingData({ patientId: storedPatientId });
       sessionStorage.removeItem('patientId');
     }
-  }, []);
+  }, [orgSlug, router]);
 
   const goToNextStep = () => {
     const stepOrder: BookingStep[] = [

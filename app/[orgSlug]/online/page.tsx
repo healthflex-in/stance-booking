@@ -16,6 +16,14 @@ export default function OnlinePage() {
   useEffect(() => {
     setMounted(true);
     const cookies = getBookingCookies();
+    
+    // Block HyFit from accessing online routes
+    const isHyfit = cookies.orgSlug === 'hyfit' || cookies.orgSlug === 'devhyfit';
+    if (isHyfit) {
+      router.replace(`/${orgSlug}`);
+      return;
+    }
+    
     if (cookies.organizationId) {
       setOrganizationId(cookies.organizationId);
     } else {

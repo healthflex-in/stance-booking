@@ -57,49 +57,46 @@ export default function PrepaidRepeatConfirmation({ bookingData, onConfirm, isCr
   return (
     <div className={`${isInDesktopContainer ? 'h-full' : 'min-h-screen'} bg-gray-50 flex flex-col`}>
       <div className="flex-1 overflow-y-auto">
-        <div className={`${isInDesktopContainer ? 'pb-6' : 'pb-32'}`}>
-          <div className="px-4 pt-4 pb-6 border-b border-gray-200">
-            <h2 className="text-xl font-semibold text-gray-900">Patient Details</h2>
-          </div>
-
-          <div className="px-4 pt-6 space-y-4 mb-6">
-            <div>
-              <span className="text-sm text-gray-600 block mb-1">Name</span>
-              <p className="text-base font-medium text-gray-900">{patientDetails.name}</p>
-            </div>
-            <div>
-              <span className="text-sm text-gray-600 block mb-1">Phone</span>
-              <p className="text-base font-medium text-gray-900">{patientDetails.phone}</p>
-            </div>
-            {patientDetails.email && (
+        <div className={`p-4 ${isInDesktopContainer ? 'pb-6' : 'pb-32'}`}>
+          {/* Patient Details */}
+          <div className="bg-white rounded-2xl border border-gray-200 p-4 mb-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Patient Details</h3>
+            <div className="space-y-3">
               <div>
-                <span className="text-sm text-gray-600 block mb-1">Email</span>
-                <p className="text-base font-medium text-gray-900">{patientDetails.email}</p>
+                <span className="text-sm text-gray-600 font-medium block">Name</span>
+                <p className="text-sm font-medium text-gray-900">{patientDetails.name}</p>
               </div>
-            )}
+              <div>
+                <span className="text-sm text-gray-600 font-medium block">Phone</span>
+                <p className="text-sm font-medium text-gray-900">{patientDetails.phone}</p>
+              </div>
+              {patientDetails.email && (
+                <div>
+                  <span className="text-sm text-gray-600 font-medium block">Email</span>
+                  <p className="text-sm font-medium text-gray-900">{patientDetails.email}</p>
+                </div>
+              )}
+            </div>
           </div>
 
-          <div className="border-t border-gray-200"></div>
-
-          <div className="px-4 pt-6 pb-6 border-b border-gray-200">
-            <h2 className="text-xl font-semibold text-gray-900">Session Details</h2>
-          </div>
-
-          <div className="px-4 pt-6 space-y-4">
-            <div>
-              <span className="text-sm text-gray-600 block mb-1">Location</span>
-              <p className="text-base font-semibold text-gray-900">{currentCenter?.name}</p>
-              <p className="text-sm text-gray-500 mt-1">Online Consultation</p>
-            </div>
-            <div>
-              <span className="text-sm text-gray-600 block mb-1">Date & Time</span>
-              <p className="text-base font-medium text-gray-900">
-                {bookingData.selectedDate}, {typeof bookingData.selectedTimeSlot === 'string' ? bookingData.selectedTimeSlot : bookingData.selectedTimeSlot.displayTime}
-              </p>
-            </div>
-            <div>
-              <span className="text-sm text-gray-600 block mb-1">Service</span>
-              <p className="text-base font-medium text-gray-900">{currentService?.name}</p>
+          {/* Session Details */}
+          <div className="bg-white rounded-2xl border border-gray-200 p-4 mb-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Session Details</h3>
+            <div className="space-y-4">
+              <div>
+                <p className="text-sm font-bold text-gray-900">{currentCenter?.name}</p>
+                <p className="text-sm text-gray-500">Online Consultation</p>
+              </div>
+              <div>
+                <span className="text-sm text-gray-600 font-medium block">Date & Time</span>
+                <p className="text-sm font-medium text-gray-900">
+                  {bookingData.selectedDate}, {typeof bookingData.selectedTimeSlot === 'string' ? bookingData.selectedTimeSlot : bookingData.selectedTimeSlot.displayTime}
+                </p>
+              </div>
+              <div>
+                <span className="text-sm text-gray-600 font-medium block">Service</span>
+                <p className="text-sm font-medium text-gray-900">{currentService?.name}</p>
+              </div>
             </div>
           </div>
         </div>

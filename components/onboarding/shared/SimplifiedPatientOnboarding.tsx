@@ -601,43 +601,53 @@ export default function SimplifiedPatientOnboarding({
             <div className="space-y-6">
               {renderPhoneInput()}
               
-              {isPhoneVerified && isNewUser && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Session Type *
-                  </label>
-                  <div className="bg-white rounded-xl p-1 border border-gray-200 flex">
-                    <button
-                      type="button"
-                      onClick={() => setSessionType('in-person')}
-                      className={`flex-1 py-2 px-3 rounded-lg font-medium text-xs transition-all ${
-                        sessionType === 'in-person'
-                          ? 'text-black shadow-sm'
-                          : 'text-gray-600 hover:text-gray-900'
-                      }`}
-                      style={{
-                        backgroundColor: sessionType === 'in-person' ? '#DDFE71' : 'transparent'
-                      }}
-                    >
-                      In Person
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setSessionType('online')}
-                      className={`flex-1 py-2 px-3 rounded-lg font-medium text-xs transition-all ${
-                        sessionType === 'online'
-                          ? 'text-black shadow-sm'
-                          : 'text-gray-600 hover:text-gray-900'
-                      }`}
-                      style={{
-                        backgroundColor: sessionType === 'online' ? '#DDFE71' : 'transparent'
-                      }}
-                    >
-                      Online
-                    </button>
+              {isPhoneVerified && isNewUser && (() => {
+                const cookies = getBookingCookies();
+                const isHyfit = cookies.orgSlug === 'hyfit' || cookies.orgSlug === 'devhyfit';
+                
+                return (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Session Type *
+                    </label>
+                    <div className="bg-white rounded-xl p-1 border-2 flex relative" style={{ borderColor: '#DDFE71' }}>
+                      <button
+                        type="button"
+                        onClick={() => setSessionType('in-person')}
+                        className={`flex-1 py-2 px-3 rounded-lg font-medium text-xs transition-all ${
+                          sessionType === 'in-person'
+                            ? 'text-black shadow-sm'
+                            : 'text-gray-600 hover:text-gray-900'
+                        }`}
+                        style={{
+                          backgroundColor: sessionType === 'in-person' ? '#DDFE71' : 'transparent'
+                        }}
+                      >
+                        In Person
+                      </button>
+                      {!isHyfit && (
+                        <>
+                          <div className="w-px bg-gray-300 mx-1" />
+                          <button
+                            type="button"
+                            onClick={() => setSessionType('online')}
+                            className={`flex-1 py-2 px-3 rounded-lg font-medium text-xs transition-all ${
+                              sessionType === 'online'
+                                ? 'text-black shadow-sm'
+                                : 'text-gray-600 hover:text-gray-900'
+                            }`}
+                            style={{
+                              backgroundColor: sessionType === 'online' ? '#DDFE71' : 'transparent'
+                            }}
+                          >
+                            Online
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
               
               {renderForm()}
             </div>
