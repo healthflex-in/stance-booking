@@ -69,16 +69,13 @@ export const useCenterAvailability = ({
   const fetchAvailability = async () => {
     if (!enabled || !centerId) return;
 
-    const dateKey = startDate.toDateString();
+    const dateKey = `${startDate.toDateString()}-${designation || 'all'}`;
     const cached = cache.get(dateKey);
     
     if (cached) {
-      console.log('📦 Cache HIT for date:', dateKey);
       setConsultants(cached);
       return;
     }
-    
-    console.log('🔍 Cache MISS for date:', dateKey, '- Fetching from API');
 
     // Abort previous request if still pending
     if (abortControllerRef.current) {
@@ -113,7 +110,6 @@ export const useCenterAvailability = ({
 
       const result = data?.getCenterAvailability || [];
       setCache(prev => new Map(prev).set(dateKey, result));
-      console.log('💾 Cached data for date:', dateKey, '- Total cached dates:', cache.size + 1);
       setConsultants(result);
     } catch (err: any) {
       if (err.name === 'AbortError') return;

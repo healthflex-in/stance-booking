@@ -1,9 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { useQuery } from '@apollo/client';
 import { Clock, UserCircle, ChevronRight } from 'lucide-react';
-import { GET_CONSULTANTS } from '@/gql/queries';
 import { useCenterAvailability } from '@/hooks';
 import { useContainerDetection } from '@/hooks/useContainerDetection';
 import { ConsultantSelectionModal } from '../shared';
@@ -56,19 +54,6 @@ export default function RepeatUserOfflineSlotSelection({
   const [dateSlots, setDateSlots] = useState<{ [key: string]: TimeSlot[] }>({});
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  const { data: consultantsData, loading: consultantsLoading } = useQuery(GET_CONSULTANTS, {
-    variables: {
-      userType: 'CONSULTANT',
-      centerId: [centerId],
-    },
-    fetchPolicy: 'network-only',
-  });
-
-  const allConsultants = React.useMemo(() => {
-    if (!consultantsData?.users?.data) return [];
-    return consultantsData.users.data;
-  }, [consultantsData]);
-
   const startOfDay = React.useMemo(() => {
     if (!currentSelectedDate) return new Date();
     const start = new Date(currentSelectedDate);
@@ -83,40 +68,45 @@ export default function RepeatUserOfflineSlotSelection({
     return end;
   }, [currentSelectedDate]);
 
+  // Convert frontend designation to backend enum
+  const backendDesignation = React.useMemo(() => {
+    if (!designation) return undefined;
+    // Map frontend display names to backend enum values
+    const designationMap: Record<string, string> = {
+      'S&C Coach': 'SNC_Coach',
+      'Orthopaedic Doctor': 'Orthopaedic_Doctor',
+      'Sports Massage Therapist': 'Sports_Massage_Therapist',
+      'Physiotherapist': 'Physiotherapist',
+    };
+    return designationMap[designation] || designation;
+  }, [designation]);
+
   const { consultants: availabilityConsultants, loading: slotsLoading } = useCenterAvailability({
     centerId,
     startDate: startOfDay,
     endDate: endOfDay,
     serviceDuration,
     consultantId: selectedConsultant?._id,
-    designation,
+    designation: backendDesignation,
     enabled: !!currentSelectedDate,
   });
 
+  // Build consultant list from availability API (single source of truth)
   const consultants = React.useMemo(() => {
-    if (!consultantsData?.users?.data) return [];
-    return consultantsData.users.data.filter((consultant: any) => {
-      const matchesBooking = consultant.profileData?.allowOnlineBooking === true &&
-        (consultant.profileData?.allowOnlineDelivery === 'OFFLINE' ||
-         consultant.profileData?.allowOnlineDelivery === 'BOTH');
-      if (!matchesBooking) return false;
-      
-      if (designation && consultant.profileData?.designation !== designation) return false;
-      
-      const hasAvailableSlots = availabilityConsultants.some((ac: any) => ac.consultantId === consultant._id);
-      return hasAvailableSlots;
-    });
-  }, [consultantsData, designation, availabilityConsultants]);
+    return availabilityConsultants.map(ac => ({
+      _id: ac.consultantId,
+      profileData: {
+        firstName: ac.consultantName.split(' ')[0] || '',
+        lastName: ac.consultantName.split(' ').slice(1).join(' ') || '',
+        designation: 'Physiotherapist',
+        allowOnlineBooking: true,
+        allowOnlineDelivery: 'OFFLINE',
+      }
+    }));
+  }, [availabilityConsultants]);
 
   const availableSlots = React.useMemo(() => {
     let filteredConsultants = availabilityConsultants;
-    
-    if (designation) {
-      filteredConsultants = filteredConsultants.filter(ac => {
-        const consultant = allConsultants.find((c: any) => c._id === ac.consultantId);
-        return consultant && consultant.profileData?.designation === designation;
-      });
-    }
     
     if (selectedConsultant) {
       filteredConsultants = filteredConsultants.filter(c => c.consultantId === selectedConsultant._id);
@@ -127,10 +117,11 @@ export default function RepeatUserOfflineSlotSelection({
         startTime: new Date(slot.startTime * 1000),
         endTime: new Date(slot.endTime * 1000),
         consultantId: consultant.consultantId,
+        consultantName: consultant.consultantName,
         centerName: slot.centerName,
       }))
     );
-  }, [availabilityConsultants, selectedConsultant, designation, allConsultants]);
+  }, [availabilityConsultants, selectedConsultant]);
 
   const generateNext14Days = (): DateOption[] => {
     const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -177,12 +168,9 @@ export default function RepeatUserOfflineSlotSelection({
     const slotMap = new Map();
     availableSlots.forEach(slot => {
       if (!slot.consultantId) return;
-      const consultant = consultants.find((c: any) => c._id === slot.consultantId);
-      if (!consultant) return;
-      if (designation && consultant.profileData?.designation !== designation) return;
       
+      const consultantName = slot.consultantName || slot.consultantId;
       const timeKey = new Date(slot.startTime).toISOString();
-      const consultantName = `${consultant.profileData?.firstName || ''} ${consultant.profileData?.lastName || ''}`.trim();
       
       if (!slotMap.has(timeKey)) {
         slotMap.set(timeKey, {
@@ -219,7 +207,7 @@ export default function RepeatUserOfflineSlotSelection({
         return date;
       })
     );
-  }, [currentSelectedDate, availableSlots, slotsLoading, consultants]);
+  }, [currentSelectedDate, availableSlots, slotsLoading]);
 
   const handleDateSelect = (date: DateOption) => {
     const dateKey = `${date.day}, ${date.date} ${date.month}`;

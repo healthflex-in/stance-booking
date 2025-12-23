@@ -2,11 +2,11 @@
 
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import PrepaidOnboarding from '@/components/onboarding/PrepaidOnboarding';
+import OnlineOnboarding from '@/components/onboarding/OnlineOnboarding';
 import { StanceHealthLoader } from '@/components/loader/StanceHealthLoader';
 import { getBookingCookies } from '@/utils/booking-cookies';
 
-export default function PrepaidPage() {
+export default function OnlinePage() {
   const params = useParams();
   const router = useRouter();
   const orgSlug = params.orgSlug as string;
@@ -27,9 +27,9 @@ export default function PrepaidPage() {
     sessionStorage.setItem('patientId', patientId);
     
     if (isNewUser) {
-      router.push(`/${orgSlug}/online/prepaid/new`);
+      router.push(`/${orgSlug}/online/new`);
     } else {
-      router.push(`/${orgSlug}/online/prepaid/repeat`);
+      router.push(`/${orgSlug}/online/repeat`);
     }
   };
 
@@ -44,7 +44,7 @@ export default function PrepaidPage() {
   const BookingContent = () => (
     <div className="h-full bg-gray-50 flex flex-col">
       <div className="flex-1 overflow-hidden">
-        <PrepaidOnboarding organizationId={organizationId} onComplete={handleComplete} />
+        <OnlineOnboarding organizationId={organizationId} onComplete={handleComplete} />
       </div>
     </div>
   );

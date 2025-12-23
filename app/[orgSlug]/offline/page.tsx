@@ -2,22 +2,21 @@
 
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import PrepaidOnboarding from '@/components/onboarding/PrepaidOnboarding';
-import { StanceHealthLoader } from '@/components/loader/StanceHealthLoader';
+import OfflineOnboarding from '@/components/onboarding/OfflineOnboarding';
 import { getBookingCookies } from '@/utils/booking-cookies';
 
-export default function PrepaidPage() {
+export default function OfflinePage() {
   const params = useParams();
   const router = useRouter();
   const orgSlug = params.orgSlug as string;
-  const [organizationId, setOrganizationId] = useState('');
+  const [centerId, setCenterId] = useState('');
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
     const cookies = getBookingCookies();
-    if (cookies.organizationId) {
-      setOrganizationId(cookies.organizationId);
+    if (cookies.centerId) {
+      setCenterId(cookies.centerId);
     } else {
       router.push(`/${orgSlug}`);
     }
@@ -25,18 +24,19 @@ export default function PrepaidPage() {
 
   const handleComplete = (patientId: string, isNewUser: boolean) => {
     sessionStorage.setItem('patientId', patientId);
+    sessionStorage.setItem('centerId', centerId);
     
     if (isNewUser) {
-      router.push(`/${orgSlug}/online/prepaid/new`);
+      router.push(`/${orgSlug}/offline/new`);
     } else {
-      router.push(`/${orgSlug}/online/prepaid/repeat`);
+      router.push(`/${orgSlug}/offline/repeat`);
     }
   };
 
-  if (!mounted || !organizationId) {
+  if (!mounted || !centerId) {
     return (
       <div className="flex items-center justify-center h-screen">
-        <StanceHealthLoader message="Loading..." />
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
       </div>
     );
   }
@@ -44,7 +44,7 @@ export default function PrepaidPage() {
   const BookingContent = () => (
     <div className="h-full bg-gray-50 flex flex-col">
       <div className="flex-1 overflow-hidden">
-        <PrepaidOnboarding organizationId={organizationId} onComplete={handleComplete} />
+        <OfflineOnboarding centerId={centerId} onComplete={handleComplete} />
       </div>
     </div>
   );

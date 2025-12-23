@@ -33,12 +33,15 @@ export default function PrepaidRepeatSessionDetails({ patientId, organizationId,
 
   const handleContinue = () => {
     if (!selectedService) return;
+
+    const backendDesignation = selectedDesignation === 'S&C Coach' ? 'SNC_Coach' : selectedDesignation;
+
     onContinue({
       organizationId,
       serviceId: selectedService._id,
       serviceDuration: selectedService.duration,
       servicePrice: selectedService.bookingAmount || selectedService.price || 0,
-      designation: selectedDesignation,
+      designation: backendDesignation,
     });
   };
 
