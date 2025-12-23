@@ -3,6 +3,7 @@
 import React, { useEffect } from 'react';
 import { X } from 'lucide-react';
 import { useContainerDetection } from '@/hooks/useContainerDetection';
+import { getBookingCookies } from '@/utils/booking-cookies';
 
 interface SessionTypeSelectionModalProps {
   isOpen: boolean;
@@ -18,6 +19,8 @@ export default function SessionTypeSelectionModal({
   selectedSessionType,
 }: SessionTypeSelectionModalProps) {
   const { isInDesktopContainer } = useContainerDetection();
+  const cookies = getBookingCookies();
+  const isHyfit = cookies.orgSlug === 'hyfit' || cookies.orgSlug === 'devhyfit';
 
   useEffect(() => {
     if (isOpen) {
@@ -87,34 +90,36 @@ export default function SessionTypeSelectionModal({
               </div>
             </button>
 
-            <button
-              onClick={() => {
-                onSelect('online');
-                onClose();
-              }}
-              className="w-full rounded-xl border-2 p-4 text-left transition-all"
-              style={{ borderColor: selectedSessionType === 'online' ? '#DDFE71' : '#e5e7eb' }}
-              type="button"
-            >
-              <div className="flex items-center space-x-3">
-                <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-gray-100">
-                  <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                  </svg>
-                </div>
-                <div className="flex-1">
-                  <h3 className="font-semibold text-gray-900">Online</h3>
-                  <p className="text-sm text-gray-500">Join your session remotely</p>
-                </div>
-                {selectedSessionType === 'online' && (
-                  <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ backgroundColor: '#DDFE71' }}>
-                    <svg className="w-4 h-4 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            {!isHyfit && (
+              <button
+                onClick={() => {
+                  onSelect('online');
+                  onClose();
+                }}
+                className="w-full rounded-xl border-2 p-4 text-left transition-all"
+                style={{ borderColor: selectedSessionType === 'online' ? '#DDFE71' : '#e5e7eb' }}
+                type="button"
+              >
+                <div className="flex items-center space-x-3">
+                  <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-gray-100">
+                    <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                     </svg>
                   </div>
-                )}
-              </div>
-            </button>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-gray-900">Online</h3>
+                    <p className="text-sm text-gray-500">Join your session remotely</p>
+                  </div>
+                  {selectedSessionType === 'online' && (
+                    <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ backgroundColor: '#DDFE71' }}>
+                      <svg className="w-4 h-4 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                  )}
+                </div>
+              </button>
+            )}
           </div>
         </div>
       </div>

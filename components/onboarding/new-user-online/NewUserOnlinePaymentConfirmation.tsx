@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { useQuery, useMutation } from '@apollo/client';
 import { useRouter } from 'next/navigation';
 import { MapPin, AlertCircle } from 'lucide-react';
+import { toast } from 'sonner';
 import { GET_CENTERS, GET_SERVICES, GET_USER, CREATE_APPOINTMENT, UPDATE_PATIENT, SEND_APPOINTMENT_EMAIL } from '@/gql/queries';
 import NewUserOnlinePaymentProcessing from './NewUserOnlinePaymentProcessing';
 import { useContainerDetection } from '@/hooks/useContainerDetection';
@@ -42,7 +43,7 @@ export default function NewUserOnlinePaymentConfirmation({
   const { data: servicesData, loading: servicesLoading } = useQuery(GET_SERVICES, {
     variables: { centerId: [bookingData.centerId] },
   });
-  const { data: userData, loading: userLoading } = useQuery(GET_USER, {
+  const { data: userData, loading: userLoading, refetch: refetchUser } = useQuery(GET_USER, {
     variables: { userId: bookingData.patientId },
     skip: !bookingData.patientId,
   });
@@ -75,19 +76,23 @@ export default function NewUserOnlinePaymentConfirmation({
     }
 
     setIsProcessingPayment(true);
+    const startTime = Date.now();
+    
+    // Timeout handler
+    const timeoutId = setTimeout(() => {
+      console.warn('⚠️ Appointment creation taking longer than expected...');
+      toast.info('Setting up your online session...', { 
+        duration: 3000,
+        position: 'top-center',
+        className: 'text-sm',
+      });
+    }, 5000);
+    
     try {
-
-      if (process.env.NEXT_PUBLIC_ENVIRONMENT === 'development') {
-        console.log('📋 Creating appointment with data:', {
-          patient: bookingData.patientId,
-          consultant: bookingData.consultantId,
-          center: bookingData.centerId,
-          treatment: bookingData.treatmentId,
-          medium: bookingData.sessionType,
-        });
-      }
+      console.log('⏱️ Starting appointment creation...');
 
       // Update patient's center to the selected center
+      const updateStart = Date.now();
       await updatePatient({
         variables: {
           patientId: bookingData.patientId,
@@ -96,12 +101,10 @@ export default function NewUserOnlinePaymentConfirmation({
           },
         },
       });
-      
-      if (process.env.NEXT_PUBLIC_ENVIRONMENT === 'development') {
-        console.log('✅ Patient center updated to:', bookingData.centerId);
-      }
+      console.log(`✅ Patient center updated in ${Date.now() - updateStart}ms`);
       
       // Create appointment
+      const appointmentStart = Date.now();
       const appointmentResult = await createAppointment({
         variables: {
           input: {
@@ -120,26 +123,31 @@ export default function NewUserOnlinePaymentConfirmation({
           },
         },
       });
+      console.log(`✅ Appointment created in ${Date.now() - appointmentStart}ms`);
 
       const appointmentId = appointmentResult?.data?.createAppointment?._id;
-      
-      if (process.env.NEXT_PUBLIC_ENVIRONMENT === 'development') {
-        console.log('✅ Appointment created:', appointmentId);
-      }
       
       if (!appointmentId) {
         throw new Error('Failed to create appointment');
       }
 
-      // Store appointment ID for payment
+      console.log('✅ Appointment ID:', appointmentId);
       sessionStorage.setItem('appointmentId', appointmentId);
       sessionStorage.setItem('paymentType', 'invoice');
       sessionStorage.setItem('paymentAmount', bookingData.treatmentPrice.toString());
       
-      if (process.env.NEXT_PUBLIC_ENVIRONMENT === 'development') {
-        console.log('💾 Stored appointmentId in sessionStorage:', appointmentId);
+      // Verify sessionStorage was written
+      const storedId = sessionStorage.getItem('appointmentId');
+      console.log('✅ Verified stored appointment ID:', storedId);
+      
+      if (!storedId) {
+        throw new Error('Failed to store appointment ID');
       }
+      
+      clearTimeout(timeoutId);
+      console.log(`⏱️ Total time: ${Date.now() - startTime}ms`);
     } catch (error: any) {
+      clearTimeout(timeoutId);
       console.error('❌ Error creating appointment:', error);
       console.error('❌ Error details:', error.message, error.graphQLErrors);
       setAmountError('Failed to create appointment. Please try again.');
@@ -286,13 +294,13 @@ export default function NewUserOnlinePaymentConfirmation({
       <div className={`${isInDesktopContainer ? 'flex-shrink-0' : 'fixed bottom-0 left-0 right-0'} bg-white border-t border-gray-200 p-4`}>
         <Button
           onClick={handleProceedToPayment}
-          disabled={creatingAppointment}
-          isLoading={creatingAppointment}
+          disabled={creatingAppointment || isProcessingPayment}
+          isLoading={creatingAppointment || isProcessingPayment}
           fullWidth
           variant="primary"
           size="lg"
         >
-          Pay ₹{bookingData.treatmentPrice}
+          {creatingAppointment || isProcessingPayment ? 'Creating Appointment...' : `Pay ₹${bookingData.treatmentPrice}`}
         </Button>
       </div>
 
@@ -300,7 +308,10 @@ export default function NewUserOnlinePaymentConfirmation({
         isOpen={showEmailModal}
         patientId={bookingData.patientId}
         patientName={patientDetails.name}
-        onEmailSaved={() => setShowEmailModal(false)}
+        onEmailSaved={async () => {
+          await refetchUser();
+          setShowEmailModal(false);
+        }}
         onClose={() => setShowEmailModal(false)}
       />
     </div>

@@ -254,7 +254,7 @@ export default function PrepaidRepeatSlotSelection({
                       <>
                         <p className="text-sm font-bold text-gray-900">
                           {selectedConsultant.profileData?.firstName || selectedConsultant.profileData?.lastName ? (
-                            <>Dr. {selectedConsultant.profileData?.firstName || ''} {selectedConsultant.profileData?.lastName || ''}</>
+                            <>{selectedConsultant.profileData?.firstName || ''} {selectedConsultant.profileData?.lastName || ''}</>
                           ) : (
                             <>Consultant</>
                           )}

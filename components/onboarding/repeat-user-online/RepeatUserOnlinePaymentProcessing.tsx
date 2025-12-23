@@ -150,8 +150,16 @@ export default function RepeatUserOnlinePaymentProcessing({
   const createOrder = async () => {
     try {
       const appointmentId = sessionStorage.getItem('appointmentId');
+      console.log('📝 Attempting to create order with appointmentId:', appointmentId);
+      
       if (!appointmentId) {
-        throw new Error('Appointment ID not found');
+        console.error('❌ No appointmentId found in sessionStorage');
+        console.error('❌ SessionStorage contents:', {
+          appointmentId: sessionStorage.getItem('appointmentId'),
+          paymentType: sessionStorage.getItem('paymentType'),
+          paymentAmount: sessionStorage.getItem('paymentAmount'),
+        });
+        throw new Error('Appointment ID not found in session');
       }
 
       const orderInput: any = {
@@ -163,10 +171,12 @@ export default function RepeatUserOnlinePaymentProcessing({
         appointment: appointmentId,
       };
 
+      console.log('📝 Creating order with input:', orderInput);
       const { data } = await createOrderMutation({ variables: { input: orderInput } });
+      console.log('✅ Order created:', data.createOrder);
       return { razorpayOrderId: data.createOrder.razorpayOrderId, orderDbId: data.createOrder._id };
     } catch (error) {
-      console.error('Order creation failed:', error);
+      console.error('❌ Order creation failed:', error);
       onPaymentFailure('Failed to create payment order');
       return null;
     }

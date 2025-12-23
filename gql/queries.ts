@@ -574,6 +574,16 @@ export const GET_USER = gql`
             }
           }
         }
+        ... on Consultant {
+          firstName
+          lastName
+          bio
+          dob
+          gender
+          profilePicture
+          designation
+          specialization
+        }
       }
     }
   }

@@ -6,6 +6,7 @@ import { ArrowLeft } from 'lucide-react';
 import { useMutation } from '@apollo/client';
 import { toast } from 'sonner';
 import { CREATE_APPOINTMENT, UPDATE_PATIENT } from '@/gql/queries';
+import { getBookingCookies } from '@/utils/booking-cookies';
 import { PrepaidNewSessionDetails } from '@/components/onboarding/prepaid-new';
 import { PrepaidNewSlotSelection } from '@/components/onboarding/prepaid-new';
 import { PrepaidNewConfirmation } from '@/components/onboarding/prepaid-new';
@@ -49,7 +50,15 @@ export default function PrepaidNewPage() {
 
   useEffect(() => {
     setMounted(true);
-  }, []);
+    
+    // Block HyFit from accessing online routes
+    const cookies = getBookingCookies();
+    const isHyfit = cookies.orgSlug === 'hyfit' || cookies.orgSlug === 'devhyfit';
+    if (isHyfit) {
+      router.replace(`/${orgSlug}`);
+      return;
+    }
+  }, [orgSlug, router]);
 
   useEffect(() => {
     if (!mounted) return;

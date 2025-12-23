@@ -106,7 +106,7 @@ export default function RepeatUserOfflineConfirmation({
                 <div>
                   <span className="text-xs text-black font-bold block mb-1.5">Consultant</span>
                   <p className="text-sm text-gray-900">
-                    Dr. {consultant.profileData.firstName} {consultant.profileData.lastName || ''}
+                    {consultant.profileData.firstName} {consultant.profileData.lastName || ''}
                   </p>
                 </div>
               )}

@@ -167,19 +167,6 @@ export default function RepeatOfflinePage() {
 
       const appointmentId = appointmentResult.data?.createAppointment?._id;
       if (appointmentId) {
-        // Send appointment email
-        try {
-          await sendAppointmentEmail({
-            variables: {
-              input: {
-                appointmentId,
-              },
-            },
-          });
-        } catch (emailError) {
-          console.error('Failed to send appointment email:', emailError);
-        }
-        
         setBookingData(prev => ({ ...prev, appointmentId }));
         goToNextStep();
       } else {

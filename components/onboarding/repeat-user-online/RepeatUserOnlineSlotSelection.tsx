@@ -79,7 +79,7 @@ export default function RepeatUserOnlineSlotSelection({
   });
 
   const consultants = React.useMemo(() => {
-    return availabilityConsultants.map((ac: any) => ({
+    const mapped = availabilityConsultants.map((ac: any) => ({
       _id: ac.consultantId,
       profileData: {
         firstName: ac.consultantName.split(' ')[0] || '',
@@ -87,6 +87,9 @@ export default function RepeatUserOnlineSlotSelection({
         designation: designation || 'Consultant',
       }
     }));
+    console.log('📋 Total consultants from API:', availabilityConsultants.length);
+    console.log('📋 Mapped consultants:', mapped.length, mapped);
+    return mapped;
   }, [availabilityConsultants, designation]);
 
   const availableSlots = React.useMemo(() => {
@@ -245,7 +248,7 @@ export default function RepeatUserOnlineSlotSelection({
                       <>
                         <p className="text-sm font-bold text-gray-900">
                           {selectedConsultant.profileData?.firstName || selectedConsultant.profileData?.lastName ? (
-                            <>Dr. {selectedConsultant.profileData?.firstName || ''} {selectedConsultant.profileData?.lastName || ''}</>
+                            <>{selectedConsultant.profileData?.firstName || ''} {selectedConsultant.profileData?.lastName || ''}</>
                           ) : (
                             <>Consultant</>
                           )}

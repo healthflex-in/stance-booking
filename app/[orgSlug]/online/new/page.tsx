@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
+import { getBookingCookies } from '@/utils/booking-cookies';
 
 import {
   NewUserOnlinePaymentConfirmation,
@@ -56,7 +57,15 @@ export default function NewOnlinePage() {
 
   useEffect(() => {
     setMounted(true);
-  }, []);
+    
+    // Block HyFit from accessing online routes
+    const cookies = getBookingCookies();
+    const isHyfit = cookies.orgSlug === 'hyfit' || cookies.orgSlug === 'devhyfit';
+    if (isHyfit) {
+      router.replace(`/${orgSlug}`);
+      return;
+    }
+  }, [orgSlug, router]);
 
   useEffect(() => {
     if (!mounted) return;

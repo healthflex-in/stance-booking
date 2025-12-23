@@ -87,7 +87,7 @@ export default function RepeatUserOnlineSessionDetails({
             <p className="text-gray-600 text-sm mb-4">
               Select the type of consultant you need
             </p>
-            <div className="bg-white rounded-xl p-1 border border-gray-200 flex">
+            <div className="bg-white rounded-xl p-1 border-2 flex relative" style={{ borderColor: '#DDFE71' }}>
               <button
                 type="button"
                 onClick={() => setSelectedDesignation('Physiotherapist')}
@@ -102,6 +102,7 @@ export default function RepeatUserOnlineSessionDetails({
               >
                 Physiotherapist
               </button>
+              <div className="w-px bg-gray-300 mx-1" />
               <button
                 type="button"
                 onClick={() => setSelectedDesignation('S&C Coach')}
