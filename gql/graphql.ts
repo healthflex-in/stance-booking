@@ -1163,6 +1163,21 @@ export type CursorPaginationInput = {
   limit?: InputMaybe<Scalars['Int']['input']>;
 };
 
+/** Customer information form submitted by patients */
+export type CustomerInfo = {
+  __typename?: 'CustomerInfo';
+  _id: Scalars['ObjectID']['output'];
+  attachments: Array<Scalars['String']['output']>;
+  createdAt: Scalars['Timestamp']['output'];
+  current_section: Scalars['String']['output'];
+  formId: Scalars['String']['output'];
+  form_data: Scalars['JSON']['output'];
+  timestamp: Scalars['String']['output'];
+  title: Scalars['String']['output'];
+  updatedAt: Scalars['Timestamp']['output'];
+  userId: Scalars['ObjectID']['output'];
+};
+
 export type DataRow = {
   _id: Scalars['ObjectID']['output'];
   createdAt: Scalars['Timestamp']['output'];
@@ -2816,6 +2831,10 @@ export type Query = {
   checkPatientByPhone: PatientExistsResult;
   /** get current session */
   currentSession: AuthenticatedSession;
+  /** Get the latest customer info form for a patient */
+  customerInfo?: Maybe<CustomerInfo>;
+  /** Get all customer info forms for a patient */
+  customerInfoList: Array<CustomerInfo>;
   /** Get a specific event by ID. */
   event: Event;
   /** Get a list of events dynamically using filters. */
@@ -2937,6 +2956,16 @@ export type QueryCenterArgs = {
 export type QueryCheckPatientByPhoneArgs = {
   organizationId: Scalars['ObjectID']['input'];
   phone: Scalars['String']['input'];
+};
+
+
+export type QueryCustomerInfoArgs = {
+  userId: Scalars['ObjectID']['input'];
+};
+
+
+export type QueryCustomerInfoListArgs = {
+  userId: Scalars['ObjectID']['input'];
 };
 
 

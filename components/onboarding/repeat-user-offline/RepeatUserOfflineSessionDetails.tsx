@@ -69,12 +69,14 @@ export default function RepeatUserOfflineSessionDetails({
   const handleContinue = () => {
     if (!selectedService || !selectedCenter) return;
 
+    const backendDesignation = selectedDesignation === 'S&C Coach' ? 'SNC_Coach' : selectedDesignation;
+
     onContinue({
       centerId: selectedCenter._id,
       serviceId: selectedService._id,
       serviceDuration: selectedService.duration,
       servicePrice: selectedService.bookingAmount || selectedService.price || 0,
-      designation: selectedDesignation,
+      designation: backendDesignation,
     });
   };
 
