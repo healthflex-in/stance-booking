@@ -6,6 +6,7 @@ import { useAvailability } from '@/hooks';
 import { useContainerDetection } from '@/hooks/useContainerDetection';
 import { ConsultantSelectionModal } from '../shared';
 import { StanceHealthLoader } from '@/components/loader/StanceHealthLoader';
+import { BookingAnalytics } from '@/services/booking-analytics';
 
 interface PrepaidRepeatSlotSelectionProps {
   organizationId: string;
@@ -13,6 +14,7 @@ interface PrepaidRepeatSlotSelectionProps {
   designation?: string;
   onSlotSelect: (consultantId: string, slot: any) => void;
   onBack: () => void;
+  analytics?: BookingAnalytics;
 }
 
 interface TimeSlot {
@@ -38,7 +40,7 @@ interface DateOption {
   isToday?: boolean;
 }
 
-export default function PrepaidRepeatSlotSelection({ organizationId, serviceDuration, designation, onSlotSelect, onBack }: PrepaidRepeatSlotSelectionProps) {
+export default function PrepaidRepeatSlotSelection({ organizationId, serviceDuration, designation, onSlotSelect, onBack, analytics }: PrepaidRepeatSlotSelectionProps) {
   const { isInDesktopContainer } = useContainerDetection();
   const [selectedConsultant, setSelectedConsultant] = useState<any>(null);
   const [showConsultantModal, setShowConsultantModal] = useState(false);
@@ -167,7 +169,9 @@ export default function PrepaidRepeatSlotSelection({ organizationId, serviceDura
   }, [currentSelectedDate, availableSlots, slotsLoading, availabilityConsultants]);
 
   const handleDateSelect = (date: DateOption) => {
-    setSelectedDate(`${date.day}, ${date.date} ${date.month}`);
+    const dateKey = `${date.day}, ${date.date} ${date.month}`;
+    analytics?.trackDateSelected(dateKey);
+    setSelectedDate(dateKey);
     setCurrentSelectedDate(date.fullDate);
     setSelectedTimeSlot(null);
   };
@@ -213,7 +217,7 @@ export default function PrepaidRepeatSlotSelection({ organizationId, serviceDura
                     )}
                   </div>
                 </div>
-                <button onClick={() => setShowConsultantModal(true)} className="p-2 hover:bg-gray-50 rounded-lg transition-colors">
+                <button onClick={() => { analytics?.trackConsultantModalOpened(); setShowConsultantModal(true); }} className="p-2 hover:bg-gray-50 rounded-lg transition-colors">
                   <ChevronRight className="w-5 h-5 text-gray-400" />
                 </button>
               </div>
@@ -253,7 +257,7 @@ export default function PrepaidRepeatSlotSelection({ organizationId, serviceDura
                     {currentTimeSlots.map((slot: TimeSlot, index: number) => {
                       const isSelected = selectedTimeSlot && selectedTimeSlot.startTimeRaw === slot.startTimeRaw && selectedTimeSlot.endTimeRaw === slot.endTimeRaw;
                       return (
-                        <button key={`slot-${index}-${slot.startTimeRaw}`} onClick={() => setSelectedTimeSlot(slot)} disabled={!slot.isAvailable} className={`p-3 rounded-xl border-2 text-sm font-medium transition-all ${isSelected ? 'border-blue-500 bg-blue-50 text-blue-700' : slot.isAvailable ? 'border-gray-200 bg-white text-gray-900 hover:border-gray-300' : 'border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed'}`}>
+                        <button key={`slot-${index}-${slot.startTimeRaw}`} onClick={() => { analytics?.trackTimeSlotClicked(slot.displayTime, slot.consultantIds.length); setSelectedTimeSlot(slot); }} disabled={!slot.isAvailable} className={`p-3 rounded-xl border-2 text-sm font-medium transition-all ${isSelected ? 'border-blue-500 bg-blue-50 text-blue-700' : slot.isAvailable ? 'border-gray-200 bg-white text-gray-900 hover:border-gray-300' : 'border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed'}`}>
                           <div className="text-sm font-semibold">{slot.displayTime}</div>
                           <div className="text-xs text-gray-500 mt-1">
                             {slot.consultantNames && slot.consultantNames.length > 0 
@@ -287,7 +291,7 @@ export default function PrepaidRepeatSlotSelection({ organizationId, serviceDura
         </button>
       </div>
 
-      <ConsultantSelectionModal isOpen={showConsultantModal} onClose={() => setShowConsultantModal(false)} consultants={consultants} sessionType="online" organizationId={organizationId} onSelect={(consultant) => { setSelectedConsultant(consultant); setShowConsultantModal(false); }} selectedConsultant={selectedConsultant} />
+      <ConsultantSelectionModal isOpen={showConsultantModal} onClose={() => setShowConsultantModal(false)} consultants={consultants} sessionType="online" organizationId={organizationId} onSelect={(consultant) => { if (consultant) { const consultantName = `${consultant.profileData?.firstName || ''} ${consultant.profileData?.lastName || ''}`.trim() || 'Consultant'; analytics?.trackConsultantFilterApplied(consultant._id, consultantName); } else { analytics?.trackConsultantFilterCleared(); } setSelectedConsultant(consultant); setShowConsultantModal(false); }} selectedConsultant={selectedConsultant} />
     </div>
   );
 }

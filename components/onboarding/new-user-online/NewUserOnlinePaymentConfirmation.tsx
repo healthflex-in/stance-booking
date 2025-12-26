@@ -24,14 +24,18 @@ interface BookingData {
   selectedTimeSlot: { startTime: string; endTime: string; displayTime: string };
 }
 
+import { BookingAnalytics } from '@/services/booking-analytics';
+
 interface NewUserOnlinePaymentConfirmationProps {
   bookingData: BookingData;
   onNext: (appointmentId: string) => void;
+  analytics: BookingAnalytics;
 }
 
 export default function NewUserOnlinePaymentConfirmation({
   bookingData,
   onNext,
+  analytics,
 }: NewUserOnlinePaymentConfirmationProps) {
   const router = useRouter();
   const { isInDesktopContainer } = useContainerDetection();
@@ -74,6 +78,12 @@ export default function NewUserOnlinePaymentConfirmation({
       setShowEmailModal(true);
       return;
     }
+
+    analytics.trackProceedToPaymentClicked(
+      bookingData.treatmentPrice,
+      bookingData.treatmentId,
+      bookingData.consultantId
+    );
 
     setIsProcessingPayment(true);
     const startTime = Date.now();
@@ -135,6 +145,8 @@ export default function NewUserOnlinePaymentConfirmation({
       sessionStorage.setItem('appointmentId', appointmentId);
       sessionStorage.setItem('paymentType', 'invoice');
       sessionStorage.setItem('paymentAmount', bookingData.treatmentPrice.toString());
+      
+      analytics.trackPaymentInitiated(bookingData.treatmentPrice, appointmentId);
       
       // Verify sessionStorage was written
       const storedId = sessionStorage.getItem('appointmentId');

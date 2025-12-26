@@ -50,36 +50,20 @@ export default function ServiceSelectionModal({
   }, [isOpen, isValidCenterId, isOrganizationLevel, refetch]);
 
   useEffect(() => {
-    console.log('ServiceSelectionModal - Debug:', {
-      centerId,
-      organizationId,
-      isNewUser,
-      isPrePaid,
-      sessionType,
-      designation,
-      servicesData: servicesData?.services?.length,
-      servicesError,
-    });
-
     if (servicesError) {
-      console.log('Services error:', servicesError);
       setServices([]);
       return;
     }
 
     if (!servicesData?.services) {
-      console.log('No services data');
       setServices([]);
       return;
     }
 
     if (!centerId && !organizationId) {
-      console.log('No centerId or organizationId');
       setServices([]);
       return;
     }
-
-    console.log('Raw services:', servicesData.services);
 
     const filteredServices = servicesData.services.filter((service: any) => {
       // Must have online booking enabled
@@ -156,8 +140,6 @@ export default function ServiceSelectionModal({
       });
     }
 
-    console.log('Filtered services:', filteredServices.length);
-    console.log('Mapped services after designation filter:', mappedServices.length);
     setServices(mappedServices);
   }, [servicesData, isNewUser, sessionType, isPrePaid, centerId, organizationId, designation]);
 

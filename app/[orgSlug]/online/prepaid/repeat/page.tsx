@@ -7,12 +7,12 @@ import { useMutation, useQuery } from '@apollo/client';
 import { toast } from 'sonner';
 import { CREATE_APPOINTMENT, UPDATE_PATIENT, GET_USER } from '@/gql/queries';
 import { getBookingCookies } from '@/utils/booking-cookies';
+import { useBookingAnalytics } from '@/hooks/useBookingAnalytics';
 import { PrepaidRepeatSessionDetails } from '@/components/onboarding/prepaid-repeat';
 import { PrepaidRepeatSlotSelection } from '@/components/onboarding/prepaid-repeat';
 import { PrepaidRepeatConfirmation } from '@/components/onboarding/prepaid-repeat';
 import { PrepaidRepeatBookingConfirmed } from '@/components/onboarding/prepaid-repeat';
-
-type BookingStep = 'session-details' | 'slot-selection' | 'confirmation' | 'booking-confirmed';
+import type { BookingStep } from '@/services/booking-analytics';
 
 interface BookingData {
   patientId: string;
@@ -38,6 +38,7 @@ export default function PrepaidRepeatPage() {
   const [isCreatingAppointment, setIsCreatingAppointment] = useState(false);
   const [createAppointment] = useMutation(CREATE_APPOINTMENT);
   const [updatePatient] = useMutation(UPDATE_PATIENT);
+  const analytics = useBookingAnalytics('prepaid-repeat');
   const [bookingData, setBookingData] = useState<BookingData>({
     patientId: '',
     organizationId: '',
@@ -65,7 +66,18 @@ export default function PrepaidRepeatPage() {
       router.replace(`/${orgSlug}`);
       return;
     }
+    
+    // Track flow start with organization ID
+    if (cookies.organizationId) {
+      analytics.trackFlowStart(cookies.organizationId, cookies.centerId || undefined);
+    }
   }, [orgSlug, router]);
+
+  useEffect(() => {
+    if (currentStep === 'session-details' || currentStep === 'slot-selection') {
+      analytics.trackStepView(currentStep);
+    }
+  }, [currentStep]);
 
   useEffect(() => {
     if (!mounted) return;
@@ -84,14 +96,26 @@ export default function PrepaidRepeatPage() {
   const goToNextStep = () => {
     const stepOrder: BookingStep[] = ['session-details', 'slot-selection', 'confirmation', 'booking-confirmed'];
     const currentIndex = stepOrder.indexOf(currentStep);
-    if (currentIndex < stepOrder.length - 1) setCurrentStep(stepOrder[currentIndex + 1]);
+    if (currentIndex < stepOrder.length - 1) {
+      if (currentStep === 'session-details' || currentStep === 'slot-selection') {
+        analytics.trackStepComplete(currentStep);
+      }
+      setCurrentStep(stepOrder[currentIndex + 1]);
+    }
   };
 
   const goToPreviousStep = () => {
     const stepOrder: BookingStep[] = ['session-details', 'slot-selection', 'confirmation', 'booking-confirmed'];
     const currentIndex = stepOrder.indexOf(currentStep);
-    if (currentIndex > 0) setCurrentStep(stepOrder[currentIndex - 1]);
-    else router.push(`/${orgSlug}`);
+    if (currentIndex > 0) {
+      if (currentStep === 'session-details' || currentStep === 'slot-selection') {
+        analytics.trackBackNavigation(currentStep);
+      }
+      setCurrentStep(stepOrder[currentIndex - 1]);
+    } else {
+      analytics.trackExitIntent(currentStep === 'session-details' || currentStep === 'slot-selection' ? currentStep : 'session-details', 0);
+      router.push(`/${orgSlug}`);
+    }
   };
 
   const updateBookingData = (updates: Partial<BookingData>) => {
@@ -215,6 +239,11 @@ export default function PrepaidRepeatPage() {
             isNewUser={false}
             onBack={goToPreviousStep}
             onContinue={(data) => {
+              analytics.trackServiceSelected(data.serviceId, 'Service', data.servicePrice, data.serviceDuration);
+              if (data.designation) {
+                analytics.trackDesignationSelected(data.designation);
+              }
+              analytics.trackSessionDetailsContinueClicked(data.serviceId, data.designation || '');
               updateBookingData({
                 organizationId: data.organizationId,
                 treatmentId: data.serviceId,
@@ -224,6 +253,7 @@ export default function PrepaidRepeatPage() {
               });
               goToNextStep();
             }}
+            analytics={analytics}
           />
         )}
 
@@ -234,6 +264,7 @@ export default function PrepaidRepeatPage() {
             designation={bookingData.designation}
             onSlotSelect={handleSlotSelect}
             onBack={goToPreviousStep}
+            analytics={analytics}
           />
         )}
 

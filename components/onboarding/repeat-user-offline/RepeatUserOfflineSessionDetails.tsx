@@ -7,12 +7,14 @@ import { GET_CENTERS, GET_USER } from '@/gql/queries';
 import { useContainerDetection } from '@/hooks/useContainerDetection';
 import { PrimaryButton } from '@/components/ui-atoms';
 import { LocationSelectionModal, ServiceSelectionModal } from '@/components/onboarding/shared';
+import { BookingAnalytics } from '@/services/booking-analytics';
 
 interface RepeatUserOfflineSessionDetailsProps {
   patientId: string;
   centerId: string;
   onBack: () => void;
   onContinue: (data: { centerId: string; serviceId: string; serviceDuration: number; servicePrice: number; designation: string }) => void;
+  analytics?: BookingAnalytics;
 }
 
 export default function RepeatUserOfflineSessionDetails({
@@ -20,6 +22,7 @@ export default function RepeatUserOfflineSessionDetails({
   centerId,
   onBack,
   onContinue,
+  analytics,
 }: RepeatUserOfflineSessionDetailsProps) {
   const { isInDesktopContainer } = useContainerDetection();
   const [selectedCenter, setSelectedCenter] = useState<any>(null);
@@ -71,6 +74,8 @@ export default function RepeatUserOfflineSessionDetails({
 
     const backendDesignation = selectedDesignation === 'S&C Coach' ? 'SNC_Coach' : selectedDesignation;
 
+    analytics?.trackSessionDetailsContinueClicked(selectedService._id, backendDesignation);
+
     onContinue({
       centerId: selectedCenter._id,
       serviceId: selectedService._id,
@@ -106,7 +111,7 @@ export default function RepeatUserOfflineSessionDetails({
               Select your preferred location
             </p>
             <button
-              onClick={() => setShowLocationModal(true)}
+              onClick={() => { setShowLocationModal(true); }}
               className="w-full"
             >
               <div className="bg-white rounded-2xl p-4 border-2 transition-all" style={{ borderColor: selectedCenter ? '#DDFE71' : '#e5e7eb' }}>
@@ -143,7 +148,7 @@ export default function RepeatUserOfflineSessionDetails({
             <div className="bg-white rounded-xl p-1 border border-gray-200 flex">
               <button
                 type="button"
-                onClick={() => setSelectedDesignation('Physiotherapist')}
+                onClick={() => { analytics?.trackDesignationToggled('Physiotherapist'); setSelectedDesignation('Physiotherapist'); }}
                 className={`flex-1 py-2 px-3 rounded-lg font-medium text-xs transition-all ${
                   selectedDesignation === 'Physiotherapist'
                     ? 'text-black shadow-sm'
@@ -157,7 +162,7 @@ export default function RepeatUserOfflineSessionDetails({
               </button>
               <button
                 type="button"
-                onClick={() => setSelectedDesignation('S&C Coach')}
+                onClick={() => { analytics?.trackDesignationToggled('S&C Coach'); setSelectedDesignation('S&C Coach'); }}
                 className={`flex-1 py-2 px-3 rounded-lg font-medium text-xs transition-all ${
                   selectedDesignation === 'S&C Coach'
                     ? 'text-black shadow-sm'
@@ -183,6 +188,7 @@ export default function RepeatUserOfflineSessionDetails({
             <button
               onClick={() => {
                 if (selectedCenter) {
+                  analytics?.trackServiceModalOpened();
                   setShowServiceModal(true);
                 }
               }}
@@ -250,6 +256,7 @@ export default function RepeatUserOfflineSessionDetails({
         sessionType="in-person"
         designation={selectedDesignation}
         onSelect={(service) => {
+          analytics?.trackServiceSelected(service._id, service.name, service.bookingAmount || service.price || 0, service.duration);
           setSelectedService(service);
           setShowServiceModal(false);
         }}

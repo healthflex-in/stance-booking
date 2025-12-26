@@ -7,6 +7,7 @@ import { useMutation } from '@apollo/client';
 import { toast } from 'sonner';
 import { CREATE_APPOINTMENT, UPDATE_PATIENT } from '@/gql/queries';
 import { getBookingCookies } from '@/utils/booking-cookies';
+import { useBookingAnalytics } from '@/hooks/useBookingAnalytics';
 import { PrepaidNewSessionDetails } from '@/components/onboarding/prepaid-new';
 import { PrepaidNewSlotSelection } from '@/components/onboarding/prepaid-new';
 import { PrepaidNewConfirmation } from '@/components/onboarding/prepaid-new';
@@ -37,6 +38,7 @@ export default function PrepaidNewPage() {
   const [isCreatingAppointment, setIsCreatingAppointment] = useState(false);
   const [createAppointment] = useMutation(CREATE_APPOINTMENT);
   const [updatePatient] = useMutation(UPDATE_PATIENT);
+  const analytics = useBookingAnalytics('prepaid-new');
   const [bookingData, setBookingData] = useState<BookingData>({
     patientId: '',
     centerId: '',
@@ -53,12 +55,17 @@ export default function PrepaidNewPage() {
     
     // Block HyFit from accessing online routes
     const cookies = getBookingCookies();
+    analytics.trackFlowStart(cookies.organizationId || '', cookies.centerId || undefined);
     const isHyfit = cookies.orgSlug === 'hyfit' || cookies.orgSlug === 'devhyfit';
     if (isHyfit) {
       router.replace(`/${orgSlug}`);
       return;
     }
   }, [orgSlug, router]);
+
+  useEffect(() => {
+    analytics.trackStepView(currentStep);
+  }, [currentStep]);
 
   useEffect(() => {
     if (!mounted) return;
@@ -75,14 +82,22 @@ export default function PrepaidNewPage() {
   const goToNextStep = () => {
     const stepOrder: BookingStep[] = ['session-details', 'slot-selection', 'confirmation', 'booking-confirmed'];
     const currentIndex = stepOrder.indexOf(currentStep);
-    if (currentIndex < stepOrder.length - 1) setCurrentStep(stepOrder[currentIndex + 1]);
+    if (currentIndex < stepOrder.length - 1) {
+      analytics.trackStepComplete(currentStep);
+      setCurrentStep(stepOrder[currentIndex + 1]);
+    }
   };
 
   const goToPreviousStep = () => {
     const stepOrder: BookingStep[] = ['session-details', 'slot-selection', 'confirmation', 'booking-confirmed'];
     const currentIndex = stepOrder.indexOf(currentStep);
-    if (currentIndex > 0) setCurrentStep(stepOrder[currentIndex - 1]);
-    else router.push(`/${orgSlug}`);
+    if (currentIndex > 0) {
+      analytics.trackBackNavigation(currentStep);
+      setCurrentStep(stepOrder[currentIndex - 1]);
+    } else {
+      analytics.trackExitIntent(currentStep, 0);
+      router.push(`/${orgSlug}`);
+    }
   };
 
   const updateBookingData = (updates: Partial<BookingData>) => {

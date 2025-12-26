@@ -9,10 +9,12 @@ import { getBookingCookies } from '@/utils/booking-cookies';
 import { StanceHealthLoader } from '@/components/loader/StanceHealthLoader';
 import CrossOrgModal from './shared/CrossOrgModal';
 import { useContainerDetection } from '@/hooks/useContainerDetection';
+import { BookingAnalytics } from '@/services/booking-analytics';
 
 interface PrepaidOnboardingProps {
   organizationId: string;
   onComplete: (patientId: string, isNewUser: boolean) => void;
+  analytics?: BookingAnalytics;
 }
 
 interface FormData {
@@ -25,7 +27,7 @@ interface FormData {
   bio: string;
 }
 
-export default function PrepaidOnboarding({ organizationId, onComplete }: PrepaidOnboardingProps) {
+export default function PrepaidOnboarding({ organizationId, onComplete, analytics }: PrepaidOnboardingProps) {
   const { isInDesktopContainer } = useContainerDetection();
   const [isPhoneVerified, setIsPhoneVerified] = useState(false);
   const [isNewUser, setIsNewUser] = useState(false);
@@ -77,6 +79,7 @@ export default function PrepaidOnboarding({ organizationId, onComplete }: Prepai
       return;
     }
 
+    analytics?.trackEvent('phone_verification_initiated', { phone: formData.phone });
     setIsVerifying(true);
     try {
       const { data: checkData } = await checkPatientByPhone({
@@ -89,16 +92,19 @@ export default function PrepaidOnboarding({ organizationId, onComplete }: Prepai
       const { exists, patient, isInDifferentOrg } = checkData?.checkPatientByPhone || {};
 
       if (exists && isInDifferentOrg) {
+        analytics?.trackEvent('cross_org_user_detected', { phone: formData.phone });
         setCrossOrgPatient(patient);
         setShowCrossOrgModal(true);
         setIsPhoneVerified(true);
       } else if (exists && !isInDifferentOrg) {
+        analytics?.trackEvent('repeat_user_identified', { patientId: patient._id });
         setIsNewUser(false);
         setIsPhoneVerified(true);
         toast.success('Welcome back!');
         // Immediately redirect repeat users
         onComplete(patient._id, false);
       } else {
+        analytics?.trackEvent('new_user_identified', { phone: formData.phone });
         setIsNewUser(true);
         setIsPhoneVerified(true);
         toast.success('Phone number verified! Please fill in your details.');
@@ -114,6 +120,7 @@ export default function PrepaidOnboarding({ organizationId, onComplete }: Prepai
   const handleCrossOrgConfirm = async () => {
     if (!crossOrgPatient) return;
 
+    analytics?.trackEvent('cross_org_user_confirmed', { patientId: crossOrgPatient._id });
     try {
       await addPatientToOrg({
         variables: {
@@ -151,6 +158,12 @@ export default function PrepaidOnboarding({ organizationId, onComplete }: Prepai
 
   const handleSubmit = async () => {
     if (!validateForm()) return;
+
+    analytics?.trackEvent('prepaid_onboarding_form_submitted', { 
+      phone: formData.phone,
+      hasEmail: !!formData.email,
+      hasDob: !!formData.dob 
+    });
 
     const dobDate = formData.dob ? new Date(formData.dob) : null;
     const dobTimestamp = dobDate ? Math.floor(dobDate.getTime() / 1000) : null;

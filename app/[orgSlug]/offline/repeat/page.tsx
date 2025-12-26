@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { useMutation, useQuery } from '@apollo/client';
 import { CREATE_APPOINTMENT, UPDATE_PATIENT, GET_USER, SEND_APPOINTMENT_EMAIL } from '@/gql/queries';
+import { useBookingAnalytics } from '@/hooks/useBookingAnalytics';
 import {
   RepeatUserOfflineSessionDetails,
   RepeatUserOfflineBookingConfirmed,
@@ -37,6 +38,7 @@ export default function RepeatOfflinePage() {
   const [mounted, setMounted] = useState(false);
   const [currentStep, setCurrentStep] = useState<BookingStep>('session-details');
   const [isCreatingAppointment, setIsCreatingAppointment] = useState(false);
+  const analytics = useBookingAnalytics('repeat-offline');
   const [bookingData, setBookingData] = useState<BookingData>({
     patientId: '',
     centerId: '', // Will be set from cookies
@@ -60,7 +62,13 @@ export default function RepeatOfflinePage() {
 
   useEffect(() => {
     setMounted(true);
-  }, []);
+    const cookies = getBookingCookies();
+    analytics.trackFlowStart(cookies.organizationId || '', cookies.centerId || undefined);
+  }, [analytics]);
+
+  useEffect(() => {
+    analytics.trackStepView(currentStep);
+  }, [currentStep]);
 
   useEffect(() => {
     if (!mounted) return;
@@ -83,6 +91,7 @@ export default function RepeatOfflinePage() {
     ];
     const currentIndex = stepOrder.indexOf(currentStep);
     if (currentIndex < stepOrder.length - 1) {
+      analytics.trackStepComplete(currentStep);
       setCurrentStep(stepOrder[currentIndex + 1]);
     }
   };
@@ -96,8 +105,10 @@ export default function RepeatOfflinePage() {
     ];
     const currentIndex = stepOrder.indexOf(currentStep);
     if (currentIndex > 0) {
+      analytics.trackBackNavigation(currentStep);
       setCurrentStep(stepOrder[currentIndex - 1]);
     } else {
+      analytics.trackExitIntent(currentStep, 0);
       router.push(`/${orgSlug}`);
     }
   };
@@ -233,6 +244,7 @@ export default function RepeatOfflinePage() {
               });
               goToNextStep();
             }}
+            analytics={analytics}
           />
         )}
 
@@ -243,6 +255,7 @@ export default function RepeatOfflinePage() {
             designation={bookingData.designation}
             onSlotSelect={handleSlotSelect}
             onBack={goToPreviousStep}
+            analytics={analytics}
           />
         )}
 
