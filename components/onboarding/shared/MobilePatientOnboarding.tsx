@@ -198,6 +198,9 @@ export default function MobilePatientOnboarding({
         // Track patient creation success
         mobileAnalytics.trackPatientCreated(data.createPatient._id, centerId, false);
         
+        // Track patient profile completed
+        mobileAnalytics.trackPatientProfileCompleted(data.createPatient._id, centerId, false);
+        
         // Set organization ID in localStorage from the created patient's center
         const patientCenter = data.createPatient.profileData?.centers?.[0];
         if (patientCenter?.organization?._id) {
@@ -443,7 +446,7 @@ export default function MobilePatientOnboarding({
           {formData.phone.length === 10 && !isPhoneVerified && (
             <button
               onClick={() => {
-                mobileAnalytics.trackPhoneVerificationClicked(formData.phone, centerId);
+                mobileAnalytics.trackPhoneVerificationAttempt(formData.phone, centerId);
                 handlePhoneVerification();
               }}
               disabled={isVerifying}
@@ -699,7 +702,7 @@ export default function MobilePatientOnboarding({
           <div className="flex space-x-3">
             <button
               onClick={() => {
-                mobileAnalytics.trackPhoneVerificationClicked(formData.phone, centerId);
+                mobileAnalytics.trackPhoneVerificationAttempt(formData.phone, centerId);
                 handlePhoneVerification();
               }}
               disabled={isVerifying || !formData.phone || formData.phone.length !== 10}
