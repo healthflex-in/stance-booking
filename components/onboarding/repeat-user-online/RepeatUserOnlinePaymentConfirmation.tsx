@@ -11,6 +11,7 @@ import { useContainerDetection } from '@/hooks/useContainerDetection';
 import { Button } from '@/components/ui-atoms';
 import { StanceHealthLoader } from '@/components/loader/StanceHealthLoader';
 import { EmailCollectionModal } from '@/components/onboarding/shared';
+import { BookingAnalytics } from '@/services/booking-analytics';
 
 interface BookingData {
   sessionType: 'online';
@@ -28,11 +29,13 @@ interface BookingData {
 interface RepeatUserOnlinePaymentConfirmationProps {
   bookingData: BookingData;
   onNext: (appointmentId?: string) => void;
+  analytics: BookingAnalytics;
 }
 
 export default function RepeatUserOnlinePaymentConfirmation({
   bookingData,
   onNext,
+  analytics,
 }: RepeatUserOnlinePaymentConfirmationProps) {
   const router = useRouter();
   const params = useParams();
@@ -70,6 +73,12 @@ export default function RepeatUserOnlinePaymentConfirmation({
       setShowEmailModal(true);
       return;
     }
+    
+    analytics.trackProceedToPaymentClicked(
+      bookingData.treatmentPrice,
+      bookingData.treatmentId,
+      bookingData.consultantId
+    );
     
     const startTime = Date.now();
     
@@ -140,6 +149,9 @@ export default function RepeatUserOnlinePaymentConfirmation({
       sessionStorage.setItem('paymentType', 'invoice');
       sessionStorage.setItem('paymentAmount', bookingData.treatmentPrice.toString());
       
+      // Track payment initiation
+      analytics.trackPaymentInitiated(bookingData.treatmentPrice, appointmentId);
+      
       // Verify sessionStorage was written
       const storedId = sessionStorage.getItem('appointmentId');
       console.log('✅ Verified stored appointment ID:', storedId);
@@ -162,6 +174,12 @@ export default function RepeatUserOnlinePaymentConfirmation({
 
   const handlePaymentSuccess = async (paymentId: string, invoiceId?: string) => {
     const appointmentId = sessionStorage.getItem('appointmentId');
+    
+    // Track payment success
+    if (appointmentId) {
+      analytics.trackPaymentSuccess(paymentId, bookingData.treatmentPrice, appointmentId);
+    }
+    
     sessionStorage.removeItem('appointmentId');
     sessionStorage.removeItem('paymentType');
     sessionStorage.removeItem('paymentAmount');
@@ -170,10 +188,14 @@ export default function RepeatUserOnlinePaymentConfirmation({
   };
 
   const handlePaymentFailure = (error: any) => {
+    const errorMsg = typeof error === 'string' ? error : error?.description || error?.message || 'Payment failed';
+    
+    // Track payment failure
+    analytics.trackPaymentFailure(errorMsg);
+    
     setIsProcessingPayment(false);
     sessionStorage.removeItem('paymentType');
     sessionStorage.removeItem('paymentAmount');
-    const errorMsg = typeof error === 'string' ? error : error?.description || error?.message || 'Payment failed';
     router.push(`/${orgSlug}/failure?error=${encodeURIComponent(errorMsg)}`);
   };
 

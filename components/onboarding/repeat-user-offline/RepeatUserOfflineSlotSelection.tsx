@@ -6,6 +6,7 @@ import { useCenterAvailability } from '@/hooks';
 import { useContainerDetection } from '@/hooks/useContainerDetection';
 import { ConsultantSelectionModal } from '../shared';
 import { StanceHealthLoader } from '@/components/loader/StanceHealthLoader';
+import { BookingAnalytics } from '@/services/booking-analytics';
 
 interface RepeatUserOfflineSlotSelectionProps {
   centerId: string;
@@ -13,6 +14,7 @@ interface RepeatUserOfflineSlotSelectionProps {
   designation?: string;
   onSlotSelect: (consultantId: string, slot: any) => void;
   onBack?: () => void;
+  analytics?: BookingAnalytics;
 }
 
 interface TimeSlot {
@@ -43,6 +45,7 @@ export default function RepeatUserOfflineSlotSelection({
   designation,
   onSlotSelect,
   onBack = () => {},
+  analytics,
 }: RepeatUserOfflineSlotSelectionProps) {
   const { isInDesktopContainer } = useContainerDetection();
   const [selectedConsultant, setSelectedConsultant] = useState<any>(null);
@@ -211,6 +214,7 @@ export default function RepeatUserOfflineSlotSelection({
 
   const handleDateSelect = (date: DateOption) => {
     const dateKey = `${date.day}, ${date.date} ${date.month}`;
+    analytics?.trackDateSelected(dateKey);
     setSelectedDate(dateKey);
     setCurrentSelectedDate(date.fullDate);
     setSelectedTimeSlot(null);
@@ -218,6 +222,7 @@ export default function RepeatUserOfflineSlotSelection({
 
   const handleTimeSlotSelect = (slot: TimeSlot) => {
     if (!slot.isAvailable) return;
+    analytics?.trackTimeSlotClicked(slot.displayTime, slot.consultantIds.length);
     setSelectedTimeSlot(slot);
   };
 
@@ -225,11 +230,20 @@ export default function RepeatUserOfflineSlotSelection({
     if (selectedTimeSlot) {
       const randomIndex = Math.floor(Math.random() * selectedTimeSlot.consultantIds.length);
       const consultantId = selectedConsultant?._id || selectedTimeSlot.consultantIds[randomIndex];
+      analytics?.trackSlotSelectionContinueClicked(consultantId, selectedTimeSlot.displayTime, centerId);
       onSlotSelect(consultantId, selectedTimeSlot);
     }
   };
 
   const handleConsultantSelect = (consultant: any | null) => {
+    if (consultant) {
+      const consultantName = consultant.profileData?.firstName || consultant.profileData?.lastName 
+        ? `${consultant.profileData?.firstName || ''} ${consultant.profileData?.lastName || ''}`.trim()
+        : 'Consultant';
+      analytics?.trackConsultantFilterApplied(consultant._id, consultantName);
+    } else {
+      analytics?.trackConsultantFilterCleared();
+    }
     setSelectedConsultant(consultant);
     setShowConsultantModal(false);
   };
@@ -272,7 +286,7 @@ export default function RepeatUserOfflineSlotSelection({
                   </div>
                 </div>
                 <button
-                  onClick={() => setShowConsultantModal(true)}
+                  onClick={() => { analytics?.trackConsultantModalOpened(); setShowConsultantModal(true); }}
                   className="p-2 hover:bg-gray-50 rounded-lg transition-colors"
                 >
                   <ChevronRight className="w-5 h-5" style={{ color: '#203A37' }} />

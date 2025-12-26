@@ -7,6 +7,7 @@ import { CheckCircle, Shirt, Droplets, Package } from 'lucide-react';
 import { Button } from '@/components/ui-atoms/Button';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
+import { BookingAnalytics } from '@/services/booking-analytics';
 
 interface PrepaidBookingConfirmedProps {
   bookingData: {
@@ -21,9 +22,10 @@ interface PrepaidBookingConfirmedProps {
     appointmentId?: string;
     sessionType?: 'online' | 'in-person';
   };
+  analytics?: BookingAnalytics;
 }
 
-export default function PrepaidBookingConfirmed({ bookingData }: PrepaidBookingConfirmedProps) {
+export default function PrepaidBookingConfirmed({ bookingData, analytics }: PrepaidBookingConfirmedProps) {
   const router = useRouter();
   const [appointmentCreated, setAppointmentCreated] = useState(false);
   const [isCreating, setIsCreating] = useState(true);
@@ -261,7 +263,12 @@ export default function PrepaidBookingConfirmed({ bookingData }: PrepaidBookingC
       <div className="flex-shrink-0 bg-white border-t border-gray-200 p-4">
         <div className="flex gap-3 mb-3">
           <button
-            onClick={() => router.push('/book-prepaid')}
+            onClick={() => {
+              if (analytics && bookingData.appointmentId) {
+                analytics.trackReturnHomeClicked(bookingData.appointmentId);
+              }
+              router.push('/book-prepaid');
+            }}
             className="flex-1 py-4 text-black rounded-xl font-semibold transition-all"
             style={{ backgroundColor: '#DDFE71' }}
           >
@@ -270,6 +277,9 @@ export default function PrepaidBookingConfirmed({ bookingData }: PrepaidBookingC
           <div className="flex gap-2">
             <button
               onClick={() => {
+                if (analytics && bookingData.appointmentId) {
+                  analytics.trackWhatsAppShareClicked(bookingData.appointmentId);
+                }
                 const timeSlot = typeof bookingData.selectedTimeSlot === 'string' 
                   ? bookingData.selectedTimeSlot 
                   : bookingData.selectedTimeSlot.displayTime;
@@ -286,6 +296,9 @@ export default function PrepaidBookingConfirmed({ bookingData }: PrepaidBookingC
             </button>
             <button
               onClick={() => {
+                if (analytics && bookingData.appointmentId) {
+                  analytics.trackSmsShareClicked(bookingData.appointmentId);
+                }
                 const timeSlot = typeof bookingData.selectedTimeSlot === 'string' 
                   ? bookingData.selectedTimeSlot 
                   : bookingData.selectedTimeSlot.displayTime;

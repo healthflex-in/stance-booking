@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { trackEvent, initGTM } from '@/lib/gtag';
-import { metaPixelEvents, metaPixelCustomEvents } from '@/lib/meta-pixel';
+import { metaPixelEvents, trackMetaPixelCustomEvent } from '@/lib/meta-pixel';
 
 export class MobileFlowAnalytics {
   private initialized = false;
@@ -33,65 +33,54 @@ export class MobileFlowAnalytics {
     this.ensureGtagInitialized();
     this.ensureMetaPixelInitialized();
     
-    // Send to GA4 with ga4_ prefix
-    trackEvent(`ga4_${baseEventName}`, {
+    const eventData = {
       ...parameters,
+      timestamp: new Date().toISOString(),
+    };
+
+    console.log('📊 Analytics Event:', baseEventName, eventData);
+    
+    // 1. Send to GA4 via gtag
+    trackEvent(`ga4_${baseEventName}`, {
+      ...eventData,
       platform: 'ga4'
     });
+    console.log('✅ Sent to GA4');
     
-    // Send to Meta Pixel with pixel_ prefix (for GTM)
+    // 2. Send to GTM dataLayer
     trackEvent(`pixel_${baseEventName}`, {
-      ...parameters,
+      ...eventData,
       platform: 'meta_pixel'
     });
+    console.log('✅ Sent to GTM dataLayer');
     
-    // Also send directly to Meta Pixel (bypass GTM)
-    this.trackDirectMetaPixelEvent(baseEventName, parameters);
+    // 3. Send directly to Meta Pixel
+    if (typeof window !== 'undefined' && (window as any).fbq) {
+      this.trackDirectMetaPixelEvent(baseEventName, eventData);
+      console.log('✅ Sent to Meta Pixel');
+    } else {
+      console.log('⚠️ Meta Pixel (fbq) not found');
+    }
   }
   
   // Direct Meta Pixel event tracking
   private trackDirectMetaPixelEvent(eventName: string, parameters: Record<string, any> = {}) {
-    // Map common events to Meta Pixel standard events
-    const metaPixelMapping: Record<string, string> = {
-      'patient_created': 'CompleteRegistration',
-      'generate_lead': 'Lead',
-      'center_selected': 'FindLocation',
-      'time_slot_selected': 'Schedule',
-      'begin_checkout': 'InitiateCheckout',
-      'add_payment_info': 'AddPaymentInfo',
-      'purchase': 'Purchase',
-      'payment_initiated': 'Contact'
+    if (typeof window === 'undefined' || !(window as any).fbq) return;
+
+    // Map to standard Meta Pixel events
+    const standardEventMapping: Record<string, () => void> = {
+      'generate_lead': () => metaPixelEvents.trackLead(parameters),
+      'time_slot_selected': () => metaPixelEvents.trackSchedule(parameters),
+      'begin_checkout': () => metaPixelEvents.trackInitiateCheckout(parameters),
+      'add_payment_info': () => metaPixelEvents.trackAddPaymentInfo(parameters),
+      'purchase': () => metaPixelEvents.trackPurchase(parameters),
     };
-    
-    const mappedEvent = metaPixelMapping[eventName];
-    
-    if (mappedEvent && metaPixelEvents[`track${mappedEvent}` as keyof typeof metaPixelEvents]) {
-      // Use standard Meta Pixel events
-      (metaPixelEvents[`track${mappedEvent}` as keyof typeof metaPixelEvents] as (params: Record<string, any>) => void)(parameters);
+
+    if (standardEventMapping[eventName]) {
+      standardEventMapping[eventName]();
     } else {
-      // Use custom Meta Pixel events for unmapped events
-      const customEventMapping: Record<string, string> = {
-        'mobile_flow_start': 'MobileFlowStart',
-        'patient_onboarding_start': 'PatientDetailsStart',
-        'phone_verification_clicked': 'PhoneVerification',
-        'patient_profile_completed': 'PatientProfileComplete',
-        'center_search_start': 'CenterSearch',
-        'slot_search_start': 'SlotSearch',
-        'appointment_scheduling_complete': 'AppointmentScheduled',
-        'checkout_started': 'CheckoutStart',
-        'payment_method_selection': 'PaymentMethodSelected',
-        'razorpay_gateway_loaded': 'RazorpayLoaded',
-        'payment_processing_start': 'PaymentProcessing',
-        'email_details_requested': 'EmailDetailsRequest',
-        'booking_success_complete': 'BookingSuccess',
-        'form_abandonment': 'FormAbandonment',
-        'support_request': 'SupportRequest'
-      };
-      
-      const customEvent = customEventMapping[eventName];
-      if (customEvent && metaPixelCustomEvents[`track${customEvent}` as keyof typeof metaPixelCustomEvents]) {
-        (metaPixelCustomEvents[`track${customEvent}` as keyof typeof metaPixelCustomEvents] as (params: Record<string, any>) => void)(parameters);
-      }
+      // Send as custom event
+      trackMetaPixelCustomEvent(eventName, parameters);
     }
   }
   

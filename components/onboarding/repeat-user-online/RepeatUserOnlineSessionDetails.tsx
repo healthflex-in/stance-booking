@@ -8,11 +8,14 @@ import { useContainerDetection } from '@/hooks/useContainerDetection';
 import { PrimaryButton } from '@/components/ui-atoms';
 import { LocationSelectionModal, ServiceSelectionModal } from '@/components/onboarding/shared';
 
+import { BookingAnalytics } from '@/services/booking-analytics';
+
 interface RepeatUserOnlineSessionDetailsProps {
   patientId: string;
   organizationId: string;
   onBack: () => void;
   onContinue: (data: { organizationId: string; serviceId: string; serviceDuration: number; servicePrice: number; designation: string }) => void;
+  analytics: BookingAnalytics;
 }
 
 export default function RepeatUserOnlineSessionDetails({
@@ -20,6 +23,7 @@ export default function RepeatUserOnlineSessionDetails({
   organizationId,
   onBack,
   onContinue,
+  analytics,
 }: RepeatUserOnlineSessionDetailsProps) {
   const { isInDesktopContainer } = useContainerDetection();
   const [selectedService, setSelectedService] = useState<any>(null);
@@ -52,6 +56,8 @@ export default function RepeatUserOnlineSessionDetails({
     if (!selectedService) return;
 
     const backendDesignation = selectedDesignation === 'S&C Coach' ? 'SNC_Coach' : selectedDesignation;
+
+    analytics.trackSessionDetailsContinueClicked(selectedService._id, backendDesignation);
 
     onContinue({
       organizationId,
@@ -90,7 +96,10 @@ export default function RepeatUserOnlineSessionDetails({
             <div className="bg-white rounded-xl p-1 border-2 flex relative" style={{ borderColor: '#DDFE71' }}>
               <button
                 type="button"
-                onClick={() => setSelectedDesignation('Physiotherapist')}
+                onClick={() => {
+                  analytics.trackDesignationToggled('Physiotherapist');
+                  setSelectedDesignation('Physiotherapist');
+                }}
                 className={`flex-1 py-2 px-3 rounded-lg font-medium text-xs transition-all ${
                   selectedDesignation === 'Physiotherapist'
                     ? 'text-black shadow-sm'
@@ -105,7 +114,10 @@ export default function RepeatUserOnlineSessionDetails({
               <div className="w-px bg-gray-300 mx-1" />
               <button
                 type="button"
-                onClick={() => setSelectedDesignation('S&C Coach')}
+                onClick={() => {
+                  analytics.trackDesignationToggled('S&C Coach');
+                  setSelectedDesignation('S&C Coach');
+                }}
                 className={`flex-1 py-2 px-3 rounded-lg font-medium text-xs transition-all ${
                   selectedDesignation === 'S&C Coach'
                     ? 'text-black shadow-sm'
@@ -129,7 +141,10 @@ export default function RepeatUserOnlineSessionDetails({
               Choose the service you need
             </p>
             <button
-              onClick={() => setShowServiceModal(true)}
+              onClick={() => {
+                analytics.trackServiceModalOpened();
+                setShowServiceModal(true);
+              }}
               className="w-full"
             >
               <div className="bg-white rounded-2xl p-4 border-2 transition-all" style={{ borderColor: selectedService ? '#DDFE71' : '#e5e7eb' }}>
@@ -173,7 +188,10 @@ export default function RepeatUserOnlineSessionDetails({
       {/* Modals */}
       <ServiceSelectionModal
         isOpen={showServiceModal}
-        onClose={() => setShowServiceModal(false)}
+        onClose={() => {
+          analytics.trackServiceModalClosed();
+          setShowServiceModal(false);
+        }}
         patientId={patientId}
         organizationId={organizationId}
         isNewUser={false}
@@ -181,6 +199,7 @@ export default function RepeatUserOnlineSessionDetails({
         designation={selectedDesignation}
         onSelect={(service) => {
           setSelectedService(service);
+          analytics.trackServiceModalClosed();
           setShowServiceModal(false);
         }}
       />

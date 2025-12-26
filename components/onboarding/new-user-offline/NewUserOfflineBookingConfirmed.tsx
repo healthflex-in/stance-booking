@@ -5,20 +5,34 @@ import { useQuery } from '@apollo/client';
 import { GET_CENTERS, GET_USER, GET_SERVICES } from '@/gql/queries';
 import { CheckCircle, Shirt, Droplets, Package } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { BookingAnalytics } from '@/services/booking-analytics';
 
 interface NewUserOfflineBookingConfirmedProps {
   bookingData: {
     patientId: string;
     centerId: string;
+    consultantId?: string;
     treatmentId: string;
     treatmentPrice: number;
     selectedTimeSlot: { startTime: string; endTime: string; displayTime: string };
     selectedDate: string;
   };
+  analytics?: BookingAnalytics;
 }
 
-export default function NewUserOfflineBookingConfirmed({ bookingData }: NewUserOfflineBookingConfirmedProps) {
+export default function NewUserOfflineBookingConfirmed({ bookingData, analytics }: NewUserOfflineBookingConfirmedProps) {
   const router = useRouter();
+  
+  React.useEffect(() => {
+    if (analytics) {
+      analytics.trackBookingComplete(
+        '', // appointmentId not available for offline bookings
+        bookingData.patientId,
+        bookingData.consultantId || '',
+        bookingData.centerId
+      );
+    }
+  }, [analytics, bookingData]);
   
   const { data: centersData } = useQuery(GET_CENTERS);
   const { data: userData } = useQuery(GET_USER, {
@@ -111,7 +125,7 @@ export default function NewUserOfflineBookingConfirmed({ bookingData }: NewUserO
 
       <div className="flex-shrink-0 bg-white border-t border-gray-200 p-4">
         <button
-          onClick={() => router.push('/book')}
+          onClick={() => { analytics?.trackReturnHomeClicked(''); router.push('/book'); }}
           className="w-full py-4 text-black rounded-xl font-semibold transition-all"
           style={{ backgroundColor: '#DDFE71' }}
         >

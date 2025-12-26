@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import PrepaidOnboarding from '@/components/onboarding/PrepaidOnboarding';
 import { StanceHealthLoader } from '@/components/loader/StanceHealthLoader';
 import { getBookingCookies } from '@/utils/booking-cookies';
+import { useBookingAnalytics } from '@/hooks/useBookingAnalytics';
 
 export default function PrepaidPage() {
   const params = useParams();
@@ -12,16 +13,18 @@ export default function PrepaidPage() {
   const orgSlug = params.orgSlug as string;
   const [organizationId, setOrganizationId] = useState('');
   const [mounted, setMounted] = useState(false);
+  const analytics = useBookingAnalytics('prepaid-new');
 
   useEffect(() => {
     setMounted(true);
     const cookies = getBookingCookies();
+    analytics.trackFlowStart(cookies.organizationId || '', cookies.centerId || undefined);
     if (cookies.organizationId) {
       setOrganizationId(cookies.organizationId);
     } else {
       router.push(`/${orgSlug}`);
     }
-  }, [orgSlug, router]);
+  }, [orgSlug, router, analytics]);
 
   const handleComplete = (patientId: string, isNewUser: boolean) => {
     sessionStorage.setItem('patientId', patientId);
@@ -45,7 +48,7 @@ export default function PrepaidPage() {
   const BookingContent = () => (
     <div className="h-full bg-gray-50 flex flex-col">
       <div className="flex-1 overflow-hidden">
-        <PrepaidOnboarding organizationId={organizationId} onComplete={handleComplete} />
+        <PrepaidOnboarding organizationId={organizationId} onComplete={handleComplete} analytics={analytics} />
       </div>
     </div>
   );

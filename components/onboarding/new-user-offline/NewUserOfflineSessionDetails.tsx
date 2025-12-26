@@ -7,12 +7,14 @@ import { GET_CENTERS } from '@/gql/queries';
 import { useContainerDetection } from '@/hooks/useContainerDetection';
 import { PrimaryButton } from '@/components/ui-atoms';
 import { LocationSelectionModal, ServiceSelectionModal } from '@/components/onboarding/shared';
+import { BookingAnalytics } from '@/services/booking-analytics';
 
 interface NewUserOfflineSessionDetailsProps {
   patientId: string;
   centerId: string;
   onBack: () => void;
   onContinue: (data: { centerId: string; serviceId: string; serviceDuration: number; servicePrice: number }) => void;
+  analytics?: BookingAnalytics;
 }
 
 export default function NewUserOfflineSessionDetails({
@@ -20,6 +22,7 @@ export default function NewUserOfflineSessionDetails({
   centerId,
   onBack,
   onContinue,
+  analytics,
 }: NewUserOfflineSessionDetailsProps) {
   const { isInDesktopContainer } = useContainerDetection();
   const [selectedCenter, setSelectedCenter] = useState<any>(null);
@@ -42,6 +45,7 @@ export default function NewUserOfflineSessionDetails({
 
   const handleContinue = () => {
     if (!selectedService || !selectedCenter) return;
+    analytics?.trackSessionDetailsContinueClicked(selectedService._id, '');
     onContinue({
       centerId: selectedCenter._id,
       serviceId: selectedService._id,
@@ -62,7 +66,7 @@ export default function NewUserOfflineSessionDetails({
             
             <h2 className="text-xl font-semibold text-gray-900 mb-2">Location</h2>
             <p className="text-gray-600 text-sm mb-4">Select your preferred location</p>
-            <button onClick={() => setShowLocationModal(true)} className="w-full">
+            <button onClick={() => { setShowLocationModal(true); }} className="w-full">
               <div className="bg-white rounded-2xl p-4 border-2 transition-all" style={{ borderColor: selectedCenter ? '#DDFE71' : '#e5e7eb' }}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
@@ -89,7 +93,7 @@ export default function NewUserOfflineSessionDetails({
           <div className="mb-6">
             <h2 className="text-xl font-semibold text-gray-900 mb-2">Service</h2>
             <p className="text-gray-600 text-sm mb-4">Choose the service you need</p>
-            <button onClick={() => selectedCenter && setShowServiceModal(true)} disabled={!selectedCenter} className="w-full">
+            <button onClick={() => { if (selectedCenter) { analytics?.trackServiceModalOpened(); setShowServiceModal(true); } }} disabled={!selectedCenter} className="w-full">
               <div className="bg-white rounded-2xl p-4 border-2 transition-all" style={{ borderColor: selectedService ? '#DDFE71' : '#e5e7eb', opacity: !selectedCenter ? 0.5 : 1, cursor: !selectedCenter ? 'not-allowed' : 'pointer' }}>
                 <div className="flex items-center justify-between">
                   <div className="flex-1 text-left">
@@ -125,6 +129,7 @@ export default function NewUserOfflineSessionDetails({
         centers={filteredCenters}
         sessionType="in-person"
         onSelect={(center) => {
+          analytics?.trackEvent('center_selected', { centerId: center._id });
           setSelectedCenter(center);
           setShowLocationModal(false);
         }}
@@ -138,6 +143,7 @@ export default function NewUserOfflineSessionDetails({
         isNewUser={true}
         sessionType="in-person"
         onSelect={(service) => {
+          analytics?.trackEvent('service_selected', { serviceId: service._id });
           setSelectedService(service);
           setShowServiceModal(false);
         }}

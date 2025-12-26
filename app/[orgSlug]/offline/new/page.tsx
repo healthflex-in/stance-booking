@@ -3,8 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
-
-
+import { useBookingAnalytics } from '@/hooks/useBookingAnalytics';
 import { NewUserOfflineBookingConfirmed, NewUserOfflinePaymentConfirmation, NewUserOfflineSessionDetails, NewUserOfflineSlotSelection } from '@/components/onboarding/new-user-offline';
 
 type BookingStep =
@@ -33,6 +32,7 @@ export default function NewOfflinePage() {
   const orgSlug = params.orgSlug as string;
   const [mounted, setMounted] = useState(false);
   const [currentStep, setCurrentStep] = useState<BookingStep>('session-details');
+  const analytics = useBookingAnalytics('new-offline');
   const [bookingData, setBookingData] = useState<BookingData>({
     sessionType: 'in-person',
     patientId: '',
@@ -48,7 +48,12 @@ export default function NewOfflinePage() {
 
   useEffect(() => {
     setMounted(true);
+    analytics.trackFlowStart(process.env.NEXT_PUBLIC_ORGANIZATION_ID || '', bookingData.centerId);
   }, []);
+
+  useEffect(() => {
+    analytics.trackStepView(currentStep);
+  }, [currentStep]);
 
   useEffect(() => {
     if (!mounted) return;
@@ -76,6 +81,7 @@ export default function NewOfflinePage() {
     ];
     const currentIndex = stepOrder.indexOf(currentStep);
     if (currentIndex < stepOrder.length - 1) {
+      analytics.trackStepComplete(currentStep);
       setCurrentStep(stepOrder[currentIndex + 1]);
     }
   };
@@ -89,8 +95,10 @@ export default function NewOfflinePage() {
     ];
     const currentIndex = stepOrder.indexOf(currentStep);
     if (currentIndex > 0) {
+      analytics.trackBackNavigation(currentStep);
       setCurrentStep(stepOrder[currentIndex - 1]);
     } else {
+      analytics.trackExitIntent(currentStep, 0);
       router.push(`/${orgSlug}`);
     }
   };
@@ -165,6 +173,7 @@ export default function NewOfflinePage() {
                 });
                 goToNextStep();
               }}
+              analytics={analytics}
             />
           )}
 
@@ -188,6 +197,7 @@ export default function NewOfflinePage() {
                 goToNextStep();
               }}
               onBack={goToPreviousStep}
+              analytics={analytics}
             />
           )}
 
@@ -195,11 +205,12 @@ export default function NewOfflinePage() {
             <NewUserOfflinePaymentConfirmation
               bookingData={bookingData}
               onNext={goToNextStep}
+              analytics={analytics}
             />
           )}
 
           {currentStep === 'booking-confirmed' && (
-            <NewUserOfflineBookingConfirmed bookingData={bookingData} />
+            <NewUserOfflineBookingConfirmed bookingData={bookingData} analytics={analytics} />
           )}
         </div>
       </div>

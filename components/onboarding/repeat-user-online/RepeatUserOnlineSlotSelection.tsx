@@ -7,12 +7,15 @@ import { useContainerDetection } from '@/hooks/useContainerDetection';
 import { ConsultantSelectionModal } from '../shared';
 import { StanceHealthLoader } from '@/components/loader/StanceHealthLoader';
 
+import { BookingAnalytics } from '@/services/booking-analytics';
+
 interface RepeatUserOnlineSlotSelectionProps {
   organizationId: string;
   serviceDuration: number;
   designation?: string;
   onSlotSelect: (consultantId: string, slot: any) => void;
   onBack: () => void;
+  analytics: BookingAnalytics;
 }
 
 interface TimeSlot {
@@ -44,6 +47,7 @@ export default function RepeatUserOnlineSlotSelection({
   designation,
   onSlotSelect,
   onBack,
+  analytics,
 }: RepeatUserOnlineSlotSelectionProps) {
   const { isInDesktopContainer } = useContainerDetection();
   const [selectedConsultant, setSelectedConsultant] = useState<any>(null);
@@ -200,6 +204,7 @@ export default function RepeatUserOnlineSlotSelection({
 
   const handleDateSelect = (date: DateOption) => {
     const dateKey = `${date.day}, ${date.date} ${date.month}`;
+    analytics.trackDateSelected(dateKey);
     setSelectedDate(dateKey);
     setCurrentSelectedDate(date.fullDate);
     setSelectedTimeSlot(null);
@@ -207,6 +212,7 @@ export default function RepeatUserOnlineSlotSelection({
 
   const handleTimeSlotSelect = (slot: TimeSlot) => {
     if (!slot.isAvailable) return;
+    analytics.trackTimeSlotClicked(slot.displayTime, slot.consultantIds.length);
     setSelectedTimeSlot(slot);
   };
 
@@ -219,11 +225,21 @@ export default function RepeatUserOnlineSlotSelection({
         centerId: selectedTimeSlot.centerIds[randomIndex],
         centerName: selectedTimeSlot.centerNames[randomIndex],
       };
+      analytics.trackSlotSelectionContinueClicked(
+        consultantId,
+        selectedTimeSlot.displayTime,
+        slotWithCenter.centerId
+      );
       onSlotSelect(consultantId, slotWithCenter);
     }
   };
 
   const handleConsultantSelect = (consultant: any | null) => {
+    if (consultant) {
+      analytics.trackConsultantFilterApplied(consultant._id, `${consultant.profileData?.firstName || ''} ${consultant.profileData?.lastName || ''}`.trim());
+    } else {
+      analytics.trackConsultantFilterCleared();
+    }
     setSelectedConsultant(consultant);
     setShowConsultantModal(false);
   };
@@ -266,7 +282,10 @@ export default function RepeatUserOnlineSlotSelection({
                   </div>
                 </div>
                 <button
-                  onClick={() => setShowConsultantModal(true)}
+                  onClick={() => {
+                    analytics.trackConsultantModalOpened();
+                    setShowConsultantModal(true);
+                  }}
                   className="p-2 hover:bg-gray-50 rounded-lg transition-colors"
                 >
                   <ChevronRight className="w-5 h-5" style={{ color: '#203A37' }} />
@@ -401,7 +420,10 @@ export default function RepeatUserOnlineSlotSelection({
 
       <ConsultantSelectionModal
         isOpen={showConsultantModal}
-        onClose={() => setShowConsultantModal(false)}
+        onClose={() => {
+          analytics.trackConsultantModalClosed();
+          setShowConsultantModal(false);
+        }}
         consultants={consultants}
         sessionType="online"
         organizationId={organizationId}

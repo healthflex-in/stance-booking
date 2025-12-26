@@ -7,6 +7,7 @@ import { GET_CONSULTANTS, GET_USER } from '@/gql/queries';
 import { useCenterAvailability } from '@/hooks';
 import { useContainerDetection } from '@/hooks/useContainerDetection';
 import { StanceHealthLoader } from '@/components/loader/StanceHealthLoader';
+import { BookingAnalytics } from '@/services/booking-analytics';
 
 interface NewUserOfflineSlotSelectionProps {
   centerId: string;
@@ -14,6 +15,7 @@ interface NewUserOfflineSlotSelectionProps {
   patientId: string;
   onSlotSelect: (consultantId: string, slot: any) => void;
   onBack?: () => void;
+  analytics?: BookingAnalytics;
 }
 
 interface TimeSlot {
@@ -44,6 +46,7 @@ export default function NewUserOfflineSlotSelection({
   patientId,
   onSlotSelect,
   onBack = () => {},
+  analytics,
 }: NewUserOfflineSlotSelectionProps) {
   console.log('🚀 NewUserOfflineSlotSelection RENDERED - centerId:', centerId);
   const { isInDesktopContainer } = useContainerDetection();
@@ -218,6 +221,7 @@ export default function NewUserOfflineSlotSelection({
 
   const handleDateSelect = (date: DateOption) => {
     const dateKey = `${date.day}, ${date.date} ${date.month}`;
+    analytics?.trackDateSelected(dateKey);
     setSelectedDate(dateKey);
     setCurrentSelectedDate(date.fullDate);
     setSelectedTimeSlot(null);
@@ -225,21 +229,21 @@ export default function NewUserOfflineSlotSelection({
 
   const handleTimeSlotSelect = (slot: TimeSlot) => {
     if (!slot.isAvailable) return;
+    analytics?.trackTimeSlotClicked(slot.displayTime, slot.consultantIds.length);
     setSelectedTimeSlot(slot);
   };
 
   const handleContinue = async () => {
     if (selectedTimeSlot) {
+      const randomIndex = Math.floor(Math.random() * selectedTimeSlot.consultantIds.length);
+      const randomConsultantId = selectedTimeSlot.consultantIds[randomIndex];
+      analytics?.trackSlotSelectionContinueClicked(randomConsultantId, selectedTimeSlot.displayTime, centerId);
       setIsFetchingPatient(true);
       try {
         await refetchPatient();
-        const randomIndex = Math.floor(Math.random() * selectedTimeSlot.consultantIds.length);
-        const randomConsultantId = selectedTimeSlot.consultantIds[randomIndex];
         onSlotSelect(randomConsultantId, selectedTimeSlot);
       } catch (error) {
         console.error('Error fetching patient data:', error);
-        const randomIndex = Math.floor(Math.random() * selectedTimeSlot.consultantIds.length);
-        const randomConsultantId = selectedTimeSlot.consultantIds[randomIndex];
         onSlotSelect(randomConsultantId, selectedTimeSlot);
       } finally {
         setIsFetchingPatient(false);

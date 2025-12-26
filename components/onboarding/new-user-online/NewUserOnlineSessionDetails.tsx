@@ -8,16 +8,20 @@ import { useContainerDetection } from '@/hooks/useContainerDetection';
 import { PrimaryButton } from '@/components/ui-atoms';
 import { StanceHealthLoader } from '@/components/loader/StanceHealthLoader';
 
+import { BookingAnalytics } from '@/services/booking-analytics';
+
 interface NewUserOnlineSessionDetailsProps {
   patientId: string;
   onBack: () => void;
   onContinue: (data: { serviceId: string; serviceDuration: number; servicePrice: number }) => void;
+  analytics: BookingAnalytics;
 }
 
 export default function NewUserOnlineSessionDetails({
   patientId,
   onBack,
   onContinue,
+  analytics,
 }: NewUserOnlineSessionDetailsProps) {
   const { isInDesktopContainer } = useContainerDetection();
   const [selectedService, setSelectedService] = useState<any>(null);
@@ -39,6 +43,7 @@ export default function NewUserOnlineSessionDetails({
 
   const handleContinue = () => {
     if (!selectedService) return;
+    analytics.trackSessionDetailsContinueClicked(selectedService._id, 'Physiotherapist');
     onContinue({
       serviceId: selectedService._id,
       serviceDuration: selectedService.duration,
@@ -78,7 +83,10 @@ export default function NewUserOnlineSessionDetails({
                 {onlineServices.map((service: any) => (
                 <button
                   key={service._id}
-                  onClick={() => setSelectedService(service)}
+                  onClick={() => {
+                    analytics.trackServiceSelected(service._id, service.name, service.bookingAmount || service.price || 0, service.duration);
+                    setSelectedService(service);
+                  }}
                   className="w-full bg-white rounded-2xl p-4 border-2 transition-all text-left"
                   style={{ borderColor: selectedService?._id === service._id ? '#DDFE71' : '#e5e7eb' }}
                 >

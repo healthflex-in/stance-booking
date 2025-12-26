@@ -7,11 +7,14 @@ import { useContainerDetection } from '@/hooks/useContainerDetection';
 import { StanceHealthLoader } from '@/components/loader/StanceHealthLoader';
 import { getBookingCookies } from '@/utils/booking-cookies';
 
+import { BookingAnalytics } from '@/services/booking-analytics';
+
 interface NewUserOnlineSlotSelectionProps {
   serviceDuration: number;
   designation?: string;
   onSlotSelect: (consultantId: string, slot: any) => void;
   onBack: () => void;
+  analytics: BookingAnalytics;
 }
 
 interface TimeSlot {
@@ -42,6 +45,7 @@ export default function NewUserOnlineSlotSelection({
   designation,
   onSlotSelect,
   onBack,
+  analytics,
 }: NewUserOnlineSlotSelectionProps) {
   const { isInDesktopContainer } = useContainerDetection();
   const [selectedDate, setSelectedDate] = useState<string>('');
@@ -180,6 +184,7 @@ export default function NewUserOnlineSlotSelection({
 
   const handleDateSelect = (date: DateOption) => {
     const dateKey = `${date.day}, ${date.date} ${date.month}`;
+    analytics.trackDateSelected(dateKey);
     setSelectedDate(dateKey);
     setCurrentSelectedDate(date.fullDate);
     setSelectedTimeSlot(null);
@@ -187,6 +192,7 @@ export default function NewUserOnlineSlotSelection({
 
   const handleTimeSlotSelect = (slot: TimeSlot) => {
     if (!slot.isAvailable) return;
+    analytics.trackTimeSlotClicked(slot.displayTime, slot.consultantIds.length);
     setSelectedTimeSlot(slot);
   };
 
@@ -199,6 +205,7 @@ export default function NewUserOnlineSlotSelection({
         centerId: selectedTimeSlot.centerIds[randomIndex],
         centerName: selectedTimeSlot.centerNames[randomIndex],
       };
+      analytics.trackSlotSelectionContinueClicked(randomConsultantId, selectedTimeSlot.displayTime, slotWithCenter.centerId);
       onSlotSelect(randomConsultantId, slotWithCenter);
     }
   };

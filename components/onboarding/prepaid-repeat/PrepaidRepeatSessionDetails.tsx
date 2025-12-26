@@ -6,6 +6,7 @@ import { GET_SERVICES, GET_USER } from '@/gql/queries';
 import { useContainerDetection } from '@/hooks/useContainerDetection';
 import { PrimaryButton } from '@/components/ui-atoms';
 import { StanceHealthLoader } from '@/components/loader/StanceHealthLoader';
+import { BookingAnalytics } from '@/services/booking-analytics';
 
 interface PrepaidRepeatSessionDetailsProps {
   patientId: string;
@@ -13,9 +14,10 @@ interface PrepaidRepeatSessionDetailsProps {
   isNewUser?: boolean;
   onBack: () => void;
   onContinue: (data: { organizationId: string; serviceId: string; serviceDuration: number; servicePrice: number; designation: string }) => void;
+  analytics?: BookingAnalytics;
 }
 
-export default function PrepaidRepeatSessionDetails({ patientId, organizationId, isNewUser = false, onBack, onContinue }: PrepaidRepeatSessionDetailsProps) {
+export default function PrepaidRepeatSessionDetails({ patientId, organizationId, isNewUser = false, onBack, onContinue, analytics }: PrepaidRepeatSessionDetailsProps) {
   const { isInDesktopContainer } = useContainerDetection();
   const [selectedService, setSelectedService] = useState<any>(null);
 
@@ -86,7 +88,7 @@ export default function PrepaidRepeatSessionDetails({ patientId, organizationId,
                 {prepaidServices.map((service: any) => (
                   <button
                     key={service._id}
-                    onClick={() => setSelectedService(service)}
+                    onClick={() => { analytics?.trackServiceSelected(service._id, service.name, service.bookingAmount || service.price || 0, service.duration); setSelectedService(service); }}
                     className="w-full bg-white rounded-2xl p-4 border-2 transition-all text-left"
                     style={{ borderColor: selectedService?._id === service._id ? '#DDFE71' : '#e5e7eb', backgroundColor: selectedService?._id === service._id ? '#f7ffe5' : '#fff' }}
                   >

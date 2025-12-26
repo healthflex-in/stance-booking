@@ -7,6 +7,8 @@ import { CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 
+import { BookingAnalytics } from '@/services/booking-analytics';
+
 interface NewUserOnlineBookingConfirmedProps {
   bookingData: {
     patientId: string;
@@ -18,13 +20,26 @@ interface NewUserOnlineBookingConfirmedProps {
     selectedDate: string;
     appointmentId?: string;
   };
+  analytics: BookingAnalytics;
 }
 
-export default function NewUserOnlineBookingConfirmed({ bookingData }: NewUserOnlineBookingConfirmedProps) {
+export default function NewUserOnlineBookingConfirmed({ bookingData, analytics }: NewUserOnlineBookingConfirmedProps) {
   const router = useRouter();
   const [emailsSent, setEmailsSent] = useState(false);
   const emailSendInProgress = useRef(false);
   const appointmentId = bookingData.appointmentId;
+
+  // Track booking completion
+  useEffect(() => {
+    if (appointmentId) {
+      analytics.trackBookingComplete(
+        appointmentId,
+        bookingData.patientId,
+        bookingData.consultantId,
+        bookingData.centerId
+      );
+    }
+  }, [appointmentId, analytics, bookingData]);
 
   const [sendAppointmentEmail] = useMutation(SEND_APPOINTMENT_EMAIL);
   const [sendConsultantMeetInvite] = useMutation(SEND_CONSULTANT_MEET_INVITE);
@@ -203,7 +218,12 @@ export default function NewUserOnlineBookingConfirmed({ bookingData }: NewUserOn
       <div className="flex-shrink-0 bg-white border-t border-gray-200 p-4">
         <div className="flex gap-3 mb-3">
           <button
-            onClick={() => router.push('/book')}
+            onClick={() => {
+              if (appointmentId) {
+                analytics.trackReturnHomeClicked(appointmentId);
+              }
+              router.push('/book');
+            }}
             className="flex-1 py-4 text-black rounded-xl font-semibold transition-all"
             style={{ backgroundColor: '#DDFE71' }}
           >
@@ -212,6 +232,9 @@ export default function NewUserOnlineBookingConfirmed({ bookingData }: NewUserOn
           <div className="flex gap-2">
             <button
               onClick={() => {
+                if (appointmentId) {
+                  analytics.trackWhatsAppShareClicked(appointmentId);
+                }
                 const meetingLink = appointmentData?.appointment?.meetingLink;
                 const message = meetingLink
                   ? `Your appointment with Stance Health is confirmed!\n\nDate: ${bookingData.selectedDate}\nTime: ${bookingData.selectedTimeSlot.displayTime}\n\nJoin meeting: ${meetingLink}`
@@ -225,6 +248,9 @@ export default function NewUserOnlineBookingConfirmed({ bookingData }: NewUserOn
             </button>
             <button
               onClick={() => {
+                if (appointmentId) {
+                  analytics.trackSmsShareClicked(appointmentId);
+                }
                 const meetingLink = appointmentData?.appointment?.meetingLink;
                 const message = meetingLink
                   ? `Your appointment with Stance Health is confirmed!\n\nDate: ${bookingData.selectedDate}\nTime: ${bookingData.selectedTimeSlot.displayTime}\n\nJoin meeting: ${meetingLink}`

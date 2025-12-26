@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { getBookingCookies } from '@/utils/booking-cookies';
+import { useBookingAnalytics } from '@/hooks/useBookingAnalytics';
 
 import {
   NewUserOnlinePaymentConfirmation,
@@ -39,6 +40,7 @@ export default function NewOnlinePage() {
   const router = useRouter();
   const params = useParams();
   const orgSlug = params.orgSlug as string;
+  const analytics = useBookingAnalytics('new-online');
   
   const [mounted, setMounted] = useState(false);
   const [currentStep, setCurrentStep] = useState<BookingStep>('session-details');
@@ -65,7 +67,12 @@ export default function NewOnlinePage() {
       router.replace(`/${orgSlug}`);
       return;
     }
-  }, [orgSlug, router]);
+    
+    // Track flow start
+    if (cookies.organizationId) {
+      analytics.trackFlowStart(cookies.organizationId, cookies.centerId || undefined);
+    }
+  }, [orgSlug, router, analytics]);
 
   useEffect(() => {
     if (!mounted) return;
@@ -93,7 +100,10 @@ export default function NewOnlinePage() {
     ];
     const currentIndex = stepOrder.indexOf(currentStep);
     if (currentIndex < stepOrder.length - 1) {
-      setCurrentStep(stepOrder[currentIndex + 1]);
+      const nextStep = stepOrder[currentIndex + 1];
+      analytics.trackStepComplete(currentStep);
+      setCurrentStep(nextStep);
+      analytics.trackStepView(nextStep);
     }
   };
 
@@ -106,8 +116,10 @@ export default function NewOnlinePage() {
     ];
     const currentIndex = stepOrder.indexOf(currentStep);
     if (currentIndex > 0) {
+      analytics.trackBackNavigation(currentStep);
       setCurrentStep(stepOrder[currentIndex - 1]);
     } else {
+      analytics.trackExitIntent(currentStep, 0);
       router.push(`/${orgSlug}`);
     }
   };
@@ -171,8 +183,10 @@ export default function NewOnlinePage() {
           {currentStep === 'session-details' && (
             <NewUserOnlineSessionDetails
               patientId={bookingData.patientId}
+              analytics={analytics}
               onBack={goToPreviousStep}
               onContinue={(data: { serviceId: string; serviceDuration: number; servicePrice: number }) => {
+                analytics.trackServiceSelected(data.serviceId, 'Service', data.servicePrice, data.serviceDuration);
                 updateBookingData({
                   treatmentId: data.serviceId,
                   treatmentDuration: data.serviceDuration,
@@ -187,8 +201,10 @@ export default function NewOnlinePage() {
             <NewUserOnlineSlotSelection
               serviceDuration={bookingData.treatmentDuration}
               designation="Physiotherapist"
+              analytics={analytics}
               onSlotSelect={(consultantId: string, slot: any) => {
                 const slotDate = new Date(slot.startTimeRaw);
+                analytics.trackSlotSelected(consultantId, slot.displayTime, slot.centerId);
                 updateBookingData({
                   consultantId,
                   centerId: slot.centerId,
@@ -210,6 +226,7 @@ export default function NewOnlinePage() {
           {currentStep === 'payment-confirmation' && (
             <NewUserOnlinePaymentConfirmation
               bookingData={bookingData}
+              analytics={analytics}
               onNext={(appointmentId?: string) => {
                 updateBookingData({ appointmentId });
                 goToNextStep();
@@ -218,7 +235,10 @@ export default function NewOnlinePage() {
           )}
 
           {currentStep === 'booking-confirmed' && (
-            <NewUserOnlineBookingConfirmed bookingData={bookingData} />
+            <NewUserOnlineBookingConfirmed 
+              bookingData={bookingData}
+              analytics={analytics}
+            />
           )}
         </div>
       </div>

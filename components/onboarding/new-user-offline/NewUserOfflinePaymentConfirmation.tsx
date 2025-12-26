@@ -8,6 +8,7 @@ import { GET_CENTERS, GET_SERVICES, GET_USER, CREATE_APPOINTMENT } from '@/gql/q
 import NewUserOfflinePaymentProcessing from './NewUserOfflinePaymentProcessing';
 import { useContainerDetection } from '@/hooks/useContainerDetection';
 import { Button } from '@/components/ui-atoms';
+import { BookingAnalytics } from '@/services/booking-analytics';
 
 interface BookingData {
   sessionType: 'in-person';
@@ -24,11 +25,13 @@ interface BookingData {
 interface NewUserOfflinePaymentConfirmationProps {
   bookingData: BookingData;
   onNext: () => void;
+  analytics?: BookingAnalytics;
 }
 
 export default function NewUserOfflinePaymentConfirmation({
   bookingData,
   onNext,
+  analytics,
 }: NewUserOfflinePaymentConfirmationProps) {
   const router = useRouter();
   const { isInDesktopContainer } = useContainerDetection();
@@ -97,6 +100,7 @@ export default function NewUserOfflinePaymentConfirmation({
     const amount = parseFloat(paymentAmount);
     const isFullPayment = amount === bookingData.treatmentPrice;
 
+    analytics?.trackProceedToPaymentClicked(amount, bookingData.treatmentId, bookingData.consultantId);
     setIsCreatingAppointment(true);
     try {
       // Create appointment FIRST with appropriate status
@@ -124,6 +128,7 @@ export default function NewUserOfflinePaymentConfirmation({
         throw new Error('Failed to create appointment');
       }
 
+      analytics?.trackPaymentInitiated(amount, appointmentId);
       // Store appointment ID and payment info
       sessionStorage.setItem('appointmentId', appointmentId);
       sessionStorage.setItem('paymentType', isFullPayment ? 'invoice' : 'package');
@@ -152,6 +157,8 @@ export default function NewUserOfflinePaymentConfirmation({
         consultantId={bookingData.consultantId}
         treatmentId={bookingData.treatmentId}
         onPaymentSuccess={async (paymentId, invoiceId) => {
+          const appointmentId = sessionStorage.getItem('appointmentId') || '';
+          analytics?.trackPaymentSuccess(paymentId, amount, appointmentId);
           sessionStorage.removeItem('appointmentId');
           sessionStorage.removeItem('paymentType');
           sessionStorage.removeItem('paymentAmount');
@@ -159,6 +166,8 @@ export default function NewUserOfflinePaymentConfirmation({
           onNext();
         }}
         onPaymentFailure={async (error) => {
+          const appointmentId = sessionStorage.getItem('appointmentId') || undefined;
+          analytics?.trackPaymentFailure(typeof error === 'string' ? error : error?.description || 'Payment failed', appointmentId);
           setIsProcessingPayment(false);
           sessionStorage.removeItem('paymentType');
           sessionStorage.removeItem('paymentAmount');

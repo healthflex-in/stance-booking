@@ -9,6 +9,7 @@ import {
 } from '@/components/onboarding/repeat-user-online';
 import { RepeatUserOnlineSessionDetails, RepeatUserOnlineSlotSelection } from '@/components/onboarding/repeat-user-online';
 import { getBookingCookies } from '@/utils/booking-cookies';
+import { useBookingAnalytics } from '@/hooks/useBookingAnalytics';
 
 type BookingStep = 'session-details' | 'slot-selection' | 'payment-confirmation' | 'booking-confirmed';
 
@@ -32,6 +33,7 @@ export default function RepeatOnlinePage() {
   const router = useRouter();
   const params = useParams();
   const orgSlug = params.orgSlug as string;
+  const analytics = useBookingAnalytics('repeat-online');
   const [mounted, setMounted] = useState(false);
   const [currentStep, setCurrentStep] = useState<BookingStep>('session-details');
   const [bookingData, setBookingData] = useState<BookingData>({
@@ -60,6 +62,8 @@ export default function RepeatOnlinePage() {
     // Get organization ID from cookies
     if (cookies.organizationId) {
       updateBookingData({ organizationId: cookies.organizationId });
+      // Track flow start
+      analytics.trackFlowStart(cookies.organizationId, cookies.centerId || undefined);
     }
     
     const storedPatientId = sessionStorage.getItem('patientId');
@@ -78,7 +82,10 @@ export default function RepeatOnlinePage() {
     ];
     const currentIndex = stepOrder.indexOf(currentStep);
     if (currentIndex < stepOrder.length - 1) {
-      setCurrentStep(stepOrder[currentIndex + 1]);
+      const nextStep = stepOrder[currentIndex + 1];
+      analytics.trackStepComplete(currentStep);
+      setCurrentStep(nextStep);
+      analytics.trackStepView(nextStep);
     }
   };
 
@@ -91,8 +98,10 @@ export default function RepeatOnlinePage() {
     ];
     const currentIndex = stepOrder.indexOf(currentStep);
     if (currentIndex > 0) {
+      analytics.trackBackNavigation(currentStep);
       setCurrentStep(stepOrder[currentIndex - 1]);
     } else {
+      analytics.trackExitIntent(currentStep, 0);
       router.push(`/${orgSlug}`);
     }
   };
@@ -143,8 +152,11 @@ export default function RepeatOnlinePage() {
           <RepeatUserOnlineSessionDetails
             patientId={bookingData.patientId}
             organizationId={bookingData.organizationId}
+            analytics={analytics}
             onBack={goToPreviousStep}
             onContinue={(data) => {
+              analytics.trackServiceSelected(data.serviceId, 'Service', data.servicePrice, data.serviceDuration);
+              analytics.trackDesignationSelected(data.designation);
               updateBookingData({
                 organizationId: data.organizationId,
                 treatmentId: data.serviceId,
@@ -162,8 +174,10 @@ export default function RepeatOnlinePage() {
             organizationId={bookingData.organizationId}
             serviceDuration={bookingData.treatmentDuration}
             designation={bookingData.designation}
+            analytics={analytics}
             onSlotSelect={(consultantId, slot) => {
               const slotDate = new Date(slot.startTimeRaw);
+              analytics.trackSlotSelected(consultantId, slot.displayTime, slot.centerId);
               updateBookingData({
                 consultantId,
                 centerId: slot.centerId,
@@ -184,6 +198,7 @@ export default function RepeatOnlinePage() {
             {currentStep === 'payment-confirmation' && (
               <RepeatUserOnlinePaymentConfirmation
                 bookingData={bookingData}
+                analytics={analytics}
                 onNext={(appointmentId?: string) => {
                   if (appointmentId) {
                     updateBookingData({ appointmentId });
@@ -194,7 +209,10 @@ export default function RepeatOnlinePage() {
             )}
 
         {currentStep === 'booking-confirmed' && (
-          <RepeatUserOnlineBookingConfirmed bookingData={bookingData} />
+          <RepeatUserOnlineBookingConfirmed 
+            bookingData={bookingData} 
+            analytics={analytics}
+          />
         )}
       </div>
     </div>
