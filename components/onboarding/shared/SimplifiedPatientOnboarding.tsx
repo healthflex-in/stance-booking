@@ -147,6 +147,7 @@ export default function SimplifiedPatientOnboarding({
     onCompleted: (data) => {
       toast.success('Patient created successfully');
       mobileAnalytics.trackPatientCreated(data.createPatient._id, centerId, false);
+      mobileAnalytics.trackPatientProfileCompleted(data.createPatient._id, centerId, false);
       
       const patientCenter = data.createPatient.profileData?.centers?.[0];
       if (patientCenter?.organization?._id) {
@@ -383,7 +384,7 @@ export default function SimplifiedPatientOnboarding({
         {formData.phone.length === 10 && !isPhoneVerified && (
           <button
             onClick={() => {
-              mobileAnalytics.trackPhoneVerificationClicked(formData.phone, centerId);
+              mobileAnalytics.trackPhoneVerificationAttempt(formData.phone, centerId);
               handlePhoneVerification();
             }}
             disabled={isVerifying}
@@ -666,7 +667,7 @@ export default function SimplifiedPatientOnboarding({
           <div className="flex space-x-3">
             <button
               onClick={() => {
-                mobileAnalytics.trackPhoneVerificationClicked(formData.phone, centerId);
+                mobileAnalytics.trackPhoneVerificationAttempt(formData.phone, centerId);
                 handlePhoneVerification();
               }}
               disabled={isVerifying || !formData.phone || formData.phone.length !== 10}

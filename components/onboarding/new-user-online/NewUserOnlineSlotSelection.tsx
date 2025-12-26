@@ -206,6 +206,17 @@ export default function NewUserOnlineSlotSelection({
         centerName: selectedTimeSlot.centerNames[randomIndex],
       };
       analytics.trackSlotSelectionContinueClicked(randomConsultantId, selectedTimeSlot.displayTime, slotWithCenter.centerId);
+      
+      // Track time slot selected for Meta Pixel
+      const mobileAnalytics = new (require('@/services/mobile-analytics').MobileFlowAnalytics)();
+      mobileAnalytics.trackTimeSlotSelected(
+        selectedTimeSlot.displayTime,
+        selectedDate,
+        slotWithCenter.centerId,
+        '', // patientId not available in this component
+        randomConsultantId
+      );
+      
       onSlotSelect(randomConsultantId, slotWithCenter);
     }
   };

@@ -69,18 +69,101 @@ export class MobileFlowAnalytics {
 
     // Map to standard Meta Pixel events
     const standardEventMapping: Record<string, () => void> = {
-      'generate_lead': () => metaPixelEvents.trackLead(parameters),
-      'time_slot_selected': () => metaPixelEvents.trackSchedule(parameters),
-      'begin_checkout': () => metaPixelEvents.trackInitiateCheckout(parameters),
-      'add_payment_info': () => metaPixelEvents.trackAddPaymentInfo(parameters),
-      'purchase': () => metaPixelEvents.trackPurchase(parameters),
+      'patient_created': () => metaPixelEvents.trackCompleteRegistration({
+        patient_id: parameters.patient_id,
+        center_id: parameters.center_id,
+        status: parameters.is_returning_user ? 'returning' : 'new'
+      }),
+      'generate_lead': () => metaPixelEvents.trackLead({
+        patient_id: parameters.patient_id,
+        center_id: parameters.center_id,
+        is_returning_user: parameters.is_returning_user || false
+      }),
+      'mobile_flow_start': () => metaPixelEvents.trackViewContent({
+        content_name: 'Mobile Booking Flow',
+        source: parameters.source || 'direct',
+        center_id: parameters.center_id
+      }),
+      'session_details_start': () => metaPixelEvents.trackViewContent({
+        content_name: 'Session Details',
+        center_id: parameters.center_id
+      }),
+      'center_selected': () => metaPixelEvents.trackFindLocation({
+        center_id: parameters.center_id,
+        center_name: parameters.center_name,
+        patient_id: parameters.patient_id
+      }),
+      'time_slot_selected': () => metaPixelEvents.trackSchedule({
+        appointment_time: parameters.time_slot,
+        appointment_date: parameters.selected_date,
+        center_id: parameters.center_id,
+        patient_id: parameters.patient_id
+      }),
+      'begin_checkout': () => metaPixelEvents.trackInitiateCheckout({
+        value: parameters.value,
+        content_ids: parameters.items?.map((i: any) => i.item_id) || [],
+        ...parameters
+      }),
+      'add_payment_info': () => metaPixelEvents.trackAddPaymentInfo({
+        value: parameters.value,
+        payment_method: parameters.payment_type,
+        patient_id: parameters.patient_id
+      }),
+      'payment_processing_start': () => metaPixelEvents.trackContact({
+        value: parameters.amount,
+        order_id: parameters.order_id,
+        payment_method: 'razorpay'
+      }),
+      'purchase': () => metaPixelEvents.trackPurchase({
+        value: parameters.value,
+        transaction_id: parameters.transaction_id,
+        content_ids: parameters.items?.map((i: any) => i.item_id) || [],
+        ...parameters
+      }),
+    };
+
+    // Map to custom Meta Pixel events
+    const customEventMapping: Record<string, () => void> = {
+      'patient_details_start': () => trackMetaPixelCustomEvent('PatientDetailsStart', {
+        form_type: 'patient_registration',
+        patient_id: parameters.patient_id,
+        center_id: parameters.center_id
+      }),
+      'phone_verification_clicked': () => trackMetaPixelCustomEvent('PhoneVerification', {
+        verification_type: 'mobile_number',
+        phone_length: parameters.phone_length,
+        center_id: parameters.center_id
+      }),
+      'patient_profile_completed': () => trackMetaPixelCustomEvent('PatientProfileComplete', {
+        profile_type: parameters.is_returning ? 'returning_patient' : 'new_patient',
+        patient_id: parameters.patient_id,
+        center_id: parameters.center_id,
+        is_returning: parameters.is_returning
+      }),
+      'center_search_start': () => trackMetaPixelCustomEvent('CenterSearch', {
+        search_type: 'location_selection',
+        patient_id: parameters.patient_id
+      }),
+      'slot_search_start': () => trackMetaPixelCustomEvent('SlotSearch', {
+        search_type: 'appointment_scheduling',
+        center_id: parameters.center_id,
+        patient_id: parameters.patient_id,
+        selected_date: parameters.selected_date
+      }),
+      'appointment_scheduling_complete': () => trackMetaPixelCustomEvent('AppointmentScheduled', {
+        booking_type: 'physiotherapy_session',
+        appointment_id: parameters.appointment_id,
+        patient_id: parameters.patient_id,
+        center_id: parameters.center_id,
+        selected_date: parameters.selected_date,
+        selected_time: parameters.selected_time
+      }),
     };
 
     if (standardEventMapping[eventName]) {
       standardEventMapping[eventName]();
-    } else {
-      // Send as custom event
-      trackMetaPixelCustomEvent(eventName, parameters);
+    } else if (customEventMapping[eventName]) {
+      customEventMapping[eventName]();
     }
   }
   
@@ -130,22 +213,19 @@ export class MobileFlowAnalytics {
       patient_id: patientId,
       center_id: centerId,
       is_returning_user: isReturning,
-      // GA4 standard parameters
       user_id: patientId,
       custom_parameter_1: centerId,
       custom_parameter_2: isReturning ? 'returning' : 'new'
     });
 
-    // Track conversion
     this.trackEvent('generate_lead', {
       currency: 'INR',
       value: 0,
       patient_id: patientId,
       center_id: centerId,
+      is_returning_user: isReturning,
       user_id: patientId
     });
-    
-
   }
 
   // Center Selection Events
@@ -169,8 +249,6 @@ export class MobileFlowAnalytics {
       center_name: centerName,
       patient_id: patientId
     });
-    
-
   }
 
   // Session Details Events
@@ -179,8 +257,6 @@ export class MobileFlowAnalytics {
       center_id: centerId,
       patient_id: patientId
     });
-    
-
   }
 
   trackDatePickerInteraction(action: 'open' | 'date_select' | 'close', selectedDate?: string, centerId?: string, patientId?: string) {
@@ -200,8 +276,6 @@ export class MobileFlowAnalytics {
       patient_id: patientId,
       consultant_id: consultantId
     });
-    
-
   }
 
   // Booking Confirmation Events
@@ -217,7 +291,6 @@ export class MobileFlowAnalytics {
       treatment_price: bookingData.treatmentPrice
     });
 
-    // Track begin checkout
     this.trackEvent('begin_checkout', {
       currency: 'INR',
       value: bookingData.treatmentPrice,
@@ -229,8 +302,6 @@ export class MobileFlowAnalytics {
         price: bookingData.treatmentPrice
       }]
     });
-    
-
   }
 
   trackBookingDetailsReviewed(bookingData: any) {
@@ -251,14 +322,12 @@ export class MobileFlowAnalytics {
       treatment_price: bookingData.treatmentPrice
     });
 
-    // Track add payment info
     this.trackEvent('add_payment_info', {
       currency: 'INR',
       value: bookingData.treatmentPrice,
-      payment_type: paymentMethod
+      payment_type: paymentMethod,
+      patient_id: bookingData.patientId
     });
-    
-
   }
 
   // Payment Events
@@ -279,8 +348,6 @@ export class MobileFlowAnalytics {
       center_id: paymentData.centerId,
       appointment_id: paymentData.appointmentId
     });
-    
-
   }
 
   trackPaymentSuccess(paymentData: {
@@ -303,7 +370,6 @@ export class MobileFlowAnalytics {
       appointment_id: paymentData.appointmentId
     });
 
-    // Track purchase conversion
     this.trackEvent('purchase', {
       transaction_id: paymentData.paymentId,
       value: paymentData.amount,
@@ -316,8 +382,6 @@ export class MobileFlowAnalytics {
         price: paymentData.amount
       }]
     });
-    
-
   }
 
   trackPaymentFailure(paymentData: {
@@ -606,18 +670,14 @@ export class MobileFlowAnalytics {
       center_id: centerId,
       form_type: 'patient_registration'
     });
-    
-
   }
 
   trackPhoneVerificationAttempt(phoneNumber: string, centerId: string) {
-    this.trackEvent('phone_verification_attempt', {
+    this.trackEvent('phone_verification_clicked', {
       phone_length: phoneNumber.length,
       center_id: centerId,
       verification_type: 'mobile_number'
     });
-    
-
   }
 
   trackPatientProfileCompleted(patientId: string, centerId: string, isReturning: boolean) {
@@ -627,8 +687,6 @@ export class MobileFlowAnalytics {
       is_returning: isReturning,
       profile_type: isReturning ? 'returning_patient' : 'new_patient'
     });
-    
-
   }
 
   trackCenterSearchStart(patientId: string) {
@@ -636,8 +694,6 @@ export class MobileFlowAnalytics {
       patient_id: patientId,
       search_type: 'location_selection'
     });
-    
-
   }
 
   trackSlotSearchStart(centerId: string, patientId: string, selectedDate?: string) {
@@ -647,8 +703,6 @@ export class MobileFlowAnalytics {
       selected_date: selectedDate,
       search_type: 'appointment_scheduling'
     });
-    
-
   }
 
   trackAppointmentSchedulingComplete(appointmentData: {
@@ -665,8 +719,6 @@ export class MobileFlowAnalytics {
       selected_date: appointmentData.selectedDate,
       selected_time: appointmentData.selectedTime
     });
-    
-
   }
 
   // Booking and Payment Flow Events
@@ -677,8 +729,6 @@ export class MobileFlowAnalytics {
       treatment_price: bookingData.treatmentPrice,
       checkout_type: 'appointment_booking'
     });
-    
-
   }
 
   trackPaymentMethodSelection(paymentMethod: string, amount: number, patientId: string, centerId: string) {
@@ -689,8 +739,6 @@ export class MobileFlowAnalytics {
       patient_id: patientId,
       center_id: centerId
     });
-    
-
   }
 
   trackRazorpayGatewayLoaded(amount: number, patientId: string, centerId: string) {
@@ -701,8 +749,6 @@ export class MobileFlowAnalytics {
       center_id: centerId,
       payment_gateway: 'razorpay'
     });
-    
-
   }
 
   trackPaymentProcessingStart(orderId: string, amount: number, patientId: string, centerId: string) {
@@ -713,8 +759,6 @@ export class MobileFlowAnalytics {
       patient_id: patientId,
       center_id: centerId
     });
-    
-
   }
 
   trackEmailDetailsRequested(email: string, patientId: string, centerId: string) {
@@ -724,8 +768,6 @@ export class MobileFlowAnalytics {
       center_id: centerId,
       request_type: 'appointment_confirmation'
     });
-    
-
   }
 
   // User Engagement Events
@@ -737,8 +779,6 @@ export class MobileFlowAnalytics {
       patient_id: patientId,
       center_id: centerId
     });
-    
-
   }
 
   trackSupportRequest(supportType: 'chat' | 'call' | 'whatsapp' | 'email', context: string, patientId?: string, centerId?: string) {
@@ -748,8 +788,6 @@ export class MobileFlowAnalytics {
       patient_id: patientId,
       center_id: centerId
     });
-    
-
   }
 
   // Conversion Funnel Custom Events
@@ -760,8 +798,6 @@ export class MobileFlowAnalytics {
       patient_id: patientId,
       center_id: centerId
     });
-    
-
   }
 
   trackPaymentHesitation(hesitationReason: string, timeSpent: number, amount: number, patientId: string, centerId: string) {
@@ -773,8 +809,6 @@ export class MobileFlowAnalytics {
       patient_id: patientId,
       center_id: centerId
     });
-    
-
   }
 
   trackReferralSource(source: string, campaign?: string, medium?: string, patientId?: string, centerId?: string) {
@@ -785,8 +819,6 @@ export class MobileFlowAnalytics {
       patient_id: patientId,
       center_id: centerId
     });
-    
-
   }
 
   // Mobile Experience Events
@@ -797,8 +829,6 @@ export class MobileFlowAnalytics {
       screen_size: screenSize,
       patient_id: patientId
     });
-    
-
   }
 
   trackStepProgression(currentStep: string, previousStep: string, timeSpent: number, patientId: string, centerId: string) {
@@ -809,8 +839,6 @@ export class MobileFlowAnalytics {
       patient_id: patientId,
       center_id: centerId
     });
-    
-
   }
 
   // Success and Retention Events
@@ -821,8 +849,6 @@ export class MobileFlowAnalytics {
       patient_id: patientId,
       center_id: centerId
     });
-    
-
   }
 
   trackBookingSuccessComplete(appointmentData: {
@@ -840,8 +866,6 @@ export class MobileFlowAnalytics {
       payment_id: appointmentData.paymentId,
       success_type: 'appointment_confirmed'
     });
-    
-
   }
 }
 

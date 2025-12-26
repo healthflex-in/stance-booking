@@ -11,6 +11,7 @@ import { useContainerDetection } from '@/hooks/useContainerDetection';
 import { Button } from '@/components/ui-atoms';
 import { StanceHealthLoader } from '@/components/loader/StanceHealthLoader';
 import { EmailCollectionModal } from '@/components/onboarding/shared';
+import { useMobileFlowAnalytics } from '@/services/mobile-analytics';
 
 interface BookingData {
   sessionType: 'online' | 'in-person';
@@ -39,9 +40,15 @@ export default function NewUserOnlinePaymentConfirmation({
 }: NewUserOnlinePaymentConfirmationProps) {
   const router = useRouter();
   const { isInDesktopContainer } = useContainerDetection();
+  const mobileAnalytics = useMobileFlowAnalytics();
   const [amountError, setAmountError] = useState('');
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [showEmailModal, setShowEmailModal] = useState(false);
+
+  React.useEffect(() => {
+    // Track booking confirmation start
+    mobileAnalytics.trackBookingConfirmationStart(bookingData);
+  }, [bookingData]);
 
   const { data: centersData, loading: centersLoading } = useQuery(GET_CENTERS);
   const { data: servicesData, loading: servicesLoading } = useQuery(GET_SERVICES, {
@@ -84,6 +91,9 @@ export default function NewUserOnlinePaymentConfirmation({
       bookingData.treatmentId,
       bookingData.consultantId
     );
+
+    // Track payment method selected (invoice/razorpay)
+    mobileAnalytics.trackPaymentMethodSelected('razorpay', bookingData);
 
     setIsProcessingPayment(true);
     const startTime = Date.now();

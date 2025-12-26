@@ -4,25 +4,38 @@ import React from 'react';
 import { useQuery } from '@apollo/client';
 import { GET_CENTERS } from '@/gql/queries';
 import { MapPin } from 'lucide-react';
+import { useMobileFlowAnalytics } from '@/services/mobile-analytics';
 
 interface NewUserOnlineCenterSelectionProps {
   selectedCenterId: string;
+  patientId: string;
   onCenterSelect: (centerId: string) => void;
   onNext: () => void;
 }
 
 export default function NewUserOnlineCenterSelection({
   selectedCenterId,
+  patientId,
   onCenterSelect,
   onNext,
 }: NewUserOnlineCenterSelectionProps) {
+  const mobileAnalytics = useMobileFlowAnalytics();
   const { data: centersData, loading } = useQuery(GET_CENTERS, {
     fetchPolicy: 'network-only',
   });
 
+  React.useEffect(() => {
+    mobileAnalytics.trackCenterSearchStart(patientId);
+  }, [patientId]);
+
   const onlineCenters = centersData?.centers?.filter(
     (center: any) => center.allowOnlineBooking === true || center.isOnline === true
   );
+
+  const handleCenterSelect = (center: any) => {
+    onCenterSelect(center._id);
+    mobileAnalytics.trackCenterSelected(center._id, center.name, patientId);
+  };
 
   if (loading) {
     return (
@@ -55,7 +68,7 @@ export default function NewUserOnlineCenterSelection({
           {onlineCenters.map((center: any) => (
             <button
               key={center._id}
-              onClick={() => onCenterSelect(center._id)}
+              onClick={() => handleCenterSelect(center)}
               className={`w-full p-4 border-2 rounded-xl transition-all text-left ${
                 selectedCenterId === center._id
                   ? 'border-blue-500 bg-blue-50'
