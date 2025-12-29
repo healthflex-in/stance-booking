@@ -121,22 +121,31 @@ export default function ServiceSelectionModal({
       price: service.price,
       bookingAmount: service.bookingAmount || service.price,
       description: service.description || 'Professional service',
+      doneBy: service.doneBy || [],
     }));
 
-    // Frontend filtering based on designation
+    // Filter by designation using doneBy field
     if (designation) {
-      const physioKeywords = ['physio', 'physiotherapy', 'msk'];
-      const sncKeywords = ['strength', 's & c', 's&c', 'snc', 'strength and conditioning', 'strength & conditioning'];
+      // Map frontend designation values to backend enum values
+      const designationMap: Record<string, string> = {
+        'Physiotherapist': 'Physiotherapist',
+        'S&C Coach': 'SNC_Coach',
+        'SNC_Coach': 'SNC_Coach',
+        'Orthopaedic Doctor': 'Orthopaedic_Doctor',
+        'Orthopaedic_Doctor': 'Orthopaedic_Doctor',
+        'Sports Massage Therapist': 'Sports_Massage_Therapist',
+        'Sports_Massage_Therapist': 'Sports_Massage_Therapist',
+      };
+      
+      const mappedDesignation = designationMap[designation] || designation;
       
       mappedServices = mappedServices.filter((service: any) => {
-        const serviceName = service.name.toLowerCase();
-        
-        if (designation === 'Physiotherapist') {
-          return physioKeywords.some(keyword => serviceName.includes(keyword));
-        } else if (designation === 'SNC_Coach' || designation === 'S&C Coach') {
-          return sncKeywords.some(keyword => serviceName.includes(keyword));
+        // If service has no doneBy array or it's empty, show it for all designations
+        if (!service.doneBy || service.doneBy.length === 0) {
+          return true;
         }
-        return true;
+        // Check if the mapped designation is in the doneBy array
+        return service.doneBy.includes(mappedDesignation);
       });
     }
 
