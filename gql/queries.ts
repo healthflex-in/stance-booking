@@ -343,6 +343,7 @@ export const GET_SERVICES = gql`
       allowOnlineDelivery
       isNewUserService
       isPrePaid
+      doneBy
       centers {
         _id
         seqNo
@@ -368,6 +369,7 @@ export const CREATE_SERVICE = gql`
       allowOnlineDelivery
       isNewUserService
       isPrePaid
+      doneBy
     }
   }
 `;
@@ -386,6 +388,7 @@ export const UPDATE_SERVICE = gql`
       allowOnlineDelivery
       isNewUserService
       isPrePaid
+      doneBy
     }
   }
 `;

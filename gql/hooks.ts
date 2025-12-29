@@ -1024,6 +1024,7 @@ export type CreateServiceInput = {
   allowOnlineDelivery?: InputMaybe<Scalars['Boolean']['input']>;
   centers?: InputMaybe<Array<Scalars['ObjectID']['input']>>;
   description?: InputMaybe<Scalars['String']['input']>;
+  doneBy?: InputMaybe<Array<Designation>>;
   duration: Scalars['Int']['input'];
   internalName: Scalars['String']['input'];
   isNewUserService?: InputMaybe<Scalars['Boolean']['input']>;
@@ -3311,6 +3312,7 @@ export type Service = DataRow & {
   centers: Array<Center>;
   createdAt: Scalars['Timestamp']['output'];
   description?: Maybe<Scalars['String']['output']>;
+  doneBy?: Maybe<Array<Designation>>;
   duration: Scalars['Int']['output'];
   internalName: Scalars['String']['output'];
   isActive: Scalars['Boolean']['output'];
@@ -3629,6 +3631,7 @@ export type UpdateServiceInput = {
   allowOnlineDelivery?: InputMaybe<Scalars['Boolean']['input']>;
   centers?: InputMaybe<Array<Scalars['ObjectID']['input']>>;
   description?: InputMaybe<Scalars['String']['input']>;
+  doneBy?: InputMaybe<Array<Designation>>;
   duration?: InputMaybe<Scalars['Int']['input']>;
   internalName?: InputMaybe<Scalars['String']['input']>;
   isNewUserService?: InputMaybe<Scalars['Boolean']['input']>;
