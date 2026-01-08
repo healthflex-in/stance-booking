@@ -9,6 +9,7 @@ import { CREATE_APPOINTMENT, UPDATE_PATIENT } from '@/gql/queries';
 import { getBookingCookies } from '@/utils/booking-cookies';
 import { useBookingAnalytics } from '@/hooks/useBookingAnalytics';
 import { PrepaidNewSessionDetails } from '@/components/onboarding/prepaid-new';
+import { NewUserOnlineServiceSelection } from '@/components/onboarding/new-user-online';
 import { PrepaidNewSlotSelection } from '@/components/onboarding/prepaid-new';
 import { PrepaidNewConfirmation } from '@/components/onboarding/prepaid-new';
 import { PrepaidNewBookingConfirmed } from '@/components/onboarding/prepaid-new';
@@ -214,15 +215,14 @@ export default function PrepaidNewPage() {
 
       <div className="flex-1 overflow-hidden">
         {currentStep === 'session-details' && (
-          <PrepaidNewSessionDetails
+          <NewUserOnlineServiceSelection
+            centerId={bookingData.centerId || process.env.NEXT_PUBLIC_DEFAULT_CENTER_ID || ''}
             patientId={bookingData.patientId}
-            onBack={goToPreviousStep}
-            onContinue={(data) => {
+            onServiceSelect={(serviceId, serviceDuration, servicePrice) => {
               updateBookingData({
-                treatmentId: data.serviceId,
-                treatmentDuration: data.serviceDuration,
-                treatmentPrice: data.servicePrice,
-                designation: data.designation,
+                treatmentId: serviceId,
+                treatmentDuration: serviceDuration,
+                treatmentPrice: servicePrice,
               });
               goToNextStep();
             }}

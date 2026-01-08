@@ -24,8 +24,9 @@ export default function OnlinePage() {
       return;
     }
     
-    if (cookies.organizationId) {
-      setOrganizationId(cookies.organizationId);
+    // Check for both organizationId and centerId (same as offline route)
+    if (cookies.organizationId || cookies.centerId) {
+      setOrganizationId(cookies.organizationId || '');
     } else {
       router.push(`/${orgSlug}`);
     }
