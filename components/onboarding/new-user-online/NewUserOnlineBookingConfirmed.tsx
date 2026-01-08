@@ -6,6 +6,7 @@ import { CREATE_APPOINTMENT, GET_CENTERS, SEND_APPOINTMENT_EMAIL, SEND_CONSULTAN
 import { CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
+import { StanceHealthLoader } from '@/components/loader/StanceHealthLoader';
 
 import { BookingAnalytics } from '@/services/booking-analytics';
 
@@ -164,6 +165,14 @@ export default function NewUserOnlineBookingConfirmed({ bookingData, analytics }
       sendEmails();
     }
   }, [emailsSent, patient, consultant, currentCenter, currentService, appointmentData]);
+
+  if (appointmentLoading || !appointmentData) {
+    return (
+      <div className="h-full bg-gray-50 flex items-center justify-center">
+        <StanceHealthLoader message="Loading appointment details..." />
+      </div>
+    );
+  }
 
   return (
     <div className="h-full bg-gray-50 flex flex-col">

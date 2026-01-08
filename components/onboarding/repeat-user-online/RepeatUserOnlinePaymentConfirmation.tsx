@@ -43,6 +43,7 @@ export default function RepeatUserOnlinePaymentConfirmation({
   const { isInDesktopContainer } = useContainerDetection();
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [showEmailModal, setShowEmailModal] = useState(false);
+  const [isCreatingAppointment, setIsCreatingAppointment] = useState(false);
 
   const { data: centersData, loading: centersLoading } = useQuery(GET_CENTERS);
   const { data: servicesData, loading: servicesLoading } = useQuery(GET_SERVICES, {
@@ -80,6 +81,7 @@ export default function RepeatUserOnlinePaymentConfirmation({
       bookingData.consultantId
     );
     
+    setIsCreatingAppointment(true);
     const startTime = Date.now();
     
     // Timeout handler
@@ -164,11 +166,13 @@ export default function RepeatUserOnlinePaymentConfirmation({
       console.log(`⏱️ Total time: ${Date.now() - startTime}ms`);
       
       // Only NOW transition to payment screen
+      setIsCreatingAppointment(false);
       setIsProcessingPayment(true);
     } catch (error) {
       clearTimeout(timeoutId);
       console.error('Error creating appointment:', error);
       toast.error('Failed to create appointment. Please try again.');
+      setIsCreatingAppointment(false);
     }
   };
 
@@ -203,6 +207,14 @@ export default function RepeatUserOnlinePaymentConfirmation({
     return (
       <div className="h-full flex items-center justify-center">
         <StanceHealthLoader message="Loading details..." />
+      </div>
+    );
+  }
+
+  if (isCreatingAppointment) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <StanceHealthLoader message="Creating appointment..." />
       </div>
     );
   }
@@ -304,13 +316,13 @@ export default function RepeatUserOnlinePaymentConfirmation({
       <div className={`${isInDesktopContainer ? 'flex-shrink-0' : 'fixed bottom-0 left-0 right-0'} bg-white border-t border-gray-200 p-4`}>
         <Button
           onClick={handleProceedToPayment}
-          disabled={creatingAppointment || isProcessingPayment}
-          isLoading={creatingAppointment || isProcessingPayment}
+          disabled={creatingAppointment || isProcessingPayment || isCreatingAppointment}
+          isLoading={creatingAppointment || isProcessingPayment || isCreatingAppointment}
           fullWidth
           variant="primary"
           size="lg"
         >
-          {creatingAppointment || isProcessingPayment ? 'Creating Appointment...' : 'Proceed to Payment'}
+          {creatingAppointment || isProcessingPayment || isCreatingAppointment ? 'Creating Appointment...' : 'Proceed to Payment'}
         </Button>
       </div>
 

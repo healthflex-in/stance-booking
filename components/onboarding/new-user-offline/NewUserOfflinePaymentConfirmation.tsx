@@ -9,6 +9,7 @@ import NewUserOfflinePaymentProcessing from './NewUserOfflinePaymentProcessing';
 import { useContainerDetection } from '@/hooks/useContainerDetection';
 import { Button } from '@/components/ui-atoms';
 import { BookingAnalytics } from '@/services/booking-analytics';
+import { StanceHealthLoader } from '@/components/loader/StanceHealthLoader';
 
 interface BookingData {
   sessionType: 'in-person';
@@ -142,6 +143,14 @@ export default function NewUserOfflinePaymentConfirmation({
       setIsCreatingAppointment(false);
     }
   };
+
+  if (isCreatingAppointment) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <StanceHealthLoader message="Creating appointment..." />
+      </div>
+    );
+  }
 
   if (isProcessingPayment) {
     const amount = parseFloat(paymentAmount);

@@ -8,6 +8,7 @@ import { Button } from '@/components/ui-atoms/Button';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { BookingAnalytics } from '@/services/booking-analytics';
+import { StanceHealthLoader } from '@/components/loader/StanceHealthLoader';
 
 interface PrepaidBookingConfirmedProps {
   bookingData: {
@@ -52,7 +53,7 @@ export default function PrepaidBookingConfirmed({ bookingData, analytics }: Prep
     variables: { centerId: [bookingData.centerId] },
     skip: !bookingData.centerId,
   });
-  const { data: appointmentData } = useQuery(GET_APPOINTMENT_BY_ID, {
+  const { data: appointmentData, loading: appointmentLoading } = useQuery(GET_APPOINTMENT_BY_ID, {
     variables: { id: bookingData.appointmentId },
     skip: !bookingData.appointmentId,
   });
@@ -156,6 +157,14 @@ export default function PrepaidBookingConfirmed({ bookingData, analytics }: Prep
           <p className="text-red-600 mb-4">No appointment found</p>
           <p className="text-sm text-gray-600">Please go back and try again.</p>
         </div>
+      </div>
+    );
+  }
+
+  if (appointmentLoading || !appointmentData) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <StanceHealthLoader message="Loading appointment details..." />
       </div>
     );
   }

@@ -44,6 +44,7 @@ export default function NewUserOnlinePaymentConfirmation({
   const [amountError, setAmountError] = useState('');
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [showEmailModal, setShowEmailModal] = useState(false);
+  const [isCreatingAppointment, setIsCreatingAppointment] = useState(false);
 
   React.useEffect(() => {
     // Track booking confirmation start
@@ -95,7 +96,7 @@ export default function NewUserOnlinePaymentConfirmation({
     // Track payment method selected (invoice/razorpay)
     mobileAnalytics.trackPaymentMethodSelected('razorpay', bookingData);
 
-    setIsProcessingPayment(true);
+    setIsCreatingAppointment(true);
     const startTime = Date.now();
     
     // Timeout handler
@@ -168,12 +169,16 @@ export default function NewUserOnlinePaymentConfirmation({
       
       clearTimeout(timeoutId);
       console.log(`⏱️ Total time: ${Date.now() - startTime}ms`);
+      
+      // Now show payment processing screen
+      setIsCreatingAppointment(false);
+      setIsProcessingPayment(true);
     } catch (error: any) {
       clearTimeout(timeoutId);
       console.error('❌ Error creating appointment:', error);
       console.error('❌ Error details:', error.message, error.graphQLErrors);
       setAmountError('Failed to create appointment. Please try again.');
-      setIsProcessingPayment(false);
+      setIsCreatingAppointment(false);
     }
   };
 
@@ -181,6 +186,14 @@ export default function NewUserOnlinePaymentConfirmation({
     return (
       <div className="h-full flex items-center justify-center">
         <StanceHealthLoader message="Loading details..." />
+      </div>
+    );
+  }
+
+  if (isCreatingAppointment) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <StanceHealthLoader message="Creating appointment..." />
       </div>
     );
   }
@@ -316,13 +329,13 @@ export default function NewUserOnlinePaymentConfirmation({
       <div className={`${isInDesktopContainer ? 'flex-shrink-0' : 'fixed bottom-0 left-0 right-0'} bg-white border-t border-gray-200 p-4`}>
         <Button
           onClick={handleProceedToPayment}
-          disabled={creatingAppointment || isProcessingPayment}
-          isLoading={creatingAppointment || isProcessingPayment}
+          disabled={creatingAppointment || isProcessingPayment || isCreatingAppointment}
+          isLoading={creatingAppointment || isProcessingPayment || isCreatingAppointment}
           fullWidth
           variant="primary"
           size="lg"
         >
-          {creatingAppointment || isProcessingPayment ? 'Creating Appointment...' : `Pay ₹${bookingData.treatmentPrice}`}
+          {creatingAppointment || isProcessingPayment || isCreatingAppointment ? 'Creating Appointment...' : `Pay ₹${bookingData.treatmentPrice}`}
         </Button>
       </div>
 
