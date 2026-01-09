@@ -1,10 +1,11 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { getBookingCookies } from '@/utils/booking-cookies';
 import { useBookingAnalytics } from '@/hooks/useBookingAnalytics';
+import { determineInitialStep, storeBookingParamsInSession } from '@/utils/booking-step-navigation';
 
 import {
   NewUserOnlinePaymentConfirmation,
@@ -39,6 +40,7 @@ interface BookingData {
 export default function NewOnlinePage() {
   const router = useRouter();
   const params = useParams();
+  const searchParams = useSearchParams();
   const orgSlug = params.orgSlug as string;
   const analytics = useBookingAnalytics('new-online');
   
@@ -77,6 +79,30 @@ export default function NewOnlinePage() {
   useEffect(() => {
     if (!mounted) return;
     
+    // Check URL params first
+    const urlParams = {
+      patientId: searchParams.get('patientId'),
+      centerId: searchParams.get('centerId'),
+      serviceId: searchParams.get('serviceId'),
+      consultantId: searchParams.get('consultantId'),
+      consultantType: searchParams.get('consultantType'),
+      slotStart: searchParams.get('slotStart'),
+      slotEnd: searchParams.get('slotEnd'),
+    };
+    
+    if (urlParams.patientId) {
+      // Store in sessionStorage
+      storeBookingParamsInSession(urlParams);
+      
+      // Determine initial step and updates
+      const { initialStep, bookingDataUpdates } = determineInitialStep(urlParams);
+      
+      setBookingData(prev => ({ ...prev, ...bookingDataUpdates }));
+      setCurrentStep(initialStep as BookingStep);
+      return;
+    }
+    
+    // Fallback to sessionStorage
     const storedPatientId = sessionStorage.getItem('patientId');
     
     if (storedPatientId) {
@@ -89,7 +115,7 @@ export default function NewOnlinePage() {
       console.warn('⚠️ No patientId found in sessionStorage');
       router.push(`/${orgSlug}`);
     }
-  }, [mounted, orgSlug, router]);
+  }, [mounted, orgSlug, router, searchParams]);
 
   const goToNextStep = () => {
     const stepOrder: BookingStep[] = [

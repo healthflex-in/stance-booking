@@ -62,6 +62,24 @@ export default function RepeatUserOfflineSessionDetails({
     });
   }, [centersData]);
 
+  // Set center from prop if provided
+  useEffect(() => {
+    if (centerId && centersData?.centers && !selectedCenter) {
+      const center = centersData.centers.find((c: any) => c._id === centerId);
+      if (center) {
+        setSelectedCenter(center);
+      }
+    }
+  }, [centerId, centersData, selectedCenter]);
+
+  // Set consultant type from sessionStorage
+  useEffect(() => {
+    const storedConsultantType = sessionStorage.getItem('consultantType');
+    if (storedConsultantType && (storedConsultantType === 'Physiotherapist' || storedConsultantType === 'S&C Coach')) {
+      setSelectedDesignation(storedConsultantType);
+    }
+  }, []);
+
 
 
   // Reset service when center changes
@@ -255,6 +273,7 @@ export default function RepeatUserOfflineSessionDetails({
         isNewUser={false}
         sessionType="in-person"
         designation={selectedDesignation}
+        preSelectedServiceId={sessionStorage.getItem('serviceId') || undefined}
         onSelect={(service) => {
           analytics?.trackServiceSelected(service._id, service.name, service.bookingAmount || service.price || 0, service.duration);
           setSelectedService(service);

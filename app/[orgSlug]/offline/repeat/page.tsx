@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { useMutation, useQuery } from '@apollo/client';
 import { CREATE_APPOINTMENT, UPDATE_PATIENT, GET_USER, SEND_APPOINTMENT_EMAIL } from '@/gql/queries';
@@ -34,6 +34,7 @@ interface BookingData {
 export default function RepeatOfflinePage() {
   const router = useRouter();
   const params = useParams();
+  const searchParams = useSearchParams();
   const orgSlug = params.orgSlug as string;
   const [mounted, setMounted] = useState(false);
   const [currentStep, setCurrentStep] = useState<BookingStep>('session-details');
@@ -58,6 +59,8 @@ export default function RepeatOfflinePage() {
   const { data: patientData } = useQuery(GET_USER, {
     variables: { userId: bookingData.patientId },
     skip: !bookingData.patientId,
+    fetchPolicy: 'cache-first',
+    errorPolicy: 'ignore',
   });
 
   useEffect(() => {
@@ -73,14 +76,90 @@ export default function RepeatOfflinePage() {
   useEffect(() => {
     if (!mounted) return;
     
-    const storedPatientId = sessionStorage.getItem('patientId');
-    const storedCenterId = sessionStorage.getItem('centerId');
-    if (storedPatientId && storedCenterId) {
-      updateBookingData({ patientId: storedPatientId, centerId: storedCenterId });
-      sessionStorage.removeItem('patientId');
-      sessionStorage.removeItem('centerId');
+    // Check URL params first (from generated link)
+    const urlPatientId = searchParams.get('patientId');
+    const urlCenterId = searchParams.get('centerId');
+    const urlServiceId = searchParams.get('serviceId');
+    const urlConsultantId = searchParams.get('consultantId');
+    const urlConsultantType = searchParams.get('consultantType');
+    const urlPaymentType = searchParams.get('paymentType');
+    const urlPartialAmount = searchParams.get('partialAmount');
+    const urlPackageId = searchParams.get('packageId');
+    const urlSlotStart = searchParams.get('slotStart');
+    const urlSlotEnd = searchParams.get('slotEnd');
+    
+    if (urlPatientId && urlCenterId) {
+      // Store in sessionStorage for persistence
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('patientId', urlPatientId);
+        sessionStorage.setItem('centerId', urlCenterId);
+        if (urlServiceId) sessionStorage.setItem('serviceId', urlServiceId);
+        if (urlConsultantId) sessionStorage.setItem('consultantId', urlConsultantId);
+        if (urlConsultantType) sessionStorage.setItem('consultantType', urlConsultantType);
+        if (urlPaymentType) sessionStorage.setItem('paymentType', urlPaymentType);
+        if (urlPartialAmount) sessionStorage.setItem('partialAmount', urlPartialAmount);
+        if (urlPackageId) sessionStorage.setItem('packageId', urlPackageId);
+        if (urlSlotStart) sessionStorage.setItem('slotStart', urlSlotStart);
+        if (urlSlotEnd) sessionStorage.setItem('slotEnd', urlSlotEnd);
+      }
+      
+      // Determine which step to start at based on available data
+      let initialStep: BookingStep = 'session-details';
+      
+      // If we have slot times, skip to confirmation
+      if (urlSlotStart && urlSlotEnd && urlServiceId) {
+        const slotStartDate = new Date(parseInt(urlSlotStart) * 1000);
+        const slotEndDate = new Date(parseInt(urlSlotEnd) * 1000);
+        
+        updateBookingData({ 
+          patientId: urlPatientId, 
+          centerId: urlCenterId,
+          treatmentId: urlServiceId,
+          consultantId: urlConsultantId || '',
+          selectedTimeSlot: {
+            startTime: slotStartDate.toISOString(),
+            endTime: slotEndDate.toISOString(),
+            displayTime: slotStartDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+          },
+          selectedDate: slotStartDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
+          selectedFullDate: slotStartDate,
+        });
+        initialStep = 'confirmation';
+      }
+      // If we have service but no slot, skip to slot selection
+      else if (urlServiceId && urlConsultantType) {
+        updateBookingData({ 
+          patientId: urlPatientId, 
+          centerId: urlCenterId,
+          treatmentId: urlServiceId,
+          consultantId: urlConsultantId || '',
+          designation: urlConsultantType === 'S&C Coach' ? 'SNC_Coach' : 'Physiotherapist',
+        });
+        initialStep = 'slot-selection';
+      }
+      // Otherwise start at session details
+      else {
+        updateBookingData({ 
+          patientId: urlPatientId, 
+          centerId: urlCenterId,
+          ...(urlServiceId && { treatmentId: urlServiceId }),
+          ...(urlConsultantId && { consultantId: urlConsultantId }),
+        });
+      }
+      
+      setCurrentStep(initialStep);
+      return;
     }
-  }, [mounted]);
+    
+    // Fallback to sessionStorage
+    if (typeof window !== 'undefined') {
+      const storedPatientId = sessionStorage.getItem('patientId');
+      const storedCenterId = sessionStorage.getItem('centerId');
+      if (storedPatientId && storedCenterId) {
+        updateBookingData({ patientId: storedPatientId, centerId: storedCenterId });
+      }
+    }
+  }, [mounted, searchParams]);
 
   const goToNextStep = () => {
     const stepOrder: BookingStep[] = [

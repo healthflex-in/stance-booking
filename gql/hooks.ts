@@ -1274,6 +1274,12 @@ export type ExportInvoicesAsPdfResponse = {
   pdfUrl: Scalars['String']['output'];
 };
 
+export type ExportValdDataAsPdfResponse = {
+  __typename?: 'ExportValdDataAsPDFResponse';
+  errors?: Maybe<Array<Scalars['String']['output']>>;
+  pdfUrl: Scalars['String']['output'];
+};
+
 export type File = DataRow & {
   __typename?: 'File';
   _id: Scalars['ObjectID']['output'];
@@ -1324,7 +1330,11 @@ export enum Gender {
 export type GenerateOnboardingLinkInput = {
   centerId: Scalars['ObjectID']['input'];
   consultantId?: InputMaybe<Scalars['ObjectID']['input']>;
+  consultantType?: InputMaybe<Scalars['String']['input']>;
   firstName?: InputMaybe<Scalars['String']['input']>;
+  packageId?: InputMaybe<Scalars['String']['input']>;
+  partialAmount?: InputMaybe<Scalars['String']['input']>;
+  paymentType?: InputMaybe<Scalars['String']['input']>;
   phone: Scalars['String']['input'];
   serviceId: Scalars['ObjectID']['input'];
   slotEnd: Scalars['Timestamp']['input'];
@@ -1826,6 +1836,8 @@ export type Mutation = {
   duplicateGoalSet: GoalSet;
   exportAdvancesAsPDF: ExportAdvancesAsPdfResponse;
   exportInvoicesAsPDF: ExportInvoicesAsPdfResponse;
+  /** Export VALD data as PDF */
+  exportValdDataAsPDF: ExportValdDataAsPdfResponse;
   generateOnboardingLink: OnboardingLink;
   /** Get a list of available slots for a given host. */
   getAvailableSlots: Array<Maybe<TimeSlot>>;
@@ -2139,6 +2151,12 @@ export type MutationExportAdvancesAsPdfArgs = {
 
 export type MutationExportInvoicesAsPdfArgs = {
   invoiceIds: Array<Scalars['ObjectID']['input']>;
+};
+
+
+export type MutationExportValdDataAsPdfArgs = {
+  deviceType?: InputMaybe<Scalars['String']['input']>;
+  matchId: Scalars['ObjectID']['input'];
 };
 
 

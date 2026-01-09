@@ -216,7 +216,7 @@ export default function PrepaidBookingConfirmed({ bookingData, analytics }: Prep
             <div>
               <div className="text-gray-600 text-sm mb-1">Date & time</div>
               <div className="font-medium text-gray-900">
-                {bookingData.selectedDate}, {typeof bookingData.selectedTimeSlot === 'string' ? bookingData.selectedTimeSlot : bookingData.selectedTimeSlot.displayTime}
+                {bookingData.selectedDate}, {typeof bookingData.selectedTimeSlot === 'string' ? bookingData.selectedTimeSlot : `${bookingData.selectedTimeSlot.displayTime} - ${new Date(bookingData.selectedTimeSlot.endTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}`}
               </div>
             </div>
 
@@ -292,10 +292,13 @@ export default function PrepaidBookingConfirmed({ bookingData, analytics }: Prep
                 const timeSlot = typeof bookingData.selectedTimeSlot === 'string' 
                   ? bookingData.selectedTimeSlot 
                   : bookingData.selectedTimeSlot.displayTime;
+                const endTime = typeof bookingData.selectedTimeSlot === 'string'
+                  ? ''
+                  : ` - ${new Date(bookingData.selectedTimeSlot.endTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}`;
                 const meetingLink = appointmentData?.appointment?.meetingLink;
                 const message = bookingData.sessionType === 'online' && meetingLink
-                  ? `Your appointment with Stance Health is confirmed!\n\nDate: ${bookingData.selectedDate}\nTime: ${timeSlot}\n\nJoin meeting: ${meetingLink}`
-                  : `Your appointment with Stance Health is confirmed!\n\nDate: ${bookingData.selectedDate}\nTime: ${timeSlot}\nLocation: ${currentCenter?.name || 'Stance Health'}`;
+                  ? `Your appointment with Stance Health is confirmed!\n\nDate: ${bookingData.selectedDate}\nTime: ${timeSlot}${endTime}\n\nJoin meeting: ${meetingLink}`
+                  : `Your appointment with Stance Health is confirmed!\n\nDate: ${bookingData.selectedDate}\nTime: ${timeSlot}${endTime}\nLocation: ${currentCenter?.name || 'Stance Health'}`;
                 window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
               }}
               className="w-14 h-14 bg-green-500 text-white rounded-xl flex items-center justify-center"
@@ -311,10 +314,13 @@ export default function PrepaidBookingConfirmed({ bookingData, analytics }: Prep
                 const timeSlot = typeof bookingData.selectedTimeSlot === 'string' 
                   ? bookingData.selectedTimeSlot 
                   : bookingData.selectedTimeSlot.displayTime;
+                const endTime = typeof bookingData.selectedTimeSlot === 'string'
+                  ? ''
+                  : ` - ${new Date(bookingData.selectedTimeSlot.endTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}`;
                 const meetingLink = appointmentData?.appointment?.meetingLink;
                 const message = bookingData.sessionType === 'online' && meetingLink
-                  ? `Your appointment with Stance Health is confirmed!\n\nDate: ${bookingData.selectedDate}\nTime: ${timeSlot}\n\nJoin meeting: ${meetingLink}`
-                  : `Your appointment with Stance Health is confirmed!\n\nDate: ${bookingData.selectedDate}\nTime: ${timeSlot}\nLocation: ${currentCenter?.name || 'Stance Health'}`;
+                  ? `Your appointment with Stance Health is confirmed!\n\nDate: ${bookingData.selectedDate}\nTime: ${timeSlot}${endTime}\n\nJoin meeting: ${meetingLink}`
+                  : `Your appointment with Stance Health is confirmed!\n\nDate: ${bookingData.selectedDate}\nTime: ${timeSlot}${endTime}\nLocation: ${currentCenter?.name || 'Stance Health'}`;
                 window.open(`sms:?&body=${encodeURIComponent(message)}`, '_blank');
               }}
               className="w-14 h-14 bg-blue-500 text-white rounded-xl flex items-center justify-center"
