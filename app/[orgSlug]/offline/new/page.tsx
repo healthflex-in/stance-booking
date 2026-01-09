@@ -1,10 +1,11 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { useBookingAnalytics } from '@/hooks/useBookingAnalytics';
 import { NewUserOfflineBookingConfirmed, NewUserOfflinePaymentConfirmation, NewUserOfflineSessionDetails, NewUserOfflineSlotSelection } from '@/components/onboarding/new-user-offline';
+import { determineInitialStep, storeBookingParamsInSession } from '@/utils/booking-step-navigation';
 
 type BookingStep =
   | 'session-details'
@@ -29,6 +30,7 @@ interface BookingData {
 export default function NewOfflinePage() {
   const router = useRouter();
   const params = useParams();
+  const searchParams = useSearchParams();
   const orgSlug = params.orgSlug as string;
   const [mounted, setMounted] = useState(false);
   const [currentStep, setCurrentStep] = useState<BookingStep>('session-details');
@@ -58,6 +60,30 @@ export default function NewOfflinePage() {
   useEffect(() => {
     if (!mounted) return;
     
+    // Check URL params first
+    const urlParams = {
+      patientId: searchParams.get('patientId'),
+      centerId: searchParams.get('centerId'),
+      serviceId: searchParams.get('serviceId'),
+      consultantId: searchParams.get('consultantId'),
+      consultantType: searchParams.get('consultantType'),
+      slotStart: searchParams.get('slotStart'),
+      slotEnd: searchParams.get('slotEnd'),
+    };
+    
+    if (urlParams.patientId && urlParams.centerId) {
+      // Store in sessionStorage
+      storeBookingParamsInSession(urlParams);
+      
+      // Determine initial step and updates
+      const { initialStep, bookingDataUpdates } = determineInitialStep(urlParams);
+      
+      setBookingData(prev => ({ ...prev, ...bookingDataUpdates }));
+      setCurrentStep(initialStep as BookingStep);
+      return;
+    }
+    
+    // Fallback to sessionStorage
     const storedPatientId = sessionStorage.getItem('patientId');
     const storedCenterId = sessionStorage.getItem('centerId');
     
@@ -70,7 +96,7 @@ export default function NewOfflinePage() {
       sessionStorage.removeItem('patientId');
       sessionStorage.removeItem('centerId');
     }
-  }, [mounted]);
+  }, [mounted, searchParams]);
 
   const goToNextStep = () => {
     const stepOrder: BookingStep[] = [

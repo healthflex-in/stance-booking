@@ -16,6 +16,7 @@ interface ServiceSelectionModalProps {
   sessionType: 'in-person' | 'online';
   isPrePaid?: boolean;
   designation?: string;
+  preSelectedServiceId?: string;
   onSelect: (service: { id: string; _id: string; name: string; duration: number; price: number; bookingAmount: number }) => void;
 }
 
@@ -29,6 +30,7 @@ export default function ServiceSelectionModal({
   sessionType,
   isPrePaid = false,
   designation,
+  preSelectedServiceId,
   onSelect,
 }: ServiceSelectionModalProps) {
   const [services, setServices] = useState<any[]>([]);
@@ -162,6 +164,16 @@ export default function ServiceSelectionModal({
       document.body.style.overflow = '';
     };
   }, [isOpen]);
+
+  // Auto-select service if preSelectedServiceId is provided
+  useEffect(() => {
+    if (preSelectedServiceId && services.length > 0) {
+      const service = services.find(s => s._id === preSelectedServiceId);
+      if (service) {
+        onSelect(service);
+      }
+    }
+  }, [preSelectedServiceId, services]);
 
   if (!isOpen) return null;
 

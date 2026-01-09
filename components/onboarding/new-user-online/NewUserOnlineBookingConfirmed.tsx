@@ -216,7 +216,7 @@ export default function NewUserOnlineBookingConfirmed({ bookingData, analytics }
               <div>
                 <div className="text-gray-600 text-sm mb-1">Date & time</div>
                 <div className="font-medium text-gray-900">
-                  {bookingData.selectedDate}, {bookingData.selectedTimeSlot.displayTime}
+                  {bookingData.selectedDate}, {bookingData.selectedTimeSlot.displayTime} - {new Date(bookingData.selectedTimeSlot.endTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
                 </div>
               </div>
             </div>
@@ -245,9 +245,10 @@ export default function NewUserOnlineBookingConfirmed({ bookingData, analytics }
                   analytics.trackWhatsAppShareClicked(appointmentId);
                 }
                 const meetingLink = appointmentData?.appointment?.meetingLink;
+                const endTime = new Date(bookingData.selectedTimeSlot.endTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
                 const message = meetingLink
-                  ? `Your appointment with Stance Health is confirmed!\n\nDate: ${bookingData.selectedDate}\nTime: ${bookingData.selectedTimeSlot.displayTime}\n\nJoin meeting: ${meetingLink}`
-                  : `Your appointment with Stance Health is confirmed!\n\nDate: ${bookingData.selectedDate}\nTime: ${bookingData.selectedTimeSlot.displayTime}\nLocation: Stance Online Services`;
+                  ? `Your appointment with Stance Health is confirmed!\n\nDate: ${bookingData.selectedDate}\nTime: ${bookingData.selectedTimeSlot.displayTime} - ${endTime}\n\nJoin meeting: ${meetingLink}`
+                  : `Your appointment with Stance Health is confirmed!\n\nDate: ${bookingData.selectedDate}\nTime: ${bookingData.selectedTimeSlot.displayTime} - ${endTime}\nLocation: Stance Online Services`;
                 window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
               }}
               className="w-14 h-14 bg-green-500 text-white rounded-xl flex items-center justify-center"
@@ -261,9 +262,10 @@ export default function NewUserOnlineBookingConfirmed({ bookingData, analytics }
                   analytics.trackSmsShareClicked(appointmentId);
                 }
                 const meetingLink = appointmentData?.appointment?.meetingLink;
+                const endTime = new Date(bookingData.selectedTimeSlot.endTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
                 const message = meetingLink
-                  ? `Your appointment with Stance Health is confirmed!\n\nDate: ${bookingData.selectedDate}\nTime: ${bookingData.selectedTimeSlot.displayTime}\n\nJoin meeting: ${meetingLink}`
-                  : `Your appointment with Stance Health is confirmed!\n\nDate: ${bookingData.selectedDate}\nTime: ${bookingData.selectedTimeSlot.displayTime}\nLocation: Stance Online Services`;
+                  ? `Your appointment with Stance Health is confirmed!\n\nDate: ${bookingData.selectedDate}\nTime: ${bookingData.selectedTimeSlot.displayTime} - ${endTime}\n\nJoin meeting: ${meetingLink}`
+                  : `Your appointment with Stance Health is confirmed!\n\nDate: ${bookingData.selectedDate}\nTime: ${bookingData.selectedTimeSlot.displayTime} - ${endTime}\nLocation: Stance Online Services`;
                 window.open(`sms:?&body=${encodeURIComponent(message)}`, '_blank');
               }}
               className="w-14 h-14 bg-blue-500 text-white rounded-xl flex items-center justify-center"
