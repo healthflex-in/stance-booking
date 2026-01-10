@@ -100,6 +100,21 @@ export function getDefaultCenterId(orgSlug: string): string | null {
 }
 
 /**
+ * Get token package ID by center ID
+ * Used for token payment (₹100) package creation
+ */
+export function getTokenPackageIdByCenterId(centerId: string): string | null {
+  // All three centers are in Stance Health organization
+  const centerPackageMap: Record<string, string | undefined> = {
+    '67fe36545e42152fb5185a6c': process.env.NEXT_PUBLIC_INDIRANAGAR_PACKAGE_ID, // Stance Health - Indiranagar
+    '693ba0c1e21301823761c77d': process.env.NEXT_PUBLIC_WHITEFIELD_PACKAGE_ID,  // Stance Health - Whitefield  
+    '6948e9e3d2c4d4de0979ce93': process.env.NEXT_PUBLIC_HSR_PACKAGE_ID,         // Stance Health - HSR
+  };
+  
+  return centerPackageMap[centerId] || null;
+}
+
+/**
  * Get API key from environment
  */
 export function getApiKey(): string {

@@ -26,7 +26,11 @@ export default function RepeatUserOfflineServiceSelection({
   });
 
   const repeatUserIncenterServices = servicesData?.services?.filter(
-    (service: any) => !service.allowOnlineDelivery && !service.isPrePaid && service.allowOnlineBooking
+    (service: any) => 
+      !service.allowOnlineDelivery && 
+      !service.isPrePaid && 
+      service.allowOnlineBooking &&
+      !service.isNewUserService  // Exclude new user services for repeat users
   ) || [];
 
   if (loading) {
