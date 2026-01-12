@@ -10,6 +10,9 @@ export interface URLBookingParams {
   serviceId?: string | null;
   consultantId?: string | null;
   consultantType?: string | null;
+  paymentType?: string | null;
+  partialAmount?: string | null;
+  packageId?: string | null;
   slotStart?: string | null;
   slotEnd?: string | null;
 }
@@ -25,7 +28,7 @@ export interface DeterminedStep {
  * @returns Initial step and booking data updates
  */
 export function determineInitialStep(params: URLBookingParams): DeterminedStep {
-  const { patientId, centerId, serviceId, consultantId, consultantType, slotStart, slotEnd } = params;
+  const { patientId, centerId, serviceId, consultantId, consultantType, paymentType, partialAmount, packageId, slotStart, slotEnd } = params;
 
   // If we have slot times, skip to confirmation/payment
   if (slotStart && slotEnd && serviceId && centerId) {
@@ -42,6 +45,9 @@ export function determineInitialStep(params: URLBookingParams): DeterminedStep {
         ...(consultantType && { 
           designation: consultantType === 'S&C Coach' ? 'SNC_Coach' : 'Physiotherapist' 
         }),
+        ...(paymentType && { paymentType }),
+        ...(partialAmount && { partialAmount }),
+        ...(packageId && { packageId }),
         selectedTimeSlot: {
           startTime: slotStartDate.toISOString(),
           endTime: slotEndDate.toISOString(),
@@ -95,13 +101,16 @@ export function determineInitialStep(params: URLBookingParams): DeterminedStep {
 export function storeBookingParamsInSession(params: URLBookingParams): void {
   if (typeof window === 'undefined') return;
   
-  const { patientId, centerId, serviceId, consultantId, consultantType, slotStart, slotEnd } = params;
+  const { patientId, centerId, serviceId, consultantId, consultantType, paymentType, partialAmount, packageId, slotStart, slotEnd } = params;
   
   if (patientId) sessionStorage.setItem('patientId', patientId);
   if (centerId) sessionStorage.setItem('centerId', centerId);
   if (serviceId) sessionStorage.setItem('serviceId', serviceId);
   if (consultantId) sessionStorage.setItem('consultantId', consultantId);
   if (consultantType) sessionStorage.setItem('consultantType', consultantType);
+  if (paymentType) sessionStorage.setItem('paymentType', paymentType);
+  if (partialAmount) sessionStorage.setItem('partialAmount', partialAmount);
+  if (packageId) sessionStorage.setItem('packageId', packageId);
   if (slotStart) sessionStorage.setItem('slotStart', slotStart);
   if (slotEnd) sessionStorage.setItem('slotEnd', slotEnd);
 }

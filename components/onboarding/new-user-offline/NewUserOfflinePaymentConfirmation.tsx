@@ -36,7 +36,7 @@ export default function NewUserOfflinePaymentConfirmation({
 }: NewUserOfflinePaymentConfirmationProps) {
   const router = useRouter();
   const { isInDesktopContainer } = useContainerDetection();
-  const [paymentAmount, setPaymentAmount] = useState(bookingData.treatmentPrice.toString());
+  const [paymentAmount, setPaymentAmount] = useState<number | null>(null);
   const [amountError, setAmountError] = useState('');
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
@@ -54,54 +54,36 @@ export default function NewUserOfflinePaymentConfirmation({
   const currentService = servicesData?.services.find((s: any) => s._id === bookingData.treatmentId);
   const patient = userData?.user;
 
+  // Use actual service price if bookingData price is 0
+  const actualPrice = bookingData.treatmentPrice || currentService?.price || 0;
+
   const patientDetails = {
     name: patient?.profileData ? `${patient.profileData.firstName} ${patient.profileData.lastName}` : '',
     phone: patient?.phone || '',
     email: patient?.email || '',
   };
 
-  const validateAmount = (value: string) => {
-    const amount = parseFloat(value);
-    
-    if (isNaN(amount) || amount <= 0) {
-      setAmountError('Please enter a valid amount');
-      return false;
-    }
-    
-    if (amount < 100) {
-      setAmountError('Amount must be at least ₹100');
-      return false;
-    }
-    
-    if (amount > bookingData.treatmentPrice) {
-      setAmountError(`Amount cannot exceed service price ₹${bookingData.treatmentPrice}`);
-      return false;
-    }
-    
+  const handlePayFullClick = () => {
+    setPaymentAmount(actualPrice);
     setAmountError('');
-    return true;
   };
 
-  const handleAmountChange = (value: string) => {
-    setPaymentAmount(value);
-    if (value) {
-      validateAmount(value);
-    } else {
-      setAmountError('');
-    }
+  const handleTokenPayClick = () => {
+    setPaymentAmount(100);
+    setAmountError('');
   };
 
   const [isCreatingAppointment, setIsCreatingAppointment] = useState(false);
 
   const handleProceedToPayment = async () => {
-    if (!validateAmount(paymentAmount)) {
+    if (!paymentAmount) {
+      setAmountError('Please select a payment option');
       return;
     }
 
-    const amount = parseFloat(paymentAmount);
-    const isFullPayment = amount === bookingData.treatmentPrice;
+    const isFullPayment = paymentAmount === actualPrice;
 
-    analytics?.trackProceedToPaymentClicked(amount, bookingData.treatmentId, bookingData.consultantId);
+    analytics?.trackProceedToPaymentClicked(paymentAmount, bookingData.treatmentId, bookingData.consultantId);
     setIsCreatingAppointment(true);
     try {
       // Create appointment FIRST with appropriate status
@@ -129,11 +111,11 @@ export default function NewUserOfflinePaymentConfirmation({
         throw new Error('Failed to create appointment');
       }
 
-      analytics?.trackPaymentInitiated(amount, appointmentId);
+      analytics?.trackPaymentInitiated(paymentAmount, appointmentId);
       // Store appointment ID and payment info
       sessionStorage.setItem('appointmentId', appointmentId);
       sessionStorage.setItem('paymentType', isFullPayment ? 'invoice' : 'package');
-      sessionStorage.setItem('paymentAmount', amount.toString());
+      sessionStorage.setItem('paymentAmount', paymentAmount.toString());
       
       // Only set processing payment AFTER appointment is created and stored
       setIsProcessingPayment(true);
@@ -153,12 +135,11 @@ export default function NewUserOfflinePaymentConfirmation({
   }
 
   if (isProcessingPayment) {
-    const amount = parseFloat(paymentAmount);
-    const isFullPayment = amount === bookingData.treatmentPrice;
+    const isFullPayment = paymentAmount === actualPrice;
 
     return (
       <NewUserOfflinePaymentProcessing
-        amount={amount}
+        amount={paymentAmount!}
         paymentType={isFullPayment ? 'invoice' : 'package'}
         patientDetails={patientDetails}
         patientId={bookingData.patientId}
@@ -167,7 +148,7 @@ export default function NewUserOfflinePaymentConfirmation({
         treatmentId={bookingData.treatmentId}
         onPaymentSuccess={async (paymentId, invoiceId) => {
           const appointmentId = sessionStorage.getItem('appointmentId') || '';
-          analytics?.trackPaymentSuccess(paymentId, amount, appointmentId);
+          analytics?.trackPaymentSuccess(paymentId, paymentAmount!, appointmentId);
           sessionStorage.removeItem('appointmentId');
           sessionStorage.removeItem('paymentType');
           sessionStorage.removeItem('paymentAmount');
@@ -187,8 +168,7 @@ export default function NewUserOfflinePaymentConfirmation({
     );
   }
 
-  const amount = paymentAmount ? parseFloat(paymentAmount) : 0;
-  const isFullPayment = amount === bookingData.treatmentPrice;
+  const isFullPayment = paymentAmount === actualPrice;
 
   return (
     <div className={`${isInDesktopContainer ? 'h-full' : 'min-h-screen'} bg-gray-50 flex flex-col`}>
@@ -231,44 +211,92 @@ export default function NewUserOfflinePaymentConfirmation({
               <div>
                 <span className="text-sm text-gray-600 font-medium block">Service</span>
                 <p className="text-sm font-medium text-gray-900">{currentService?.name}</p>
-                <p className="text-sm text-gray-500">₹{bookingData.treatmentPrice}</p>
+                <p className="text-sm text-gray-500">₹{actualPrice}</p>
               </div>
             </div>
           </div>
 
           <div className="bg-white rounded-2xl border border-gray-200 p-4 mb-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Payment Amount</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Select Payment Option</h3>
             
-            <div className="mb-4">
-              <label className="text-sm text-gray-600 font-medium block mb-2">
-                Enter Amount (₹100 - ₹{bookingData.treatmentPrice})
-              </label>
-              <input
-                type="number"
-                value={paymentAmount}
-                onChange={(e) => handleAmountChange(e.target.value)}
-                min="100"
-                max={bookingData.treatmentPrice}
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Enter amount"
-              />
-              {amountError && (
-                <p className="text-red-600 text-sm mt-2">{amountError}</p>
-              )}
+            <div className="space-y-3">
+              <button
+                onClick={handlePayFullClick}
+                className={`w-full p-4 rounded-xl border-2 transition-all text-left ${
+                  paymentAmount === actualPrice
+                    ? 'border-blue-500 bg-blue-50'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-semibold text-gray-900">Pay Full</p>
+                    <p className="text-sm text-gray-600">₹{actualPrice}</p>
+                  </div>
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                    paymentAmount === actualPrice
+                      ? 'border-blue-500 bg-blue-500'
+                      : 'border-gray-300'
+                  }`}>
+                    {paymentAmount === actualPrice && (
+                      <div className="w-2 h-2 bg-white rounded-full" />
+                    )}
+                  </div>
+                </div>
+              </button>
+
+              <button
+                onClick={handleTokenPayClick}
+                className={`w-full p-4 rounded-xl border-2 transition-all text-left ${
+                  paymentAmount === 100
+                    ? 'border-blue-500 bg-blue-50'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-semibold text-gray-900">Token Pay</p>
+                    <p className="text-sm text-gray-600">₹100</p>
+                  </div>
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                    paymentAmount === 100
+                      ? 'border-blue-500 bg-blue-500'
+                      : 'border-gray-300'
+                  }`}>
+                    {paymentAmount === 100 && (
+                      <div className="w-2 h-2 bg-white rounded-full" />
+                    )}
+                  </div>
+                </div>
+              </button>
             </div>
 
-            {paymentAmount && !amountError && (
-              <div className={`p-3 rounded-xl ${isFullPayment ? 'bg-green-50 border border-green-200' : 'bg-blue-50 border border-blue-200'}`}>
+            {amountError && (
+              <p className="text-red-600 text-sm mt-3">{amountError}</p>
+            )}
+
+            {paymentAmount && (
+              <div className={`mt-4 p-3 rounded-xl ${
+                isFullPayment
+                  ? 'bg-green-50 border border-green-200'
+                  : 'bg-blue-50 border border-blue-200'
+              }`}>
                 <div className="flex items-start space-x-2">
-                  <AlertCircle className={`w-5 h-5 flex-shrink-0 mt-0.5 ${isFullPayment ? 'text-green-600' : 'text-blue-600'}`} />
+                  <AlertCircle className={`w-5 h-5 flex-shrink-0 mt-0.5 ${
+                    isFullPayment ? 'text-green-600' : 'text-blue-600'
+                  }`} />
                   <div>
-                    <p className={`text-sm font-semibold ${isFullPayment ? 'text-green-900' : 'text-blue-900'}`}>
-                      {isFullPayment ? 'Full Payment - Invoice' : 'Partial Payment - Package'}
+                    <p className={`text-sm font-semibold ${
+                      isFullPayment ? 'text-green-900' : 'text-blue-900'
+                    }`}>
+                      {isFullPayment ? 'Full Payment - Invoice' : 'Token Payment - Package'}
                     </p>
-                    <p className={`text-xs mt-1 ${isFullPayment ? 'text-green-700' : 'text-blue-700'}`}>
-                      {isFullPayment 
+                    <p className={`text-xs mt-1 ${
+                      isFullPayment ? 'text-green-700' : 'text-blue-700'
+                    }`}>
+                      {isFullPayment
                         ? 'Paying full service amount. An invoice will be generated.'
-                        : 'Paying partial amount. A package will be created for future use.'}
+                        : 'Paying token amount of ₹100. A package will be created for future use.'}
                     </p>
                   </div>
                 </div>
@@ -290,7 +318,7 @@ export default function NewUserOfflinePaymentConfirmation({
       <div className={`${isInDesktopContainer ? 'flex-shrink-0' : 'fixed bottom-0 left-0 right-0'} bg-white border-t border-gray-200 p-4`}>
         <Button
           onClick={handleProceedToPayment}
-          disabled={!paymentAmount || !!amountError || isCreatingAppointment}
+          disabled={!paymentAmount || isCreatingAppointment}
           isLoading={isCreatingAppointment}
           fullWidth
           variant="primary"
