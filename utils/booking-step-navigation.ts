@@ -13,8 +13,12 @@ export interface URLBookingParams {
   paymentType?: string | null;
   partialAmount?: string | null;
   packageId?: string | null;
+  slotDate?: string | null;
   slotStart?: string | null;
   slotEnd?: string | null;
+  treatmentPrice?: string | null;
+  treatmentDuration?: string | null;
+  linkToken?: string | null;
 }
 
 export interface DeterminedStep {
@@ -28,19 +32,36 @@ export interface DeterminedStep {
  * @returns Initial step and booking data updates
  */
 export function determineInitialStep(params: URLBookingParams): DeterminedStep {
-  const { patientId, centerId, serviceId, consultantId, consultantType, paymentType, partialAmount, packageId, slotStart, slotEnd } = params;
+  const { patientId, centerId, serviceId, consultantId, consultantType, paymentType, partialAmount, packageId, slotStart, slotEnd, treatmentPrice, treatmentDuration } = params;
 
-  // If we have slot times, skip to confirmation/payment
-  if (slotStart && slotEnd && serviceId && centerId) {
+  // If no patientId, ALWAYS start at session-details (patient creation)
+  if (!patientId) {
+    return {
+      initialStep: 'session-details',
+      bookingDataUpdates: {
+        ...(centerId && { centerId }),
+        ...(serviceId && { treatmentId: serviceId }),
+        ...(consultantId && { consultantId }),
+        ...(consultantType && { 
+          designation: consultantType === 'S&C Coach' ? 'SNC_Coach' : 'Physiotherapist' 
+        }),
+      }
+    };
+  }
+
+  // If we have ALL data including price, go directly to payment
+  if (slotStart && slotEnd && serviceId && centerId && treatmentPrice && treatmentDuration) {
     const slotStartDate = new Date(parseInt(slotStart) * 1000);
     const slotEndDate = new Date(parseInt(slotEnd) * 1000);
     
     return {
       initialStep: 'payment-confirmation',
       bookingDataUpdates: {
-        ...(patientId && { patientId }),
-        ...(centerId && { centerId }),
-        ...(serviceId && { treatmentId: serviceId }),
+        patientId,
+        centerId,
+        treatmentId: serviceId,
+        treatmentPrice: parseInt(treatmentPrice),
+        treatmentDuration: parseInt(treatmentDuration),
         ...(consultantId && { consultantId }),
         ...(consultantType && { 
           designation: consultantType === 'S&C Coach' ? 'SNC_Coach' : 'Physiotherapist' 
@@ -67,14 +88,14 @@ export function determineInitialStep(params: URLBookingParams): DeterminedStep {
     };
   }
   
-  // If we have service but no slot, skip to slot selection
-  if (serviceId && consultantType && centerId) {
+  // If we have patientId and service but no slot, skip to slot selection
+  if (serviceId && centerId) {
     return {
       initialStep: 'slot-selection',
       bookingDataUpdates: {
-        ...(patientId && { patientId }),
-        ...(centerId && { centerId }),
-        ...(serviceId && { treatmentId: serviceId }),
+        patientId,
+        centerId,
+        treatmentId: serviceId,
         ...(consultantId && { consultantId }),
         ...(consultantType && { 
           designation: consultantType === 'S&C Coach' ? 'SNC_Coach' : 'Physiotherapist' 
@@ -83,14 +104,24 @@ export function determineInitialStep(params: URLBookingParams): DeterminedStep {
     };
   }
   
-  // Otherwise start at session details
+  // If we have patientId and center, start at session details
+  if (centerId) {
+    return {
+      initialStep: 'session-details',
+      bookingDataUpdates: {
+        patientId,
+        centerId,
+        ...(serviceId && { treatmentId: serviceId }),
+        ...(consultantId && { consultantId }),
+      }
+    };
+  }
+  
+  // Otherwise start at session details with just patientId
   return {
     initialStep: 'session-details',
     bookingDataUpdates: {
-      ...(patientId && { patientId }),
-      ...(centerId && { centerId }),
-      ...(serviceId && { treatmentId: serviceId }),
-      ...(consultantId && { consultantId }),
+      patientId,
     }
   };
 }
@@ -101,7 +132,7 @@ export function determineInitialStep(params: URLBookingParams): DeterminedStep {
 export function storeBookingParamsInSession(params: URLBookingParams): void {
   if (typeof window === 'undefined') return;
   
-  const { patientId, centerId, serviceId, consultantId, consultantType, paymentType, partialAmount, packageId, slotStart, slotEnd } = params;
+  const { patientId, centerId, serviceId, consultantId, consultantType, paymentType, partialAmount, packageId, slotDate, slotStart, slotEnd, treatmentPrice, treatmentDuration, linkToken } = params;
   
   if (patientId) sessionStorage.setItem('patientId', patientId);
   if (centerId) sessionStorage.setItem('centerId', centerId);
@@ -111,6 +142,10 @@ export function storeBookingParamsInSession(params: URLBookingParams): void {
   if (paymentType) sessionStorage.setItem('paymentType', paymentType);
   if (partialAmount) sessionStorage.setItem('partialAmount', partialAmount);
   if (packageId) sessionStorage.setItem('packageId', packageId);
+  if (slotDate) sessionStorage.setItem('slotDate', slotDate);
   if (slotStart) sessionStorage.setItem('slotStart', slotStart);
   if (slotEnd) sessionStorage.setItem('slotEnd', slotEnd);
+  if (treatmentPrice) sessionStorage.setItem('treatmentPrice', treatmentPrice);
+  if (treatmentDuration) sessionStorage.setItem('treatmentDuration', treatmentDuration);
+  if (linkToken) sessionStorage.setItem('linkToken', linkToken);
 }

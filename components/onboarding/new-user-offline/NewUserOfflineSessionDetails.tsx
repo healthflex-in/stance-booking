@@ -39,6 +39,16 @@ export default function NewUserOfflineSessionDetails({
     return centersData.centers.filter((center: any) => center.isOnline === true);
   }, [centersData]);
 
+  // Pre-populate center if centerId is provided
+  useEffect(() => {
+    if (centerId && filteredCenters.length > 0 && !selectedCenter) {
+      const center = filteredCenters.find((c: any) => c._id === centerId);
+      if (center) {
+        setSelectedCenter(center);
+      }
+    }
+  }, [centerId, filteredCenters, selectedCenter]);
+
   useEffect(() => {
     setSelectedService(null);
   }, [selectedCenter]);

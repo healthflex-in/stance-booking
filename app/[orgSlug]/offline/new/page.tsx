@@ -67,11 +67,15 @@ export default function NewOfflinePage() {
       serviceId: searchParams.get('serviceId'),
       consultantId: searchParams.get('consultantId'),
       consultantType: searchParams.get('consultantType'),
+      slotDate: searchParams.get('slotDate'),
       slotStart: searchParams.get('slotStart'),
       slotEnd: searchParams.get('slotEnd'),
+      treatmentPrice: searchParams.get('treatmentPrice'),
+      treatmentDuration: searchParams.get('treatmentDuration'),
     };
     
-    if (urlParams.patientId && urlParams.centerId) {
+    // If we have any URL params, use them
+    if (urlParams.patientId || urlParams.centerId) {
       // Store in sessionStorage
       storeBookingParamsInSession(urlParams);
       
@@ -208,6 +212,7 @@ export default function NewOfflinePage() {
               centerId={bookingData.centerId}
               serviceDuration={bookingData.treatmentDuration}
               patientId={bookingData.patientId}
+              preSelectedDate={sessionStorage.getItem('slotDate') || undefined}
               onSlotSelect={(consultantId, slot) => {
                 const slotDate = new Date(slot.startTimeRaw);
                 updateBookingData({

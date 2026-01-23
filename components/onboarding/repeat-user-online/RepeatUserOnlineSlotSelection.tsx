@@ -13,6 +13,7 @@ interface RepeatUserOnlineSlotSelectionProps {
   organizationId: string;
   serviceDuration: number;
   designation?: string;
+  preSelectedDate?: string;
   onSlotSelect: (consultantId: string, slot: any) => void;
   onBack: () => void;
   analytics: BookingAnalytics;
@@ -45,6 +46,7 @@ export default function RepeatUserOnlineSlotSelection({
   organizationId,
   serviceDuration,
   designation,
+  preSelectedDate,
   onSlotSelect,
   onBack,
   analytics,
@@ -143,13 +145,25 @@ export default function RepeatUserOnlineSlotSelection({
     const initialDates = generateNext14Days();
     setAvailableDates(initialDates);
     
+    // If preSelectedDate is provided, use it; otherwise use first date
+    if (preSelectedDate) {
+      const preSelected = new Date(preSelectedDate);
+      const matchingDate = initialDates.find(d => d.fullDate.toDateString() === preSelected.toDateString());
+      if (matchingDate) {
+        const dateKey = `${matchingDate.day}, ${matchingDate.date} ${matchingDate.month}`;
+        setSelectedDate(dateKey);
+        setCurrentSelectedDate(matchingDate.fullDate);
+        return;
+      }
+    }
+    
     if (!selectedDate && initialDates.length > 0) {
       const firstDate = initialDates[0];
       const dateKey = `${firstDate.day}, ${firstDate.date} ${firstDate.month}`;
       setSelectedDate(dateKey);
       setCurrentSelectedDate(firstDate.fullDate);
     }
-  }, []);
+  }, [preSelectedDate]);
 
   useEffect(() => {
     if (!currentSelectedDate || slotsLoading) return;
