@@ -79,6 +79,7 @@ export default function RepeatOnlinePage() {
       serviceId: searchParams.get('serviceId'),
       consultantId: searchParams.get('consultantId'),
       consultantType: searchParams.get('consultantType'),
+      slotDate: searchParams.get('slotDate'),
       slotStart: searchParams.get('slotStart'),
       slotEnd: searchParams.get('slotEnd'),
     };
@@ -204,6 +205,7 @@ export default function RepeatOnlinePage() {
             organizationId={bookingData.organizationId}
             serviceDuration={bookingData.treatmentDuration}
             designation={bookingData.designation}
+            preSelectedDate={sessionStorage.getItem('slotDate') || undefined}
             analytics={analytics}
             onSlotSelect={(consultantId, slot) => {
               const slotDate = new Date(slot.startTimeRaw);

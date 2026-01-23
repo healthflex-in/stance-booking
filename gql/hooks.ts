@@ -653,6 +653,16 @@ export type BaseEvent = {
   version: Scalars['Int']['output'];
 };
 
+export enum CalculationType {
+  Average = 'AVERAGE',
+  Difference = 'DIFFERENCE',
+  LessThan = 'LESS_THAN',
+  Manual = 'MANUAL',
+  PositiveNegative = 'POSITIVE_NEGATIVE',
+  Range = 'RANGE',
+  Sum = 'SUM'
+}
+
 export enum CancellationReason {
   ConsultantUnavailable = 'CONSULTANT_UNAVAILABLE',
   PatientIllness = 'PATIENT_ILLNESS',
@@ -1005,6 +1015,23 @@ export type CreatePaymentInput = {
   transactionId?: InputMaybe<Scalars['String']['input']>;
 };
 
+export type CreatePreferredTimingInput = {
+  /** Optional preferred center ID */
+  center?: InputMaybe<Scalars['ObjectID']['input']>;
+  /** Optional preferred consultant ID */
+  consultant?: InputMaybe<Scalars['ObjectID']['input']>;
+  /** Optional designation preference (e.g., "SNC", "Physio") */
+  designation?: InputMaybe<Scalars['String']['input']>;
+  /** End time in HHMM format (e.g., 900 for 9:00 AM) */
+  endTime: Scalars['Time']['input'];
+  /** Optional explicit expiry timestamp (milliseconds) */
+  expiresAt?: InputMaybe<Scalars['Timestamp']['input']>;
+  /** Recurrence rule for recurring preferences */
+  recurrenceRule?: InputMaybe<RecurrenceInput>;
+  /** Start time in HHMM format (e.g., 700 for 7:00 AM) */
+  startTime: Scalars['Time']['input'];
+};
+
 export type CreateReceiptInput = {
   center: Scalars['ObjectID']['input'];
   patient: Scalars['ObjectID']['input'];
@@ -1080,6 +1107,13 @@ export type DataRow = {
   updatedAt: Scalars['Timestamp']['output'];
   version: Scalars['Int']['output'];
 };
+
+export enum DataType {
+  Bilateral = 'BILATERAL',
+  PositiveNegative = 'POSITIVE_NEGATIVE',
+  SingleUnit = 'SINGLE_UNIT',
+  Unilateral = 'UNILATERAL'
+}
 
 export enum DeliveryMode {
   Both = 'BOTH',
@@ -1399,13 +1433,18 @@ export type GoalAchievementWithSource = {
 };
 
 export enum GoalCategory {
+  Duration = 'DURATION',
   Endurance = 'ENDURANCE',
   Functional = 'FUNCTIONAL',
   Hold = 'HOLD',
+  MovementEfficiency = 'MOVEMENT_EFFICIENCY',
+  MuscleFlexibility = 'MUSCLE_FLEXIBILITY',
   Pain = 'PAIN',
   Rom = 'ROM',
+  RsiMod = 'RSI_MOD',
   Snc = 'SNC',
-  Stability = 'STABILITY'
+  Stability = 'STABILITY',
+  Strength = 'STRENGTH'
 }
 
 export type GoalSet = DataRow & {
@@ -1431,9 +1470,19 @@ export enum GoalStatus {
 }
 
 export enum GoalUnit {
+  Cms = 'CMS',
+  Custom = 'CUSTOM',
   Degree = 'DEGREE',
+  Degrees = 'DEGREES',
+  Mms = 'MMS',
+  Na = 'NA',
+  Newton = 'NEWTON',
   Pain = 'PAIN',
   Percentage = 'PERCENTAGE',
+  Percentile = 'PERCENTILE',
+  Ratio = 'RATIO',
+  ScaleOn_5 = 'SCALE_ON_5',
+  ScaleOn_10 = 'SCALE_ON_10',
   Seconds = 'SECONDS',
   Sessions = 'SESSIONS'
 }
@@ -1793,6 +1842,8 @@ export type Mutation = {
   createLedger: Ledger;
   /** Create a new message template */
   createMessageTemplate: MessageTemplate;
+  /** Create a new ObjectiveCollection entry */
+  createObjectiveCollectionEntry: ObjectiveCollectionEntry;
   createOrder: Order;
   /** Create a new organization */
   createOrganization: Organization;
@@ -1801,6 +1852,11 @@ export type Mutation = {
   /** Create a new patient */
   createPatient: User;
   createPayment: Payment;
+  /**
+   * Create a new preferred timing slot
+   * Access Control: Only FRONT_DESK or ADMIN roles allowed (Phase-1)
+   */
+  createPreferredTiming: PreferredTimingSlot;
   createReceipt: Receipt;
   /** Create a new role */
   createRole: Role;
@@ -1822,10 +1878,15 @@ export type Mutation = {
   deleteMatch: Scalars['Boolean']['output'];
   /** Delete a message template */
   deleteMessageTemplate: MessageTemplate;
+  deleteObjectiveAssessmentRecord: Scalars['Boolean']['output'];
+  /** Delete an ObjectiveCollection entry */
+  deleteObjectiveCollectionEntry: Scalars['Boolean']['output'];
   /** Delete an organization */
   deleteOrganization: Organization;
   /** Delete a package */
   deletePackage: Package;
+  /** Delete a preferred timing slot (soft delete) */
+  deletePreferredTiming: Scalars['Boolean']['output'];
   /** Delete a role */
   deleteRole: Role;
   /** Delete a service */
@@ -1842,6 +1903,8 @@ export type Mutation = {
   /** Get a list of available slots for a given host. */
   getAvailableSlots: Array<Maybe<TimeSlot>>;
   handleRazorpayWebhook: WebhookResponse;
+  /** Lock a slot to prevent concurrent booking */
+  lockSlot: SlotLock;
   login: AuthenticatedSession;
   logout: Session;
   pong: Ping;
@@ -1859,6 +1922,8 @@ export type Mutation = {
   /** Send OTP to the given Phone Number and Returns a token as Response */
   sendOTP: Scalars['String']['output'];
   triggerPaymentReconciliation: ReconciliationResponse;
+  /** Unlock a slot */
+  unlockSlot: Scalars['Boolean']['output'];
   updateAdvance: Advance;
   updateAgentReport: AgentReport;
   /** Update an appointment */
@@ -1873,6 +1938,11 @@ export type Mutation = {
   updateInvoice: Invoice;
   /** Update a message template */
   updateMessageTemplate: MessageTemplate;
+  /** Update notification status (e.g., SENT -> ACCEPTED/DECLINED) */
+  updateNotificationStatus: WaitlistNotificationLog;
+  updateObjectiveAssessmentRecord?: Maybe<ObjectiveAssessmentRecord>;
+  /** Update an ObjectiveCollection entry */
+  updateObjectiveCollectionEntry?: Maybe<ObjectiveCollectionEntry>;
   updateOrder: Order;
   /** Update an organization */
   updateOrganization: Organization;
@@ -1882,6 +1952,8 @@ export type Mutation = {
   updatePassword: Scalars['Boolean']['output'];
   /** Update an existing patient */
   updatePatient: User;
+  /** Update an existing preferred timing slot */
+  updatePreferredTiming: PreferredTimingSlot;
   /** Update records of a report */
   updateRecords: Report;
   /** Update a role */
@@ -2029,6 +2101,11 @@ export type MutationCreateMessageTemplateArgs = {
 };
 
 
+export type MutationCreateObjectiveCollectionEntryArgs = {
+  input: ObjectiveCollectionEntryInput;
+};
+
+
 export type MutationCreateOrderArgs = {
   input: CreateOrderInput;
 };
@@ -2051,6 +2128,13 @@ export type MutationCreatePatientArgs = {
 
 export type MutationCreatePaymentArgs = {
   input: CreatePaymentInput;
+};
+
+
+export type MutationCreatePreferredTimingArgs = {
+  input: CreatePreferredTimingInput;
+  organizationId: Scalars['ObjectID']['input'];
+  userId: Scalars['ObjectID']['input'];
 };
 
 
@@ -2114,12 +2198,27 @@ export type MutationDeleteMessageTemplateArgs = {
 };
 
 
+export type MutationDeleteObjectiveAssessmentRecordArgs = {
+  id: Scalars['ObjectID']['input'];
+};
+
+
+export type MutationDeleteObjectiveCollectionEntryArgs = {
+  id: Scalars['ObjectID']['input'];
+};
+
+
 export type MutationDeleteOrganizationArgs = {
   id: Scalars['ObjectID']['input'];
 };
 
 
 export type MutationDeletePackageArgs = {
+  id: Scalars['ObjectID']['input'];
+};
+
+
+export type MutationDeletePreferredTimingArgs = {
   id: Scalars['ObjectID']['input'];
 };
 
@@ -2176,6 +2275,13 @@ export type MutationHandleRazorpayWebhookArgs = {
 };
 
 
+export type MutationLockSlotArgs = {
+  center: Scalars['ObjectID']['input'];
+  slotEnd: Scalars['Timestamp']['input'];
+  slotStart: Scalars['Timestamp']['input'];
+};
+
+
 export type MutationLoginArgs = {
   input: LoginInput;
 };
@@ -2218,6 +2324,11 @@ export type MutationSendEmailOtpArgs = {
 
 export type MutationSendOtpArgs = {
   phone: Scalars['String']['input'];
+};
+
+
+export type MutationUnlockSlotArgs = {
+  lockId: Scalars['ObjectID']['input'];
 };
 
 
@@ -2276,6 +2387,25 @@ export type MutationUpdateMessageTemplateArgs = {
 };
 
 
+export type MutationUpdateNotificationStatusArgs = {
+  notes?: InputMaybe<Scalars['String']['input']>;
+  notificationId: Scalars['ObjectID']['input'];
+  status: NotificationStatus;
+};
+
+
+export type MutationUpdateObjectiveAssessmentRecordArgs = {
+  id: Scalars['ObjectID']['input'];
+  input: ObjectiveAssessmentInput;
+};
+
+
+export type MutationUpdateObjectiveCollectionEntryArgs = {
+  id: Scalars['ObjectID']['input'];
+  input: ObjectiveCollectionEntryInput;
+};
+
+
 export type MutationUpdateOrderArgs = {
   orderId: Scalars['ObjectID']['input'];
 };
@@ -2301,6 +2431,12 @@ export type MutationUpdatePasswordArgs = {
 export type MutationUpdatePatientArgs = {
   id: Scalars['ObjectID']['input'];
   input: UpdatePatient;
+};
+
+
+export type MutationUpdatePreferredTimingArgs = {
+  id: Scalars['ObjectID']['input'];
+  input: UpdatePreferredTimingInput;
 };
 
 
@@ -2353,6 +2489,14 @@ export type MutationVerifyPaymentArgs = {
   razorpayPaymentId: Scalars['String']['input'];
 };
 
+export enum NotificationStatus {
+  Accepted = 'ACCEPTED',
+  Declined = 'DECLINED',
+  Expired = 'EXPIRED',
+  Pending = 'PENDING',
+  Sent = 'SENT'
+}
+
 export type ObjectiveAssessmentInput = {
   tests: Array<InputMaybe<ObjectiveTestInput>>;
 };
@@ -2360,6 +2504,32 @@ export type ObjectiveAssessmentInput = {
 export type ObjectiveAssessmentRecord = {
   __typename?: 'ObjectiveAssessmentRecord';
   tests: Array<Maybe<ObjectiveTest>>;
+};
+
+export type ObjectiveCollectionEntry = {
+  __typename?: 'ObjectiveCollectionEntry';
+  _id: Scalars['ObjectID']['output'];
+  calculationType?: Maybe<Scalars['String']['output']>;
+  createdAt?: Maybe<Scalars['Timestamp']['output']>;
+  dataType?: Maybe<Scalars['String']['output']>;
+  normativeRangeMax?: Maybe<Scalars['Float']['output']>;
+  normativeRangeMin?: Maybe<Scalars['Float']['output']>;
+  testDetail?: Maybe<Scalars['String']['output']>;
+  testName?: Maybe<Scalars['String']['output']>;
+  textForNormativeData?: Maybe<Scalars['String']['output']>;
+  unitName?: Maybe<Scalars['String']['output']>;
+  updatedAt?: Maybe<Scalars['Timestamp']['output']>;
+};
+
+export type ObjectiveCollectionEntryInput = {
+  calculationType: Scalars['String']['input'];
+  dataType: Scalars['String']['input'];
+  normativeRangeMax: Scalars['Float']['input'];
+  normativeRangeMin: Scalars['Float']['input'];
+  testDetail: Scalars['String']['input'];
+  testName: Scalars['String']['input'];
+  textForNormativeData: Scalars['String']['input'];
+  unitName: Scalars['String']['input'];
 };
 
 export type ObjectiveGoalInput = {
@@ -2390,19 +2560,33 @@ export type ObjectiveGoalRecordInput = {
 
 export type ObjectiveTest = {
   __typename?: 'ObjectiveTest';
+  calculationType?: Maybe<CalculationType>;
   comments?: Maybe<Scalars['String']['output']>;
-  left?: Maybe<Scalars['String']['output']>;
-  right?: Maybe<Scalars['String']['output']>;
+  dataType?: Maybe<Scalars['String']['output']>;
+  exerciseId?: Maybe<Scalars['String']['output']>;
+  left?: Maybe<Scalars['Float']['output']>;
+  objectId?: Maybe<Scalars['ObjectID']['output']>;
+  positiveNegative?: Maybe<PositiveNegativeValue>;
+  right?: Maybe<Scalars['Float']['output']>;
+  testDetail?: Maybe<Scalars['String']['output']>;
   testName?: Maybe<Scalars['String']['output']>;
+  textForNormativeData?: Maybe<Scalars['String']['output']>;
   unitName?: Maybe<Scalars['String']['output']>;
-  value?: Maybe<Scalars['String']['output']>;
+  value?: Maybe<Scalars['Float']['output']>;
 };
 
 export type ObjectiveTestInput = {
+  calculationType?: InputMaybe<CalculationType>;
   comments?: InputMaybe<Scalars['String']['input']>;
+  dataType?: InputMaybe<Scalars['String']['input']>;
+  exerciseId?: InputMaybe<Scalars['String']['input']>;
   left?: InputMaybe<Scalars['Float']['input']>;
+  objectId?: InputMaybe<Scalars['ObjectID']['input']>;
+  positiveNegative?: InputMaybe<PositiveNegativeValue>;
   right?: InputMaybe<Scalars['Float']['input']>;
+  testDetail?: InputMaybe<Scalars['String']['input']>;
   testName?: InputMaybe<Scalars['String']['input']>;
+  textForNormativeData?: InputMaybe<Scalars['String']['input']>;
   unitName?: InputMaybe<Scalars['String']['input']>;
   value?: InputMaybe<Scalars['Float']['input']>;
 };
@@ -2475,6 +2659,32 @@ export type OrganizationAvailabilityInput = {
   serviceDuration: Scalars['Int']['input'];
   startDate: Scalars['Timestamp']['input'];
 };
+
+export type OverlapInfo = {
+  __typename?: 'OverlapInfo';
+  conflictingDays?: Maybe<Array<Scalars['Timestamp']['output']>>;
+  existingTiming: PreferredTimingSlot;
+  existingTimingId: Scalars['ObjectID']['output'];
+  overlapType: OverlapType;
+};
+
+export type OverlapResult = {
+  __typename?: 'OverlapResult';
+  hasOverlap: Scalars['Boolean']['output'];
+  overlaps: Array<OverlapInfo>;
+  suggestion?: Maybe<OverlapSuggestion>;
+};
+
+export enum OverlapSuggestion {
+  ConvertToRecurring = 'CONVERT_TO_RECURRING',
+  Merge = 'MERGE',
+  Modify = 'MODIFY'
+}
+
+export enum OverlapType {
+  Full = 'FULL',
+  Partial = 'PARTIAL'
+}
 
 export type Package = DataRow & {
   __typename?: 'Package';
@@ -2675,7 +2885,7 @@ export type Plan = {
   __typename?: 'Plan';
   comments?: Maybe<Scalars['String']['output']>;
   duration?: Maybe<PlanDuration>;
-  exercise: Scalars['String']['output'];
+  exercise?: Maybe<Scalars['String']['output']>;
   set?: Maybe<Array<Maybe<ExerciseSets>>>;
 };
 
@@ -2693,7 +2903,7 @@ export type PlanDurationInput = {
 export type PlanInput = {
   comments?: InputMaybe<Scalars['String']['input']>;
   duration?: InputMaybe<PlanDurationInput>;
-  exercise: Scalars['String']['input'];
+  exercise?: InputMaybe<Scalars['String']['input']>;
   set?: InputMaybe<Array<InputMaybe<ExerciseSetsInput>>>;
 };
 
@@ -2710,6 +2920,49 @@ export type PlanRecordInput = {
 
 export type PongInput = {
   message: Scalars['String']['input'];
+};
+
+export enum PositiveNegativeValue {
+  Negative = 'NEGATIVE',
+  Positive = 'POSITIVE'
+}
+
+export type PreferredTimingSlot = DataRow & {
+  __typename?: 'PreferredTimingSlot';
+  _id: Scalars['ObjectID']['output'];
+  /** Optional preferred center */
+  center?: Maybe<Center>;
+  /** Optional preferred consultant */
+  consultant?: Maybe<User>;
+  createdAt: Scalars['Timestamp']['output'];
+  /** Optional designation preference (e.g., "SNC", "Physio") */
+  designation?: Maybe<Scalars['String']['output']>;
+  /** End time in HHMM format (e.g., 900 for 9:00 AM) */
+  endTime: Scalars['Time']['output'];
+  /**
+   * Optional explicit expiry timestamp (milliseconds)
+   * One-time: auto-expire after date
+   * Recurring: expire via recurrenceRule.endDate
+   */
+  expiresAt?: Maybe<Scalars['Timestamp']['output']>;
+  isActive: Scalars['Boolean']['output'];
+  /** Quick flag indicating if this is a recurring preference */
+  isRecurring: Scalars['Boolean']['output'];
+  /** Organization this preference belongs to */
+  organization: Organization;
+  /**
+   * Priority for ordering preferences (default: 0)
+   * Phase-1: always 0
+   */
+  priority: Scalars['Int']['output'];
+  /** Recurrence rule for recurring preferences (same structure as events) */
+  recurrenceRule?: Maybe<Recurrence>;
+  /** Start time in HHMM format (e.g., 700 for 7:00 AM) */
+  startTime: Scalars['Time']['output'];
+  updatedAt: Scalars['Timestamp']['output'];
+  /** User (Patient) who owns this preferred timing */
+  user: User;
+  version: Scalars['Int']['output'];
 };
 
 export type ProfileData = Consultant | Patient | Staff;
@@ -2741,6 +2994,11 @@ export type Query = {
   center: Center;
   /** Get centres */
   centers: Array<Center>;
+  /**
+   * Check for overlapping preferred timings
+   * Phase 5.1: Returns detailed overlap information
+   */
+  checkOverlappingTimings: OverlapResult;
   checkPatientByPhone: PatientExistsResult;
   /** get current session */
   currentSession: AuthenticatedSession;
@@ -2761,11 +3019,21 @@ export type Query = {
   /** Get all files */
   files: Array<File>;
   generateInvoicePDFOnDemand: Scalars['String']['output'];
+  /** Get all tests for dropdown */
+  getAllTests: Array<ObjectiveCollectionEntry>;
   /** Get center-level availability for consultants */
   getCenterAvailability: Array<ConsultantAvailability>;
   getFilteredConsultants: Array<User>;
+  /** Get an ObjectiveAssessmentRecord by ID */
+  getObjectiveAssessmentRecord?: Maybe<ObjectiveAssessmentRecord>;
+  /** Get ObjectiveAssessmentRecord by report ID */
+  getObjectiveAssessmentRecordByReportId?: Maybe<ObjectiveAssessmentRecord>;
   /** Get organization-level availability for online consultants */
   getOrganizationAvailability: Array<ConsultantAvailability>;
+  /** Get test by ID */
+  getTestById?: Maybe<ObjectiveCollectionEntry>;
+  /** Get test by name */
+  getTestByName?: Maybe<ObjectiveCollectionEntry>;
   /** get a goal */
   goal: Goal;
   /** Get all goals in a goal lineage (parent chain) */
@@ -2800,6 +3068,10 @@ export type Query = {
   /** Get all permissions of the logged in user */
   permissions: Array<Maybe<UserPermissions>>;
   ping: Ping;
+  /** Get a preferred timing slot by ID */
+  preferredTiming: PreferredTimingSlot;
+  /** Get all preferred timing slots for a user */
+  preferredTimings: Array<PreferredTimingSlot>;
   /** Get a report */
   report: Report;
   /** Get list of reports */
@@ -2810,6 +3082,8 @@ export type Query = {
   roles: Array<Role>;
   /** Search user-timeline reports by service/treatment name, consultant name, or exercise name under plans */
   searchReports: Array<Report>;
+  /** Search tests by name */
+  searchTests: Array<ObjectiveCollectionEntry>;
   /** Get a service */
   service: Service;
   /** Get a single package */
@@ -2824,6 +3098,10 @@ export type Query = {
   /** get all users */
   users: PaginatedUsers;
   validateOnboardingToken: OnboardingData;
+  /** Get notification history for a user or slot */
+  waitlistNotificationHistory: Array<WaitlistNotificationLog>;
+  /** Get waitlist queue for a specific slot */
+  waitlistQueue: WaitlistQueueEntry;
 };
 
 
@@ -2863,6 +3141,14 @@ export type QueryAppointmentsArgs = {
 
 export type QueryCenterArgs = {
   id: Scalars['ObjectID']['input'];
+};
+
+
+export type QueryCheckOverlappingTimingsArgs = {
+  excludeTimingId?: InputMaybe<Scalars['ObjectID']['input']>;
+  input: CreatePreferredTimingInput;
+  organizationId: Scalars['ObjectID']['input'];
+  userId: Scalars['ObjectID']['input'];
 };
 
 
@@ -2931,8 +3217,28 @@ export type QueryGetFilteredConsultantsArgs = {
 };
 
 
+export type QueryGetObjectiveAssessmentRecordArgs = {
+  id: Scalars['ObjectID']['input'];
+};
+
+
+export type QueryGetObjectiveAssessmentRecordByReportIdArgs = {
+  reportId: Scalars['ObjectID']['input'];
+};
+
+
 export type QueryGetOrganizationAvailabilityArgs = {
   input: OrganizationAvailabilityInput;
+};
+
+
+export type QueryGetTestByIdArgs = {
+  id: Scalars['ObjectID']['input'];
+};
+
+
+export type QueryGetTestByNameArgs = {
+  testName: Scalars['String']['input'];
 };
 
 
@@ -3026,6 +3332,17 @@ export type QueryPatientExistsArgs = {
 };
 
 
+export type QueryPreferredTimingArgs = {
+  id: Scalars['ObjectID']['input'];
+};
+
+
+export type QueryPreferredTimingsArgs = {
+  organizationId: Scalars['ObjectID']['input'];
+  userId: Scalars['ObjectID']['input'];
+};
+
+
 export type QueryReportArgs = {
   id: Scalars['ObjectID']['input'];
 };
@@ -3044,6 +3361,11 @@ export type QueryRoleArgs = {
 export type QuerySearchReportsArgs = {
   patientId: Scalars['ObjectID']['input'];
   query: Scalars['String']['input'];
+};
+
+
+export type QuerySearchTestsArgs = {
+  searchTerm: Scalars['String']['input'];
 };
 
 
@@ -3091,6 +3413,22 @@ export type QueryUsersArgs = {
 
 export type QueryValidateOnboardingTokenArgs = {
   token: Scalars['String']['input'];
+};
+
+
+export type QueryWaitlistNotificationHistoryArgs = {
+  slotEnd?: InputMaybe<Scalars['Timestamp']['input']>;
+  slotStart?: InputMaybe<Scalars['Timestamp']['input']>;
+  userId: Scalars['ObjectID']['input'];
+};
+
+
+export type QueryWaitlistQueueArgs = {
+  center: Scalars['ObjectID']['input'];
+  consultant?: InputMaybe<Scalars['ObjectID']['input']>;
+  designation?: InputMaybe<Scalars['String']['input']>;
+  slotEnd: Scalars['Timestamp']['input'];
+  slotStart: Scalars['Timestamp']['input'];
 };
 
 export type RpeInput = {
@@ -3383,6 +3721,18 @@ export type SignUpInput = {
   userType: UserType;
 };
 
+/** Slot Lock - Prevents concurrent booking conflicts */
+export type SlotLock = {
+  __typename?: 'SlotLock';
+  _id: Scalars['ObjectID']['output'];
+  center: Scalars['ObjectID']['output'];
+  expiresAt: Scalars['Timestamp']['output'];
+  lockedAt: Scalars['Timestamp']['output'];
+  lockedBy: User;
+  slotEnd: Scalars['Timestamp']['output'];
+  slotStart: Scalars['Timestamp']['output'];
+};
+
 export type SortInput = {
   field: Scalars['String']['input'];
   order?: InputMaybe<SortOrder>;
@@ -3636,6 +3986,25 @@ export type UpdatePatient = {
   status?: InputMaybe<PatientStatus>;
 };
 
+export type UpdatePreferredTimingInput = {
+  /** Optional preferred center ID */
+  center?: InputMaybe<Scalars['ObjectID']['input']>;
+  /** Optional preferred consultant ID */
+  consultant?: InputMaybe<Scalars['ObjectID']['input']>;
+  /** Optional designation preference (e.g., "SNC", "Physio") */
+  designation?: InputMaybe<Scalars['String']['input']>;
+  /** End time in HHMM format (e.g., 900 for 9:00 AM) */
+  endTime?: InputMaybe<Scalars['Time']['input']>;
+  /** Optional explicit expiry timestamp (milliseconds) */
+  expiresAt?: InputMaybe<Scalars['Timestamp']['input']>;
+  /** Active status (for soft delete/deactivation) */
+  isActive?: InputMaybe<Scalars['Boolean']['input']>;
+  /** Recurrence rule for recurring preferences */
+  recurrenceRule?: InputMaybe<RecurrenceInput>;
+  /** Start time in HHMM format (e.g., 700 for 7:00 AM) */
+  startTime?: InputMaybe<Scalars['Time']['input']>;
+};
+
 export type UpdateRoleInput = {
   description?: InputMaybe<Scalars['String']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;
@@ -3748,6 +4117,62 @@ export type VerifyOtpInput = {
   otp: Scalars['String']['input'];
   phone: Scalars['String']['input'];
   token: Scalars['String']['input'];
+};
+
+/** Waitlist Notification Log - Audit trail of notifications */
+export type WaitlistNotificationLog = DataRow & {
+  __typename?: 'WaitlistNotificationLog';
+  _id: Scalars['ObjectID']['output'];
+  createdAt: Scalars['Timestamp']['output'];
+  isActive: Scalars['Boolean']['output'];
+  /** Optional notes */
+  notes?: Maybe<Scalars['String']['output']>;
+  /** Preferred timing slot that matched */
+  preferredTiming: PreferredTimingSlot;
+  /** Timestamp when the notification was sent/attempted */
+  sentAt?: Maybe<Scalars['Timestamp']['output']>;
+  /** Slot end timestamp */
+  slotEnd: Scalars['Timestamp']['output'];
+  /** Slot start timestamp */
+  slotStart: Scalars['Timestamp']['output'];
+  /** Notification status */
+  status: NotificationStatus;
+  updatedAt: Scalars['Timestamp']['output'];
+  /** User who was notified */
+  user: User;
+  version: Scalars['Int']['output'];
+};
+
+/** Waitlist Queue Entry - Dynamic queue generated for a slot */
+export type WaitlistQueueEntry = {
+  __typename?: 'WaitlistQueueEntry';
+  /** Center ID */
+  center: Center;
+  /** Optional consultant ID */
+  consultant?: Maybe<User>;
+  /** Optional designation */
+  designation?: Maybe<Scalars['String']['output']>;
+  /** Queue of users ordered by priority */
+  queue: Array<WaitlistQueueUser>;
+  /** Slot end timestamp (Unix seconds) */
+  slotEnd: Scalars['Timestamp']['output'];
+  /** Slot start timestamp (Unix seconds) */
+  slotStart: Scalars['Timestamp']['output'];
+  /** Total number of users in queue */
+  totalUsers: Scalars['Int']['output'];
+};
+
+/** User entry in waitlist queue */
+export type WaitlistQueueUser = {
+  __typename?: 'WaitlistQueueUser';
+  /** Position in queue (1-based) */
+  position: Scalars['Int']['output'];
+  /** Preferred timing slot that matched */
+  preferredTiming: PreferredTimingSlot;
+  /** Priority in queue (higher = earlier) */
+  priority: Scalars['Int']['output'];
+  /** User (Patient) in the queue */
+  user: User;
 };
 
 export type WebhookResponse = {

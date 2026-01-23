@@ -85,6 +85,7 @@ export default function RepeatOfflinePage() {
     const urlPaymentType = searchParams.get('paymentType');
     const urlPartialAmount = searchParams.get('partialAmount');
     const urlPackageId = searchParams.get('packageId');
+    const urlSlotDate = searchParams.get('slotDate');
     const urlSlotStart = searchParams.get('slotStart');
     const urlSlotEnd = searchParams.get('slotEnd');
     
@@ -99,6 +100,7 @@ export default function RepeatOfflinePage() {
         if (urlPaymentType) sessionStorage.setItem('paymentType', urlPaymentType);
         if (urlPartialAmount) sessionStorage.setItem('partialAmount', urlPartialAmount);
         if (urlPackageId) sessionStorage.setItem('packageId', urlPackageId);
+        if (urlSlotDate) sessionStorage.setItem('slotDate', urlSlotDate);
         if (urlSlotStart) sessionStorage.setItem('slotStart', urlSlotStart);
         if (urlSlotEnd) sessionStorage.setItem('slotEnd', urlSlotEnd);
       }
@@ -332,6 +334,7 @@ export default function RepeatOfflinePage() {
             centerId={bookingData.centerId}
             serviceDuration={bookingData.treatmentDuration}
             designation={bookingData.designation}
+            preSelectedDate={sessionStorage.getItem('slotDate') || undefined}
             onSlotSelect={handleSlotSelect}
             onBack={goToPreviousStep}
             analytics={analytics}

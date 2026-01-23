@@ -86,11 +86,16 @@ export default function NewOnlinePage() {
       serviceId: searchParams.get('serviceId'),
       consultantId: searchParams.get('consultantId'),
       consultantType: searchParams.get('consultantType'),
+      slotDate: searchParams.get('slotDate'),
       slotStart: searchParams.get('slotStart'),
       slotEnd: searchParams.get('slotEnd'),
+      treatmentPrice: searchParams.get('treatmentPrice'),
+      treatmentDuration: searchParams.get('treatmentDuration'),
+      paymentType: searchParams.get('paymentType'),
     };
     
-    if (urlParams.patientId) {
+    // If we have any URL params, use them
+    if (urlParams.patientId || urlParams.centerId) {
       // Store in sessionStorage
       storeBookingParamsInSession(urlParams);
       
@@ -227,6 +232,7 @@ export default function NewOnlinePage() {
             <NewUserOnlineSlotSelection
               serviceDuration={bookingData.treatmentDuration}
               designation="Physiotherapist"
+              preSelectedDate={sessionStorage.getItem('slotDate') || undefined}
               analytics={analytics}
               onSlotSelect={(consultantId: string, slot: any) => {
                 const slotDate = new Date(slot.startTimeRaw);

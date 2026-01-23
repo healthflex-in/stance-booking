@@ -117,7 +117,8 @@ export default function NewUserOfflinePaymentConfirmation({
       sessionStorage.setItem('paymentType', isFullPayment ? 'invoice' : 'package');
       sessionStorage.setItem('paymentAmount', paymentAmount.toString());
       
-      // Only set processing payment AFTER appointment is created and stored
+      // Set states in correct order
+      setIsCreatingAppointment(false);
       setIsProcessingPayment(true);
     } catch (error) {
       console.error('Error creating appointment:', error);

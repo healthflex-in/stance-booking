@@ -8,12 +8,38 @@ import { getBookingCookies } from '@/utils/booking-cookies';
 export default function OfflinePage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
   const orgSlug = params.orgSlug as string;
   const [centerId, setCenterId] = useState('');
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
+    
+    // Check if URL has booking params (partial link flow)
+    const urlCenterId = searchParams.get('centerId');
+    
+    if (urlCenterId) {
+      // Partial link flow - use URL params
+      setCenterId(urlCenterId);
+      // Store URL params in sessionStorage for later use
+      const urlParams = {
+        centerId: searchParams.get('centerId'),
+        serviceId: searchParams.get('serviceId'),
+        consultantId: searchParams.get('consultantId'),
+        consultantType: searchParams.get('consultantType'),
+        slotStart: searchParams.get('slotStart'),
+        slotEnd: searchParams.get('slotEnd'),
+        treatmentPrice: searchParams.get('treatmentPrice'),
+        treatmentDuration: searchParams.get('treatmentDuration'),
+      };
+      Object.entries(urlParams).forEach(([key, value]) => {
+        if (value) sessionStorage.setItem(key, value);
+      });
+      return;
+    }
+    
+    // Normal flow - use cookies
     const cookies = getBookingCookies();
     if (cookies.centerId) {
       setCenterId(cookies.centerId);
@@ -26,10 +52,43 @@ export default function OfflinePage() {
     sessionStorage.setItem('patientId', patientId);
     sessionStorage.setItem('centerId', centerId);
     
-    if (isNewUser) {
-      router.push(`/${orgSlug}/offline/new`);
+    // Check if this is a partial link flow
+    const hasBookingParams = sessionStorage.getItem('serviceId') || sessionStorage.getItem('consultantId');
+    
+    if (hasBookingParams) {
+      // Partial link flow - pass all params forward
+      const storedParams = new URLSearchParams();
+      storedParams.append('patientId', patientId);
+      storedParams.append('centerId', centerId);
+      
+      const serviceId = sessionStorage.getItem('serviceId');
+      const consultantId = sessionStorage.getItem('consultantId');
+      const consultantType = sessionStorage.getItem('consultantType');
+      const slotStart = sessionStorage.getItem('slotStart');
+      const slotEnd = sessionStorage.getItem('slotEnd');
+      const treatmentPrice = sessionStorage.getItem('treatmentPrice');
+      const treatmentDuration = sessionStorage.getItem('treatmentDuration');
+      
+      if (serviceId) storedParams.append('serviceId', serviceId);
+      if (consultantId) storedParams.append('consultantId', consultantId);
+      if (consultantType) storedParams.append('consultantType', consultantType);
+      if (slotStart) storedParams.append('slotStart', slotStart);
+      if (slotEnd) storedParams.append('slotEnd', slotEnd);
+      if (treatmentPrice) storedParams.append('treatmentPrice', treatmentPrice);
+      if (treatmentDuration) storedParams.append('treatmentDuration', treatmentDuration);
+      
+      if (isNewUser) {
+        router.push(`/${orgSlug}/offline/new?${storedParams.toString()}`);
+      } else {
+        router.push(`/${orgSlug}/offline/repeat?${storedParams.toString()}`);
+      }
     } else {
-      router.push(`/${orgSlug}/offline/repeat`);
+      // Normal flow - no params
+      if (isNewUser) {
+        router.push(`/${orgSlug}/offline/new`);
+      } else {
+        router.push(`/${orgSlug}/offline/repeat`);
+      }
     }
   };
 
