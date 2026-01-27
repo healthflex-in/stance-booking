@@ -41,8 +41,8 @@ export default function RepeatOfflinePage() {
   const [isCreatingAppointment, setIsCreatingAppointment] = useState(false);
   const analytics = useBookingAnalytics('repeat-offline');
   const [bookingData, setBookingData] = useState<BookingData>({
-    patientId: '',
-    centerId: '', // Will be set from cookies
+    patientId: typeof window !== 'undefined' ? (new URLSearchParams(window.location.search).get('patientId') || sessionStorage.getItem('patientId') || '') : '',
+    centerId: '',
     consultantId: '',
     treatmentId: '',
     treatmentPrice: 0,
@@ -89,11 +89,11 @@ export default function RepeatOfflinePage() {
     const urlSlotStart = searchParams.get('slotStart');
     const urlSlotEnd = searchParams.get('slotEnd');
     
-    if (urlPatientId && urlCenterId) {
+    if (urlPatientId) {
       // Store in sessionStorage for persistence
       if (typeof window !== 'undefined') {
         sessionStorage.setItem('patientId', urlPatientId);
-        sessionStorage.setItem('centerId', urlCenterId);
+        if (urlCenterId) sessionStorage.setItem('centerId', urlCenterId);
         if (urlServiceId) sessionStorage.setItem('serviceId', urlServiceId);
         if (urlConsultantId) sessionStorage.setItem('consultantId', urlConsultantId);
         if (urlConsultantType) sessionStorage.setItem('consultantType', urlConsultantType);
@@ -109,7 +109,7 @@ export default function RepeatOfflinePage() {
       let initialStep: BookingStep = 'session-details';
       
       // If we have slot times, skip to confirmation
-      if (urlSlotStart && urlSlotEnd && urlServiceId) {
+      if (urlSlotStart && urlSlotEnd && urlServiceId && urlCenterId) {
         const slotStartDate = new Date(parseInt(urlSlotStart) * 1000);
         const slotEndDate = new Date(parseInt(urlSlotEnd) * 1000);
         
@@ -129,7 +129,7 @@ export default function RepeatOfflinePage() {
         initialStep = 'confirmation';
       }
       // If we have service but no slot, skip to slot selection
-      else if (urlServiceId && urlConsultantType) {
+      else if (urlServiceId && urlConsultantType && urlCenterId) {
         updateBookingData({ 
           patientId: urlPatientId, 
           centerId: urlCenterId,
@@ -143,7 +143,7 @@ export default function RepeatOfflinePage() {
       else {
         updateBookingData({ 
           patientId: urlPatientId, 
-          centerId: urlCenterId,
+          ...(urlCenterId && { centerId: urlCenterId }),
           ...(urlServiceId && { treatmentId: urlServiceId }),
           ...(urlConsultantId && { consultantId: urlConsultantId }),
         });

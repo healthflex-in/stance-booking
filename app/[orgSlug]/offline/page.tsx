@@ -16,9 +16,41 @@ export default function OfflinePage() {
   useEffect(() => {
     setMounted(true);
     
-    // Check if URL has booking params (partial link flow)
+    // Check if URL has patientId (direct link with patient)
+    const urlPatientId = searchParams.get('patientId');
     const urlCenterId = searchParams.get('centerId');
     
+    if (urlPatientId) {
+      // Direct patient link - skip onboarding, go straight to booking
+      const urlParams = {
+        patientId: urlPatientId,
+        centerId: searchParams.get('centerId'),
+        serviceId: searchParams.get('serviceId'),
+        consultantId: searchParams.get('consultantId'),
+        consultantType: searchParams.get('consultantType'),
+        slotStart: searchParams.get('slotStart'),
+        slotEnd: searchParams.get('slotEnd'),
+        treatmentPrice: searchParams.get('treatmentPrice'),
+        treatmentDuration: searchParams.get('treatmentDuration'),
+        paymentType: searchParams.get('paymentType'),
+      };
+      
+      // Store in sessionStorage
+      Object.entries(urlParams).forEach(([key, value]) => {
+        if (value) sessionStorage.setItem(key, value);
+      });
+      
+      // Redirect to repeat flow with all params
+      const params = new URLSearchParams();
+      Object.entries(urlParams).forEach(([key, value]) => {
+        if (value) params.append(key, value);
+      });
+      
+      router.push(`/${orgSlug}/offline/repeat?${params.toString()}`);
+      return;
+    }
+    
+    // Check if URL has booking params (partial link flow without patientId)
     if (urlCenterId) {
       // Partial link flow - use URL params
       setCenterId(urlCenterId);
