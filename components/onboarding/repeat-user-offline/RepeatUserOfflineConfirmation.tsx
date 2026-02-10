@@ -122,6 +122,17 @@ export default function RepeatUserOfflineConfirmation({
               </div>
             </div>
           </div>
+
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 mt-4">
+            <div className="flex items-start space-x-2">
+              <div>
+                <p className="text-xs font-semibold text-blue-900 mb-1">Cancellation Policy</p>
+                <p className="text-xs text-blue-800">
+                  Cancellations made less than one day prior to the appointment will incur a ₹300 cancellation fee.
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
