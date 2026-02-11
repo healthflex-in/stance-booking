@@ -106,9 +106,15 @@ export function getDefaultCenterId(orgSlug: string): string | null {
 export function getTokenPackageIdByCenterId(centerId: string): string | null {
   // All three centers are in Stance Health organization
   const centerPackageMap: Record<string, string | undefined> = {
-    '67fe36545e42152fb5185a6c': process.env.NEXT_PUBLIC_INDIRANAGAR_PACKAGE_ID, // Stance Health - Indiranagar
-    '693ba0c1e21301823761c77d': process.env.NEXT_PUBLIC_WHITEFIELD_PACKAGE_ID,  // Stance Health - Whitefield  
-    '6948e9e3d2c4d4de0979ce93': process.env.NEXT_PUBLIC_HSR_PACKAGE_ID,         // Stance Health - HSR
+    // Development center IDs
+    '67fe36545e42152fb5185a6c': process.env.NEXT_PUBLIC_INDIRANAGAR_PACKAGE_ID, // Stance Health - Indiranagar (dev)
+    '693ba0c1e21301823761c77d': process.env.NEXT_PUBLIC_WHITEFIELD_PACKAGE_ID,  // Stance Health - Whitefield (dev)
+    '6948e9e3d2c4d4de0979ce93': process.env.NEXT_PUBLIC_HSR_PACKAGE_ID,         // Stance Health - HSR (dev)
+    
+    // Production center IDs
+    '688092ed7110183bb855bbb7': process.env.NEXT_PUBLIC_INDIRANAGAR_PACKAGE_ID, // Stance Health - Indiranagar (prod)
+    '68468dd74aa11d735edd5d64': process.env.NEXT_PUBLIC_WHITEFIELD_PACKAGE_ID,  // Stance Health - Whitefield (prod)
+    '6825aaa0d6f864397d730519': process.env.NEXT_PUBLIC_HSR_PACKAGE_ID,         // Stance Health - HSR (prod)
   };
   
   return centerPackageMap[centerId] || null;

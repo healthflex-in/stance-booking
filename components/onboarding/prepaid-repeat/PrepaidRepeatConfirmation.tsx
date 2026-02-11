@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { useQuery } from '@apollo/client';
+import { AlertCircle } from 'lucide-react';
 import { GET_CENTERS, GET_SERVICES, GET_USER } from '@/gql/queries';
 import { useContainerDetection } from '@/hooks/useContainerDetection';
 import { Button } from '@/components/ui-atoms';
