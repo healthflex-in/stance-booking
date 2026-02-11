@@ -1165,7 +1165,7 @@ export type CreateRoleInput = {
 export type CreateRuleInput = {
   conditions: Scalars['JSON']['input'];
   description: Scalars['String']['input'];
-  priority: RulePriority;
+  priority: Scalars['Int']['input'];
   relatedTab?: InputMaybe<Scalars['String']['input']>;
   ruleName: Scalars['String']['input'];
   severity: RuleSeverity;
@@ -2802,7 +2802,7 @@ export type Order = DataRow & {
   center: Center;
   createdAt: Scalars['Timestamp']['output'];
   currency: Scalars['String']['output'];
-  invoice: Invoice;
+  invoice?: Maybe<Invoice>;
   isActive: Scalars['Boolean']['output'];
   organization: Organization;
   package?: Maybe<Package>;
@@ -3872,20 +3872,13 @@ export type Rule = {
   createdAt: Scalars['Timestamp']['output'];
   description: Scalars['String']['output'];
   isActive: Scalars['Boolean']['output'];
-  priority: RulePriority;
+  priority: Scalars['Int']['output'];
   relatedTab?: Maybe<Scalars['String']['output']>;
   ruleName: Scalars['String']['output'];
   seqNo: Scalars['String']['output'];
   severity: RuleSeverity;
   updatedAt: Scalars['Timestamp']['output'];
 };
-
-export enum RulePriority {
-  Critical = 'CRITICAL',
-  High = 'HIGH',
-  Low = 'LOW',
-  Medium = 'MEDIUM'
-}
 
 export enum RuleSeverity {
   Red = 'RED',
@@ -4300,7 +4293,7 @@ export type UpdateRuleInput = {
   conditions?: InputMaybe<Scalars['JSON']['input']>;
   description?: InputMaybe<Scalars['String']['input']>;
   isActive?: InputMaybe<Scalars['Boolean']['input']>;
-  priority?: InputMaybe<RulePriority>;
+  priority?: InputMaybe<Scalars['Int']['input']>;
   relatedTab?: InputMaybe<Scalars['String']['input']>;
   ruleName?: InputMaybe<Scalars['String']['input']>;
   severity?: InputMaybe<RuleSeverity>;
@@ -4371,6 +4364,7 @@ export type UserFlag = {
   createdAt: Scalars['Timestamp']['output'];
   description: Scalars['String']['output'];
   metadata?: Maybe<Scalars['JSON']['output']>;
+  priority: Scalars['Int']['output'];
   relatedTab?: Maybe<Scalars['String']['output']>;
   resolvedAt?: Maybe<Scalars['Timestamp']['output']>;
   ruleName: Scalars['String']['output'];
@@ -4503,7 +4497,7 @@ export type UpdateOrderNewUserOfflineMutationVariables = Exact<{
 }>;
 
 
-export type UpdateOrderNewUserOfflineMutation = { __typename?: 'Mutation', updateOrder: { __typename?: 'Order', _id: any, status: OrderStatus, invoice: { __typename?: 'Invoice', _id: any }, payment?: { __typename?: 'Payment', razorpayPaymentId?: string | null } | null } };
+export type UpdateOrderNewUserOfflineMutation = { __typename?: 'Mutation', updateOrder: { __typename?: 'Order', _id: any, status: OrderStatus, invoice?: { __typename?: 'Invoice', _id: any } | null, payment?: { __typename?: 'Payment', razorpayPaymentId?: string | null } | null } };
 
 export type VerifyPaymentMutationVariables = Exact<{
   orderId: Scalars['ObjectID']['input'];
@@ -4531,14 +4525,14 @@ export type UpdateOrderNewUserOnlineMutationVariables = Exact<{
 }>;
 
 
-export type UpdateOrderNewUserOnlineMutation = { __typename?: 'Mutation', updateOrder: { __typename?: 'Order', _id: any, status: OrderStatus, invoice: { __typename?: 'Invoice', _id: any }, payment?: { __typename?: 'Payment', razorpayPaymentId?: string | null } | null } };
+export type UpdateOrderNewUserOnlineMutation = { __typename?: 'Mutation', updateOrder: { __typename?: 'Order', _id: any, status: OrderStatus, invoice?: { __typename?: 'Invoice', _id: any } | null, payment?: { __typename?: 'Payment', razorpayPaymentId?: string | null } | null } };
 
 export type UpdateOrderRepeatUserOnlineMutationVariables = Exact<{
   orderId: Scalars['ObjectID']['input'];
 }>;
 
 
-export type UpdateOrderRepeatUserOnlineMutation = { __typename?: 'Mutation', updateOrder: { __typename?: 'Order', _id: any, status: OrderStatus, invoice: { __typename?: 'Invoice', _id: any }, payment?: { __typename?: 'Payment', razorpayPaymentId?: string | null } | null } };
+export type UpdateOrderRepeatUserOnlineMutation = { __typename?: 'Mutation', updateOrder: { __typename?: 'Order', _id: any, status: OrderStatus, invoice?: { __typename?: 'Invoice', _id: any } | null, payment?: { __typename?: 'Payment', razorpayPaymentId?: string | null } | null } };
 
 export type UpdateOrderMutationVariables = Exact<{
   orderId: Scalars['ObjectID']['input'];

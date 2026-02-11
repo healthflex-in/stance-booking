@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import RazorpayScriptLoader from '@/components/loader/RazorpayScriptLoader';
 import RazorpayLoader from '@/components/loader/RazorLoader';
 import MobileLoadingScreen from '../shared/MobileLoadingScreen';
+import { getTokenPackageIdByCenterId } from '@/utils/booking-config';
 
 interface NewUserOfflinePaymentProcessingProps {
   amount: number;
@@ -200,17 +201,15 @@ export default function NewUserOfflinePaymentProcessing({
         }
         orderInput.appointment = appointmentId;
       } else {
-        const center = centersData?.centers?.find((c: any) => c._id === centerId);
-        const centerName = center?.name?.toLowerCase() || '';
+        // Use the centralized package ID lookup by center ID
+        const packageId = getTokenPackageIdByCenterId(centerId);
         
-        const getPackageId = (name: string) => {
-          if (name.includes('indiranagar')) return process.env.NEXT_PUBLIC_INDIRANAGAR_PACKAGE_ID || '68d64545bd448a9f282aa3b3';
-          if (name.includes('whitefield')) return process.env.NEXT_PUBLIC_WHITEFIELD_PACKAGE_ID || '68da370d862df251a77c3b0c';
-          if (name.includes('hsr')) return process.env.NEXT_PUBLIC_HSR_PACKAGE_ID || '68da3760862df251a77c3b2e';
-          return process.env.NEXT_PUBLIC_INDIRANAGAR_PACKAGE_ID || '68d64545bd448a9f282aa3b3';
-        };
+        if (!packageId) {
+          console.error('❌ No package ID found for center:', centerId);
+          throw new Error('Package configuration missing for selected center');
+        }
         
-        orderInput.packageId = getPackageId(centerName);
+        orderInput.packageId = packageId;
       }
 
       const { data } = await createOrderMutation({ variables: { input: orderInput } });
@@ -259,8 +258,7 @@ export default function NewUserOfflinePaymentProcessing({
             } catch (updateError: any) {
               console.error('⚠️ Failed to update patient center:', updateError);
             }
-            
-            // Get the order to retrieve invoice ID
+                        // Get the order to retrieve invoice ID (if it exists)
             const { data } = await updateOrderMutation({ 
               variables: { orderId: orderData.orderDbId },
               fetchPolicy: 'network-only'
