@@ -13,6 +13,8 @@ import {
   RepeatUserOfflineConfirmation,
 } from '@/components/onboarding/repeat-user-offline';
 import { getBookingCookies } from '@/utils/booking-cookies';
+import { parseBookingParams, storeBookingParamsInSession } from '@/utils/booking-params';
+import { resolveInitialStep } from '@/utils/booking-step-navigation';
 
 type BookingStep = 'session-details' | 'slot-selection' | 'confirmation' | 'booking-confirmed';
 
@@ -41,7 +43,7 @@ export default function RepeatOfflinePage() {
   const [isCreatingAppointment, setIsCreatingAppointment] = useState(false);
   const analytics = useBookingAnalytics('repeat-offline');
   const [bookingData, setBookingData] = useState<BookingData>({
-    patientId: typeof window !== 'undefined' ? (new URLSearchParams(window.location.search).get('patientId') || sessionStorage.getItem('patientId') || '') : '',
+    patientId: '',
     centerId: '',
     consultantId: '',
     treatmentId: '',
@@ -76,89 +78,110 @@ export default function RepeatOfflinePage() {
   useEffect(() => {
     if (!mounted) return;
     
-    // Check URL params first (from generated link)
-    const urlPatientId = searchParams.get('patientId');
-    const urlCenterId = searchParams.get('centerId');
-    const urlServiceId = searchParams.get('serviceId');
-    const urlConsultantId = searchParams.get('consultantId');
-    const urlConsultantType = searchParams.get('consultantType');
-    const urlPaymentType = searchParams.get('paymentType');
-    const urlPartialAmount = searchParams.get('partialAmount');
-    const urlPackageId = searchParams.get('packageId');
-    const urlSlotDate = searchParams.get('slotDate');
-    const urlSlotStart = searchParams.get('slotStart');
-    const urlSlotEnd = searchParams.get('slotEnd');
+    const parsedParams = parseBookingParams(searchParams);
     
-    if (urlPatientId) {
-      // Store in sessionStorage for persistence
-      if (typeof window !== 'undefined') {
-        sessionStorage.setItem('patientId', urlPatientId);
-        if (urlCenterId) sessionStorage.setItem('centerId', urlCenterId);
-        if (urlServiceId) sessionStorage.setItem('serviceId', urlServiceId);
-        if (urlConsultantId) sessionStorage.setItem('consultantId', urlConsultantId);
-        if (urlConsultantType) sessionStorage.setItem('consultantType', urlConsultantType);
-        if (urlPaymentType) sessionStorage.setItem('paymentType', urlPaymentType);
-        if (urlPartialAmount) sessionStorage.setItem('partialAmount', urlPartialAmount);
-        if (urlPackageId) sessionStorage.setItem('packageId', urlPackageId);
-        if (urlSlotDate) sessionStorage.setItem('slotDate', urlSlotDate);
-        if (urlSlotStart) sessionStorage.setItem('slotStart', urlSlotStart);
-        if (urlSlotEnd) sessionStorage.setItem('slotEnd', urlSlotEnd);
+    if (Object.keys(parsedParams).length > 0) {
+      storeBookingParamsInSession(parsedParams);
+      
+      const initialStep = resolveInitialStep(parsedParams);
+      
+      // If no patientId, redirect to offline onboarding page
+      if (initialStep === 'onboarding') {
+        router.replace(`/${orgSlug}/offline`);
+        return;
       }
       
-      // Determine which step to start at based on available data
-      let initialStep: BookingStep = 'session-details';
-      
-      // If we have slot times, skip to confirmation
-      if (urlSlotStart && urlSlotEnd && urlServiceId && urlCenterId) {
-        const slotStartDate = new Date(parseInt(urlSlotStart) * 1000);
-        const slotEndDate = new Date(parseInt(urlSlotEnd) * 1000);
-        
-        updateBookingData({ 
-          patientId: urlPatientId, 
-          centerId: urlCenterId,
-          treatmentId: urlServiceId,
-          consultantId: urlConsultantId || '',
-          selectedTimeSlot: {
-            startTime: slotStartDate.toISOString(),
-            endTime: slotEndDate.toISOString(),
-            displayTime: slotStartDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
-          },
-          selectedDate: slotStartDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
-          selectedFullDate: slotStartDate,
-        });
-        initialStep = 'confirmation';
+      const updates: Partial<BookingData> = {};
+      if (parsedParams.patientId) updates.patientId = parsedParams.patientId;
+      if (parsedParams.centerId) updates.centerId = parsedParams.centerId;
+      if (parsedParams.serviceId) updates.treatmentId = parsedParams.serviceId;
+      if (parsedParams.consultantId) updates.consultantId = parsedParams.consultantId;
+      if (parsedParams.consultantType) {
+        updates.designation = parsedParams.consultantType === 'S&C Coach' ? 'SNC_Coach' : 'Physiotherapist';
       }
-      // If we have service but no slot, skip to slot selection
-      else if (urlServiceId && urlConsultantType && urlCenterId) {
-        updateBookingData({ 
-          patientId: urlPatientId, 
-          centerId: urlCenterId,
-          treatmentId: urlServiceId,
-          consultantId: urlConsultantId || '',
-          designation: urlConsultantType === 'S&C Coach' ? 'SNC_Coach' : 'Physiotherapist',
-        });
-        initialStep = 'slot-selection';
-      }
-      // Otherwise start at session details
-      else {
-        updateBookingData({ 
-          patientId: urlPatientId, 
-          ...(urlCenterId && { centerId: urlCenterId }),
-          ...(urlServiceId && { treatmentId: urlServiceId }),
-          ...(urlConsultantId && { consultantId: urlConsultantId }),
-        });
+      if (parsedParams.treatmentPrice) updates.treatmentPrice = parseInt(parsedParams.treatmentPrice);
+      if (parsedParams.treatmentDuration) updates.treatmentDuration = parseInt(parsedParams.treatmentDuration);
+      if (parsedParams.slotStart && parsedParams.slotEnd) {
+        const slotStartDate = new Date(parseInt(parsedParams.slotStart) * 1000);
+        updates.selectedTimeSlot = {
+          startTime: slotStartDate.toISOString(),
+          endTime: new Date(parseInt(parsedParams.slotEnd) * 1000).toISOString(),
+          displayTime: slotStartDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+        };
+        updates.selectedDate = slotStartDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+        updates.selectedFullDate = slotStartDate;
       }
       
-      setCurrentStep(initialStep);
+      updateBookingData(updates);
+      
+      // Map DynamicBookingStep to this page's BookingStep type
+      const stepMap: Record<string, BookingStep> = {
+        'center-selection': 'session-details',
+        'session-details': 'session-details',
+        'slot-selection': 'slot-selection',
+        'payment-confirmation': 'confirmation',
+        'booking-confirmed': 'booking-confirmed',
+      };
+      setCurrentStep(stepMap[initialStep] || 'session-details');
       return;
     }
     
-    // Fallback to sessionStorage
+    // Fallback to sessionStorage — read ALL stored params
     if (typeof window !== 'undefined') {
       const storedPatientId = sessionStorage.getItem('patientId');
       const storedCenterId = sessionStorage.getItem('centerId');
-      if (storedPatientId && storedCenterId) {
-        updateBookingData({ patientId: storedPatientId, centerId: storedCenterId });
+      if (storedPatientId) {
+        const storedServiceId = sessionStorage.getItem('serviceId');
+        const storedConsultantId = sessionStorage.getItem('consultantId');
+        const storedConsultantType = sessionStorage.getItem('consultantType');
+        const storedTreatmentPrice = sessionStorage.getItem('treatmentPrice');
+        const storedTreatmentDuration = sessionStorage.getItem('treatmentDuration');
+        const storedSlotStart = sessionStorage.getItem('slotStart');
+        const storedSlotEnd = sessionStorage.getItem('slotEnd');
+        
+        const updates: Partial<BookingData> = {
+          patientId: storedPatientId,
+          centerId: storedCenterId || '',
+        };
+        if (storedServiceId) updates.treatmentId = storedServiceId;
+        if (storedConsultantId) updates.consultantId = storedConsultantId;
+        if (storedConsultantType) {
+          updates.designation = storedConsultantType === 'S&C Coach' ? 'SNC_Coach' : 'Physiotherapist';
+        }
+        if (storedTreatmentPrice) updates.treatmentPrice = parseInt(storedTreatmentPrice);
+        if (storedTreatmentDuration) updates.treatmentDuration = parseInt(storedTreatmentDuration);
+        if (storedSlotStart && storedSlotEnd) {
+          const slotStartDate = new Date(parseInt(storedSlotStart) * 1000);
+          updates.selectedTimeSlot = {
+            startTime: slotStartDate.toISOString(),
+            endTime: new Date(parseInt(storedSlotEnd) * 1000).toISOString(),
+            displayTime: slotStartDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+          };
+          updates.selectedDate = slotStartDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+          updates.selectedFullDate = slotStartDate;
+        }
+        
+        updateBookingData(updates);
+        
+        const resolvedStep = resolveInitialStep({
+          patientId: storedPatientId,
+          centerId: storedCenterId || undefined,
+          serviceId: storedServiceId || undefined,
+          slotStart: storedSlotStart || undefined,
+          slotEnd: storedSlotEnd || undefined,
+          treatmentPrice: storedTreatmentPrice || undefined,
+        });
+        
+        const stepMap: Record<string, BookingStep> = {
+          'center-selection': 'session-details',
+          'session-details': 'session-details',
+          'slot-selection': 'slot-selection',
+          'payment-confirmation': 'confirmation',
+          'booking-confirmed': 'booking-confirmed',
+        };
+        setCurrentStep(stepMap[resolvedStep] || 'session-details');
+      } else if (storedCenterId) {
+        updateBookingData({ centerId: storedCenterId });
       }
     }
   }, [mounted, searchParams]);

@@ -40,6 +40,21 @@ export default function NewUserOfflinePaymentConfirmation({
   const [amountError, setAmountError] = useState('');
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
+  // Auto-select payment option from sessionStorage (set by URL params)
+  React.useEffect(() => {
+    try {
+      const storedPaymentType = sessionStorage.getItem('paymentType');
+      if (storedPaymentType === 'token') {
+        setPaymentAmount(100);
+      } else if (storedPaymentType === 'full') {
+        // Will be set properly once actualPrice is available
+        setPaymentAmount(null); // set below once price loads
+      }
+    } catch {
+      // sessionStorage unavailable
+    }
+  }, []);
+
   const { data: centersData } = useQuery(GET_CENTERS);
   const { data: servicesData } = useQuery(GET_SERVICES, {
     variables: { centerId: [bookingData.centerId] },
@@ -56,6 +71,18 @@ export default function NewUserOfflinePaymentConfirmation({
 
   // Use actual service price if bookingData price is 0
   const actualPrice = bookingData.treatmentPrice || currentService?.price || 0;
+
+  // Auto-select full payment once price is known
+  React.useEffect(() => {
+    try {
+      const storedPaymentType = sessionStorage.getItem('paymentType');
+      if (storedPaymentType === 'full' && actualPrice > 0 && paymentAmount === null) {
+        setPaymentAmount(actualPrice);
+      }
+    } catch {
+      // sessionStorage unavailable
+    }
+  }, [actualPrice, paymentAmount]);
 
   const patientDetails = {
     name: patient?.profileData ? `${patient.profileData.firstName} ${patient.profileData.lastName}` : '',

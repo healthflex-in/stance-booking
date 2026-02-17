@@ -5,7 +5,8 @@ import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { getBookingCookies } from '@/utils/booking-cookies';
 import { useBookingAnalytics } from '@/hooks/useBookingAnalytics';
-import { determineInitialStep, storeBookingParamsInSession } from '@/utils/booking-step-navigation';
+import { parseBookingParams, storeBookingParamsInSession } from '@/utils/booking-params';
+import { resolveInitialStep } from '@/utils/booking-step-navigation';
 
 import {
   NewUserOnlinePaymentConfirmation,
@@ -79,45 +80,99 @@ export default function NewOnlinePage() {
   useEffect(() => {
     if (!mounted) return;
     
-    // Check URL params first
-    const urlParams = {
-      patientId: searchParams.get('patientId'),
-      centerId: searchParams.get('centerId'),
-      serviceId: searchParams.get('serviceId'),
-      consultantId: searchParams.get('consultantId'),
-      consultantType: searchParams.get('consultantType'),
-      slotDate: searchParams.get('slotDate'),
-      slotStart: searchParams.get('slotStart'),
-      slotEnd: searchParams.get('slotEnd'),
-      treatmentPrice: searchParams.get('treatmentPrice'),
-      treatmentDuration: searchParams.get('treatmentDuration'),
-      paymentType: searchParams.get('paymentType'),
-    };
+    const parsedParams = parseBookingParams(searchParams);
     
-    // If we have any URL params, use them
-    if (urlParams.patientId || urlParams.centerId) {
-      // Store in sessionStorage
-      storeBookingParamsInSession(urlParams);
+    if (Object.keys(parsedParams).length > 0) {
+      storeBookingParamsInSession(parsedParams);
       
-      // Determine initial step and updates
-      const { initialStep, bookingDataUpdates } = determineInitialStep(urlParams);
+      const initialStep = resolveInitialStep(parsedParams);
       
-      setBookingData(prev => ({ ...prev, ...bookingDataUpdates }));
-      setCurrentStep(initialStep as BookingStep);
+      // If no patientId, redirect to online onboarding page
+      if (initialStep === 'onboarding') {
+        router.replace(`/${orgSlug}/online`);
+        return;
+      }
+      
+      const updates: Partial<BookingData> = {};
+      if (parsedParams.patientId) updates.patientId = parsedParams.patientId;
+      if (parsedParams.centerId) updates.centerId = parsedParams.centerId;
+      if (parsedParams.serviceId) updates.treatmentId = parsedParams.serviceId;
+      if (parsedParams.consultantId) updates.consultantId = parsedParams.consultantId;
+      if (parsedParams.treatmentPrice) updates.treatmentPrice = parseInt(parsedParams.treatmentPrice);
+      if (parsedParams.treatmentDuration) updates.treatmentDuration = parseInt(parsedParams.treatmentDuration);
+      if (parsedParams.slotStart && parsedParams.slotEnd) {
+        const slotStartDate = new Date(parseInt(parsedParams.slotStart) * 1000);
+        updates.selectedTimeSlot = {
+          startTime: slotStartDate.toISOString(),
+          endTime: new Date(parseInt(parsedParams.slotEnd) * 1000).toISOString(),
+          displayTime: slotStartDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+        };
+        updates.selectedDate = slotStartDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+        updates.selectedFullDate = slotStartDate;
+      }
+      
+      setBookingData(prev => ({ ...prev, ...updates }));
+      
+      const stepMap: Record<string, BookingStep> = {
+        'center-selection': 'session-details',
+        'session-details': 'session-details',
+        'slot-selection': 'slot-selection',
+        'payment-confirmation': 'payment-confirmation',
+        'booking-confirmed': 'booking-confirmed',
+      };
+      setCurrentStep(stepMap[initialStep] || 'session-details');
       return;
     }
     
-    // Fallback to sessionStorage
+    // Fallback to sessionStorage — read ALL stored params
     const storedPatientId = sessionStorage.getItem('patientId');
-    
     if (storedPatientId) {
-      setBookingData(prev => ({
-        ...prev,
+      const storedCenterId = sessionStorage.getItem('centerId');
+      const storedServiceId = sessionStorage.getItem('serviceId');
+      const storedConsultantId = sessionStorage.getItem('consultantId');
+      const storedTreatmentPrice = sessionStorage.getItem('treatmentPrice');
+      const storedTreatmentDuration = sessionStorage.getItem('treatmentDuration');
+      const storedSlotStart = sessionStorage.getItem('slotStart');
+      const storedSlotEnd = sessionStorage.getItem('slotEnd');
+      
+      const updates: Partial<BookingData> = { patientId: storedPatientId };
+      if (storedCenterId) updates.centerId = storedCenterId;
+      if (storedServiceId) updates.treatmentId = storedServiceId;
+      if (storedConsultantId) updates.consultantId = storedConsultantId;
+      if (storedTreatmentPrice) updates.treatmentPrice = parseInt(storedTreatmentPrice);
+      if (storedTreatmentDuration) updates.treatmentDuration = parseInt(storedTreatmentDuration);
+      if (storedSlotStart && storedSlotEnd) {
+        const slotStartDate = new Date(parseInt(storedSlotStart) * 1000);
+        updates.selectedTimeSlot = {
+          startTime: slotStartDate.toISOString(),
+          endTime: new Date(parseInt(storedSlotEnd) * 1000).toISOString(),
+          displayTime: slotStartDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+        };
+        updates.selectedDate = slotStartDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+        updates.selectedFullDate = slotStartDate;
+      }
+      
+      setBookingData(prev => ({ ...prev, ...updates }));
+      
+      // Resolve the correct step based on what data we have
+      const resolvedStep = resolveInitialStep({
         patientId: storedPatientId,
-      }));
-      sessionStorage.removeItem('patientId');
+        centerId: storedCenterId || undefined,
+        serviceId: storedServiceId || undefined,
+        slotStart: storedSlotStart || undefined,
+        slotEnd: storedSlotEnd || undefined,
+        treatmentPrice: storedTreatmentPrice || undefined,
+      });
+      
+      const stepMap: Record<string, BookingStep> = {
+        'center-selection': 'session-details',
+        'session-details': 'session-details',
+        'slot-selection': 'slot-selection',
+        'payment-confirmation': 'payment-confirmation',
+        'booking-confirmed': 'booking-confirmed',
+      };
+      setCurrentStep(stepMap[resolvedStep] || 'session-details');
     } else {
-      console.warn('⚠️ No patientId found in sessionStorage');
       router.push(`/${orgSlug}`);
     }
   }, [mounted, orgSlug, router, searchParams]);

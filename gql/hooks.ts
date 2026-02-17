@@ -668,6 +668,7 @@ export enum CancellationReason {
   PatientIllness = 'PATIENT_ILLNESS',
   PatientNoShow = 'PATIENT_NO_SHOW',
   PatientRequest = 'PATIENT_REQUEST',
+  PaymentFailed = 'PAYMENT_FAILED',
   ReferredElsewhere = 'REFERRED_ELSEWHERE',
   Rescheduled = 'RESCHEDULED',
   TreatmentNotNeeded = 'TREATMENT_NOT_NEEDED'
@@ -1057,6 +1058,7 @@ export type CreateRoleInput = {
 };
 
 export type CreateRuleInput = {
+  appliedAfterDate?: InputMaybe<Scalars['Timestamp']['input']>;
   conditions: Scalars['JSON']['input'];
   description: Scalars['String']['input'];
   priority: Scalars['Int']['input'];
@@ -3762,6 +3764,7 @@ export type Role = DataRow & {
 export type Rule = {
   __typename?: 'Rule';
   _id: Scalars['ObjectID']['output'];
+  appliedAfterDate?: Maybe<Scalars['Timestamp']['output']>;
   conditions: Scalars['JSON']['output'];
   createdAt: Scalars['Timestamp']['output'];
   description: Scalars['String']['output'];
@@ -4184,6 +4187,7 @@ export type UpdateRoleInput = {
 };
 
 export type UpdateRuleInput = {
+  appliedAfterDate?: InputMaybe<Scalars['Timestamp']['input']>;
   conditions?: InputMaybe<Scalars['JSON']['input']>;
   description?: InputMaybe<Scalars['String']['input']>;
   isActive?: InputMaybe<Scalars['Boolean']['input']>;

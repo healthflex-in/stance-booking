@@ -1,12 +1,13 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import RazorpayScriptLoader from '@/components/loader/RazorpayScriptLoader';
 import { SimplifiedPatientOnboarding } from '@/components/onboarding/shared';
 import { getOrganizationBySlug, getDefaultCenterId } from '@/utils/booking-config';
 import { setBookingCookies, getBookingCookies } from '@/utils/booking-cookies';
+import { parseBookingParams, storeBookingParamsInSession, BookingParams } from '@/utils/booking-params';
 
 type BookingStep =
   | 'patient-onboarding'
@@ -45,6 +46,7 @@ interface BookingData {
 function BookPageContent() {
   const router = useRouter();
   const params = useParams();
+  const searchParams = useSearchParams();
   const orgSlug = params.orgSlug as string;
   
   const [mounted, setMounted] = useState(false);
@@ -52,6 +54,7 @@ function BookPageContent() {
   const [bookingData, setBookingData] = useState<Partial<BookingData>>({});
   const initializedRef = React.useRef(false);
   const redirectingRef = React.useRef(false);
+  const parsedParamsRef = React.useRef<BookingParams | null>(null);
 
   useEffect(() => {
     // Prevent double initialization
@@ -98,24 +101,55 @@ function BookPageContent() {
     
     // Set center ID in booking data
     setBookingData(prev => ({ ...prev, centerId: defaultCenterId }));
+
+    // Parse URL params and store in session storage
+    const parsedParams = parseBookingParams(searchParams);
+
+    if (Object.keys(parsedParams).length > 0) {
+      storeBookingParamsInSession(parsedParams);
+      parsedParamsRef.current = parsedParams;
+
+      // If patientId is present, skip onboarding and redirect to the appropriate flow page
+      if (parsedParams.patientId) {
+        if (!redirectingRef.current) {
+          redirectingRef.current = true;
+
+          sessionStorage.setItem('patientId', parsedParams.patientId);
+          sessionStorage.setItem('centerId', parsedParams.centerId || defaultCenterId);
+
+          // Determine flow type from assessmentType
+          const isOnline = parsedParams.assessmentType === 'online';
+          const effectiveOnline = isOnline && orgSlug !== 'hyfit' && orgSlug !== 'devhyfit';
+          const flowType = effectiveOnline ? 'online' : 'offline';
+
+          // Default to 'new' — the flow page will refine based on actual patient data
+          router.replace(`/${orgSlug}/${flowType}/new`);
+        }
+        return;
+      }
+      // No patientId — fall through to show onboarding as normal.
+      // Params are already stored in session storage for the post-onboarding redirect.
+    }
   }, [orgSlug]); // Only re-run if orgSlug changes
 
   const handlePatientOnboardingComplete = (patientId: string, isNewUser: boolean, sessionType: 'in-person' | 'online') => {
     sessionStorage.setItem('patientId', patientId);
     sessionStorage.setItem('centerId', bookingData.centerId || '');
-    
+
+    // Check if we have a stored assessmentType from URL params that should override sessionType
+    const storedParams = parsedParamsRef.current;
+    const effectiveSessionType: 'in-person' | 'online' =
+      storedParams?.assessmentType === 'online' ? 'online' :
+      storedParams?.assessmentType === 'in-person' ? 'in-person' :
+      sessionType;
+
+    // HyFit/devHyFit orgs always use offline flow
+    const effectiveOnline = effectiveSessionType === 'online' && orgSlug !== 'hyfit' && orgSlug !== 'devhyfit';
+
     if (isNewUser) {
-      if (sessionType === 'online') {
-        router.replace(`/${orgSlug}/online/new`);
-      } else {
-        router.replace(`/${orgSlug}/offline/new`);
-      }
+      router.replace(`/${orgSlug}/${effectiveOnline ? 'online' : 'offline'}/new`);
     } else {
-      if (sessionType === 'online') {
-        router.replace(`/${orgSlug}/online/repeat`);
-      } else {
-        router.replace(`/${orgSlug}/offline/repeat`);
-      }
+      router.replace(`/${orgSlug}/${effectiveOnline ? 'online' : 'offline'}/repeat`);
     }
   };
 
