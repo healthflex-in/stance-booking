@@ -41,6 +41,7 @@ export default function SimplifiedPatientOnboarding({
   const { isInDesktopContainer } = useContainerDetection();
   const [isPhoneVerified, setIsPhoneVerified] = useState(false);
   const [sessionType, setSessionType] = useState<'in-person' | 'online' | null>(null);
+  const [preStoredAssessmentType, setPreStoredAssessmentType] = useState<'in-person' | 'online' | null>(null);
   const [isNewUser, setIsNewUser] = useState(false);
   const [showSessionTypeModal, setShowSessionTypeModal] = useState(false);
   const [isNavigating, setIsNavigating] = useState(false);
@@ -95,6 +96,9 @@ export default function SimplifiedPatientOnboarding({
       // Continue with the booking flow as a repeat user
       if (crossOrgPatient && sessionType) {
         onComplete(crossOrgPatient._id, false, sessionType);
+      } else if (crossOrgPatient && preStoredAssessmentType) {
+        // assessmentType was pre-stored from URL params — skip modal
+        onComplete(crossOrgPatient._id, false, preStoredAssessmentType);
       } else {
         setShowSessionTypeModal(true);
       }
@@ -104,6 +108,19 @@ export default function SimplifiedPatientOnboarding({
       toast.error('Failed to add to organization. Please try again.');
     },
   });
+
+  // Read pre-stored assessmentType from sessionStorage (set by URL params via entry page)
+  useEffect(() => {
+    try {
+      const stored = sessionStorage.getItem('assessmentType');
+      if (stored === 'in-person' || stored === 'online') {
+        setPreStoredAssessmentType(stored);
+        setSessionType(stored);
+      }
+    } catch {
+      // sessionStorage unavailable
+    }
+  }, []);
 
   useEffect(() => {
     mobileAnalytics.trackPatientOnboardingStart(centerId);
@@ -206,7 +223,12 @@ export default function SimplifiedPatientOnboarding({
         // Patient exists in current organization - proceed as repeat user
         setIsNewUser(false);
         setIsPhoneVerified(true);
-        setShowSessionTypeModal(true);
+        if (preStoredAssessmentType) {
+          // assessmentType pre-stored from URL params — skip session type modal
+          handleRepeatUserContinueWithSessionType(preStoredAssessmentType);
+        } else {
+          setShowSessionTypeModal(true);
+        }
       } else {
         // New patient - show form
         setIsNewUser(true);
@@ -244,7 +266,12 @@ export default function SimplifiedPatientOnboarding({
   };
 
   const handleRepeatUserContinue = async () => {
-    setShowSessionTypeModal(true);
+    if (preStoredAssessmentType) {
+      // assessmentType pre-stored from URL params — skip session type modal
+      handleRepeatUserContinueWithSessionType(preStoredAssessmentType);
+    } else {
+      setShowSessionTypeModal(true);
+    }
   };
 
   const handleCrossOrgConfirm = async () => {
@@ -602,7 +629,7 @@ export default function SimplifiedPatientOnboarding({
             <div className="space-y-6">
               {renderPhoneInput()}
               
-              {isPhoneVerified && isNewUser && (() => {
+              {isPhoneVerified && isNewUser && !preStoredAssessmentType && (() => {
                 const cookies = getBookingCookies();
                 const isHyfit = cookies.orgSlug === 'hyfit' || cookies.orgSlug === 'devhyfit';
                 

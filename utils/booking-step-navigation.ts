@@ -2,6 +2,8 @@
  * Utility to determine initial booking step based on URL parameters
  */
 
+import { BookingParams } from './booking-params';
+
 export type BookingStep = 'session-details' | 'slot-selection' | 'payment-confirmation' | 'confirmation' | 'booking-confirmed';
 
 export interface URLBookingParams {
@@ -148,4 +150,50 @@ export function storeBookingParamsInSession(params: URLBookingParams): void {
   if (treatmentPrice) sessionStorage.setItem('treatmentPrice', treatmentPrice);
   if (treatmentDuration) sessionStorage.setItem('treatmentDuration', treatmentDuration);
   if (linkToken) sessionStorage.setItem('linkToken', linkToken);
+}
+
+
+// ---------------------------------------------------------------------------
+// Dynamic step resolution (URL-param-based flow)
+// ---------------------------------------------------------------------------
+
+/**
+ * Extended booking step type that includes onboarding and center-selection
+ * steps used by the dynamic URL-param-based booking flow.
+ */
+export type DynamicBookingStep =
+  | 'onboarding'
+  | 'center-selection'
+  | 'session-details'
+  | 'slot-selection'
+  | 'payment-confirmation'
+  | 'booking-confirmed';
+
+/**
+ * Inspects the available booking data and returns the first step in the
+ * ordered sequence that still requires user input.
+ *
+ * Resolution order:
+ *  1. No patientId        → onboarding
+ *  2. No centerId         → center-selection
+ *  3. No serviceId        → session-details
+ *  4. No slot data        → slot-selection
+ *  5. Everything else     → payment-confirmation (never skip — appointment creation happens here)
+ */
+export function resolveInitialStep(params: BookingParams): DynamicBookingStep {
+  if (!params.patientId) return 'onboarding';
+  if (!params.centerId) return 'center-selection';
+  if (!params.serviceId) return 'session-details';
+  if (!params.slotStart || !params.slotEnd) return 'slot-selection';
+  // Always land on payment-confirmation as the max step.
+  // The appointment is created during this step, so we must never skip it.
+  return 'payment-confirmation';
+}
+
+/**
+ * Determines whether a patient should be routed to the new-user or
+ * repeat-user booking flow based on existing center assignments.
+ */
+export function resolveUserType(hasCenterAssignments: boolean): 'new' | 'repeat' {
+  return hasCenterAssignments ? 'repeat' : 'new';
 }

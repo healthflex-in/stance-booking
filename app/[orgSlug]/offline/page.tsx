@@ -4,6 +4,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import OfflineOnboarding from '@/components/onboarding/OfflineOnboarding';
 import { getBookingCookies } from '@/utils/booking-cookies';
+import { parseBookingParams, storeBookingParamsInSession } from '@/utils/booking-params';
 
 export default function OfflinePage() {
   const params = useParams();
@@ -15,59 +16,40 @@ export default function OfflinePage() {
 
   useEffect(() => {
     setMounted(true);
-    
+
+    // Parse URL params using the shared utility
+    const parsedParams = parseBookingParams(searchParams);
+    const hasUrlParams = Object.keys(parsedParams).length > 0;
+
+    if (hasUrlParams) {
+      // Store all params in sessionStorage for persistence
+      storeBookingParamsInSession(parsedParams);
+    }
+
     // Check if URL has patientId (direct link with patient)
-    const urlPatientId = searchParams.get('patientId');
-    const urlCenterId = searchParams.get('centerId');
+    const urlPatientId = parsedParams.patientId || searchParams.get('patientId');
+    const urlCenterId = parsedParams.centerId || searchParams.get('centerId');
     
     if (urlPatientId) {
       // Direct patient link - skip onboarding, go straight to booking
-      const urlParams = {
-        patientId: urlPatientId,
-        centerId: searchParams.get('centerId'),
-        serviceId: searchParams.get('serviceId'),
-        consultantId: searchParams.get('consultantId'),
-        consultantType: searchParams.get('consultantType'),
-        slotStart: searchParams.get('slotStart'),
-        slotEnd: searchParams.get('slotEnd'),
-        treatmentPrice: searchParams.get('treatmentPrice'),
-        treatmentDuration: searchParams.get('treatmentDuration'),
-        paymentType: searchParams.get('paymentType'),
-      };
+      sessionStorage.setItem('patientId', urlPatientId);
+      if (urlCenterId) sessionStorage.setItem('centerId', urlCenterId);
       
-      // Store in sessionStorage
-      Object.entries(urlParams).forEach(([key, value]) => {
-        if (value) sessionStorage.setItem(key, value);
-      });
-      
-      // Redirect to repeat flow with all params
-      const params = new URLSearchParams();
-      Object.entries(urlParams).forEach(([key, value]) => {
-        if (value) params.append(key, value);
-      });
-      
-      router.push(`/${orgSlug}/offline/repeat?${params.toString()}`);
+      // Redirect to repeat flow — the flow page reads from sessionStorage
+      router.push(`/${orgSlug}/offline/repeat`);
       return;
     }
     
     // Check if URL has booking params (partial link flow without patientId)
     if (urlCenterId) {
-      // Partial link flow - use URL params
       setCenterId(urlCenterId);
-      // Store URL params in sessionStorage for later use
-      const urlParams = {
-        centerId: searchParams.get('centerId'),
-        serviceId: searchParams.get('serviceId'),
-        consultantId: searchParams.get('consultantId'),
-        consultantType: searchParams.get('consultantType'),
-        slotStart: searchParams.get('slotStart'),
-        slotEnd: searchParams.get('slotEnd'),
-        treatmentPrice: searchParams.get('treatmentPrice'),
-        treatmentDuration: searchParams.get('treatmentDuration'),
-      };
-      Object.entries(urlParams).forEach(([key, value]) => {
-        if (value) sessionStorage.setItem(key, value);
-      });
+      return;
+    }
+
+    // Check sessionStorage for centerId (from a previous dynamic link flow)
+    const storedCenterId = sessionStorage.getItem('centerId');
+    if (storedCenterId) {
+      setCenterId(storedCenterId);
       return;
     }
     
@@ -82,45 +64,13 @@ export default function OfflinePage() {
 
   const handleComplete = (patientId: string, isNewUser: boolean) => {
     sessionStorage.setItem('patientId', patientId);
-    sessionStorage.setItem('centerId', centerId);
+    if (centerId) sessionStorage.setItem('centerId', centerId);
     
-    // Check if this is a partial link flow
-    const hasBookingParams = sessionStorage.getItem('serviceId') || sessionStorage.getItem('consultantId');
-    
-    if (hasBookingParams) {
-      // Partial link flow - pass all params forward
-      const storedParams = new URLSearchParams();
-      storedParams.append('patientId', patientId);
-      storedParams.append('centerId', centerId);
-      
-      const serviceId = sessionStorage.getItem('serviceId');
-      const consultantId = sessionStorage.getItem('consultantId');
-      const consultantType = sessionStorage.getItem('consultantType');
-      const slotStart = sessionStorage.getItem('slotStart');
-      const slotEnd = sessionStorage.getItem('slotEnd');
-      const treatmentPrice = sessionStorage.getItem('treatmentPrice');
-      const treatmentDuration = sessionStorage.getItem('treatmentDuration');
-      
-      if (serviceId) storedParams.append('serviceId', serviceId);
-      if (consultantId) storedParams.append('consultantId', consultantId);
-      if (consultantType) storedParams.append('consultantType', consultantType);
-      if (slotStart) storedParams.append('slotStart', slotStart);
-      if (slotEnd) storedParams.append('slotEnd', slotEnd);
-      if (treatmentPrice) storedParams.append('treatmentPrice', treatmentPrice);
-      if (treatmentDuration) storedParams.append('treatmentDuration', treatmentDuration);
-      
-      if (isNewUser) {
-        router.push(`/${orgSlug}/offline/new?${storedParams.toString()}`);
-      } else {
-        router.push(`/${orgSlug}/offline/repeat?${storedParams.toString()}`);
-      }
+    // All params are already in sessionStorage — the flow pages read from there
+    if (isNewUser) {
+      router.push(`/${orgSlug}/offline/new`);
     } else {
-      // Normal flow - no params
-      if (isNewUser) {
-        router.push(`/${orgSlug}/offline/new`);
-      } else {
-        router.push(`/${orgSlug}/offline/repeat`);
-      }
+      router.push(`/${orgSlug}/offline/repeat`);
     }
   };
 
