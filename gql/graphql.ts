@@ -527,6 +527,18 @@ export type AgentSubjectiveInput = {
   record?: InputMaybe<Scalars['ObjectID']['input']>;
 };
 
+export type AlertItem = {
+  __typename?: 'AlertItem';
+  metadata?: Maybe<Scalars['JSON']['output']>;
+  priority: Scalars['Int']['output'];
+  relatedTab?: Maybe<Scalars['String']['output']>;
+  ruleDescription: Scalars['String']['output'];
+  ruleName: Scalars['String']['output'];
+  ruleSeqNo: Scalars['String']['output'];
+  severity: RuleSeverity;
+  triggerDate: Scalars['Timestamp']['output'];
+};
+
 export type ApiKey = DataRow & {
   __typename?: 'ApiKey';
   _id: Scalars['ObjectID']['output'];
@@ -2070,9 +2082,12 @@ export type Mutation = {
   login: AuthenticatedSession;
   logout: Session;
   pong: Ping;
+  refreshAllAlerts: RefreshResult;
+  refreshPatientAlerts?: Maybe<PatientAlert>;
   refreshToken: Scalars['String']['output'];
   /** Reset a user's password (sends OTP and resets password) */
   resetPassword: Scalars['Boolean']['output'];
+  resolveAlert?: Maybe<PatientAlert>;
   /** Log out from all sessions except the current one */
   revokeAllOtherSessions: Scalars['Int']['output'];
   /** Log out from a specific session */
@@ -2466,6 +2481,11 @@ export type MutationPongArgs = {
 };
 
 
+export type MutationRefreshPatientAlertsArgs = {
+  patientId: Scalars['ObjectID']['input'];
+};
+
+
 export type MutationRefreshTokenArgs = {
   token: Scalars['String']['input'];
 };
@@ -2473,6 +2493,12 @@ export type MutationRefreshTokenArgs = {
 
 export type MutationResetPasswordArgs = {
   input: ResetPasswordInput;
+};
+
+
+export type MutationResolveAlertArgs = {
+  patientId: Scalars['ObjectID']['input'];
+  ruleSeqNo: Scalars['String']['input'];
 };
 
 
@@ -2946,6 +2972,23 @@ export type Patient = {
   status?: Maybe<PatientStatus>;
 };
 
+export type PatientAlert = {
+  __typename?: 'PatientAlert';
+  _id: Scalars['ObjectID']['output'];
+  alerts: Array<AlertItem>;
+  consultant?: Maybe<Scalars['ObjectID']['output']>;
+  consultantName?: Maybe<Scalars['String']['output']>;
+  createdAt: Scalars['Timestamp']['output'];
+  patient: Scalars['ObjectID']['output'];
+  patientName: Scalars['String']['output'];
+  updatedAt: Scalars['Timestamp']['output'];
+};
+
+export type PatientAlertFilter = {
+  consultantId?: InputMaybe<Scalars['ObjectID']['input']>;
+  patientId?: InputMaybe<Scalars['ObjectID']['input']>;
+};
+
 export enum PatientCategory {
   Advocate = 'ADVOCATE',
   Advertisement = 'Advertisement',
@@ -3274,6 +3317,8 @@ export type Query = {
   organization: Organization;
   /** Get list of packages */
   packages: Array<Package>;
+  patientAlert?: Maybe<PatientAlert>;
+  patientAlerts: Array<PatientAlert>;
   patientAppointmentCount: Scalars['Int']['output'];
   patientByPhone?: Maybe<User>;
   patientExists: Scalars['Boolean']['output'];
@@ -3560,6 +3605,16 @@ export type QueryPackagesArgs = {
 };
 
 
+export type QueryPatientAlertArgs = {
+  patientId: Scalars['ObjectID']['input'];
+};
+
+
+export type QueryPatientAlertsArgs = {
+  filter?: InputMaybe<PatientAlertFilter>;
+};
+
+
 export type QueryPatientAppointmentCountArgs = {
   patientId: Scalars['ObjectID']['input'];
 };
@@ -3802,6 +3857,14 @@ export enum ReferralType {
   Other = 'OTHER',
   Patient = 'PATIENT'
 }
+
+export type RefreshResult = {
+  __typename?: 'RefreshResult';
+  alertsCreated: Scalars['Int']['output'];
+  alertsRemoved: Scalars['Int']['output'];
+  errors: Scalars['Int']['output'];
+  patientsProcessed: Scalars['Int']['output'];
+};
 
 export type Report = DataRow & {
   __typename?: 'Report';
@@ -4086,6 +4149,11 @@ export type SubjectiveInput = {
 export type SubjectiveRecord = {
   __typename?: 'SubjectiveRecord';
   assessment?: Maybe<Scalars['String']['output']>;
+};
+
+export type Subscription = {
+  __typename?: 'Subscription';
+  alertUpdated: PatientAlert;
 };
 
 export type TimeSlot = {
