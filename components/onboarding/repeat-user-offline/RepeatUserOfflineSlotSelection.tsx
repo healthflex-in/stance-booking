@@ -7,6 +7,7 @@ import { useContainerDetection } from '@/hooks/useContainerDetection';
 import { ConsultantSelectionModal } from '../shared';
 import { StanceHealthLoader } from '@/components/loader/StanceHealthLoader';
 import { BookingAnalytics } from '@/services/booking-analytics';
+import { isParamFromUrl } from '@/utils/booking-params';
 
 interface RepeatUserOfflineSlotSelectionProps {
   centerId: string;
@@ -58,6 +59,7 @@ export default function RepeatUserOfflineSlotSelection({
   const [currentSelectedDate, setCurrentSelectedDate] = useState<Date | null>(null);
   const [dateSlots, setDateSlots] = useState<{ [key: string]: TimeSlot[] }>({});
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [isDateFromParams, setIsDateFromParams] = useState(false);
 
   const startOfDay = React.useMemo(() => {
     if (!currentSelectedDate) return new Date();
@@ -165,6 +167,8 @@ export default function RepeatUserOfflineSlotSelection({
         const dateKey = `${matchingDate.day}, ${matchingDate.date} ${matchingDate.month}`;
         setSelectedDate(dateKey);
         setCurrentSelectedDate(matchingDate.fullDate);
+        // Only lock if it came from URL params
+        setIsDateFromParams(isParamFromUrl('slotDate'));
         return;
       }
     }
@@ -227,6 +231,7 @@ export default function RepeatUserOfflineSlotSelection({
   }, [currentSelectedDate, availableSlots, slotsLoading]);
 
   const handleDateSelect = (date: DateOption) => {
+    if (isDateFromParams) return;
     const dateKey = `${date.day}, ${date.date} ${date.month}`;
     analytics?.trackDateSelected(dateKey);
     setSelectedDate(dateKey);
@@ -313,17 +318,20 @@ export default function RepeatUserOfflineSlotSelection({
 
           <div className="mb-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Visit details</h3>
+            {isDateFromParams && (
+              <p className="text-sm text-gray-600 mb-3">Pre-selected date</p>
+            )}
 
             <div className="mb-4">
               <div
                 ref={scrollContainerRef}
                 className="flex overflow-x-auto space-x-3 pb-2"
-                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', opacity: isDateFromParams ? 0.7 : 1 }}
               >
                 {availableDates.map((dateOption) => {
                   const dateKey = `${dateOption.day}, ${dateOption.date} ${dateOption.month}`;
                   const isCurrentDate = selectedDate === dateKey;
-                  const isDisabled = Boolean(slotsLoading && !isCurrentDate);
+                  const isDisabled = Boolean((slotsLoading && !isCurrentDate) || isDateFromParams);
                   
                   return (
                     <button

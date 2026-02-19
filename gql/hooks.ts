@@ -4220,6 +4220,7 @@ export type UpdatePatient = {
   lastName?: InputMaybe<Scalars['String']['input']>;
   organization?: InputMaybe<Scalars['ObjectID']['input']>;
   patientType?: InputMaybe<PatientType>;
+  phone?: InputMaybe<Scalars['String']['input']>;
   profilePicture?: InputMaybe<Scalars['String']['input']>;
   referral?: InputMaybe<ReferralInput>;
   status?: InputMaybe<PatientStatus>;

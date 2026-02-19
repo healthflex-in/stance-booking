@@ -8,6 +8,7 @@ import { CHECK_PATIENT_BY_PHONE, ADD_PATIENT_TO_ORGANIZATION, CREATE_PATIENT } f
 import { getBookingCookies } from '@/utils/booking-cookies';
 import { StanceHealthLoader } from '@/components/loader/StanceHealthLoader';
 import CrossOrgModal from './shared/CrossOrgModal';
+import NewUserServiceModal from './shared/NewUserServiceModal';
 import { useContainerDetection } from '@/hooks/useContainerDetection';
 
 interface OfflineOnboardingProps {
@@ -31,6 +32,7 @@ export default function OfflineOnboarding({ centerId, onComplete }: OfflineOnboa
   const [isNewUser, setIsNewUser] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
   const [showCrossOrgModal, setShowCrossOrgModal] = useState(false);
+  const [showNewUserServiceModal, setShowNewUserServiceModal] = useState(false);
   const [crossOrgPatient, setCrossOrgPatient] = useState<any>(null);
   const [formData, setFormData] = useState<FormData>({
     phone: '',
@@ -102,6 +104,18 @@ export default function OfflineOnboarding({ centerId, onComplete }: OfflineOnboa
         setShowCrossOrgModal(true);
         setIsPhoneVerified(true);
       } else if (exists && !isInDifferentOrg) {
+        // Check if this is a new user service link
+        const isNewUserService = sessionStorage.getItem('isNewUserService') === 'true';
+        
+        if (isNewUserService) {
+          // Repeat user trying to access new user service - show modal
+          setShowNewUserServiceModal(true);
+          setIsPhoneVerified(false);
+          setFormData(prev => ({ ...prev, phone: '' }));
+          setIsVerifying(false);
+          return;
+        }
+        
         setIsNewUser(false);
         setIsPhoneVerified(true);
         toast.success('Welcome back!');
@@ -149,6 +163,10 @@ export default function OfflineOnboarding({ centerId, onComplete }: OfflineOnboa
     setCrossOrgPatient(null);
     setIsPhoneVerified(false);
     setFormData(prev => ({ ...prev, phone: '' }));
+  };
+
+  const handleCallNow = () => {
+    window.location.href = 'tel:+919019410049';
   };
 
   const validateForm = () => {
@@ -413,6 +431,13 @@ export default function OfflineOnboarding({ centerId, onComplete }: OfflineOnboa
         onConfirm={handleCrossOrgConfirm}
         onCancel={handleCrossOrgCancel}
         loading={addingToOrg}
+      />
+
+      <NewUserServiceModal
+        isOpen={showNewUserServiceModal}
+        onClose={() => setShowNewUserServiceModal(false)}
+        onCallNow={handleCallNow}
+        isInDesktopContainer={isInDesktopContainer}
       />
     </div>
   );

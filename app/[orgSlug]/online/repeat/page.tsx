@@ -122,6 +122,9 @@ export default function RepeatOnlinePage() {
         'booking-confirmed': 'booking-confirmed',
       };
       setCurrentStep(stepMap[initialStep] || 'session-details');
+      
+      // Clean up URL by removing query params (data is now in sessionStorage)
+      router.replace(`/${orgSlug}/online/repeat`, { scroll: false });
       return;
     }
     

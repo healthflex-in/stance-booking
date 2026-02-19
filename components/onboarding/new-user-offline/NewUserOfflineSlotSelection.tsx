@@ -8,12 +8,14 @@ import { useCenterAvailability } from '@/hooks';
 import { useContainerDetection } from '@/hooks/useContainerDetection';
 import { StanceHealthLoader } from '@/components/loader/StanceHealthLoader';
 import { BookingAnalytics } from '@/services/booking-analytics';
+import { isParamFromUrl } from '@/utils/booking-params';
 
 interface NewUserOfflineSlotSelectionProps {
   centerId: string;
   serviceDuration: number;
   patientId: string;
   preSelectedDate?: string;
+  preSelectedSlot?: { startTime: string; endTime: string; displayTime: string };
   onSlotSelect: (consultantId: string, slot: any) => void;
   onBack?: () => void;
   analytics?: BookingAnalytics;
@@ -46,6 +48,7 @@ export default function NewUserOfflineSlotSelection({
   serviceDuration,
   patientId,
   preSelectedDate,
+  preSelectedSlot,
   onSlotSelect,
   onBack = () => {},
   analytics,
@@ -58,6 +61,8 @@ export default function NewUserOfflineSlotSelection({
   const [currentSelectedDate, setCurrentSelectedDate] = useState<Date | null>(null);
   const [dateSlots, setDateSlots] = useState<{ [key: string]: TimeSlot[] }>({});
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [isDateFromParams, setIsDateFromParams] = useState(false);
+  const [isSlotFromParams, setIsSlotFromParams] = useState(false);
 
   const [isFetchingPatient, setIsFetchingPatient] = useState(false);
 
@@ -98,7 +103,7 @@ export default function NewUserOfflineSlotSelection({
     startDate: startOfDay,
     endDate: endOfDay,
     serviceDuration,
-    designation: undefined,
+    designation: 'Physiotherapist',
     deliveryMode: 'OFFLINE',
     enabled: !!currentSelectedDate,
   });
@@ -108,7 +113,7 @@ export default function NewUserOfflineSlotSelection({
     startDate: startOfDay.toISOString(),
     endDate: endOfDay.toISOString(),
     serviceDuration,
-    designation: undefined,
+    designation: 'Physiotherapist',
     deliveryMode: 'OFFLINE'
   });
 
@@ -164,7 +169,25 @@ export default function NewUserOfflineSlotSelection({
     const initialDates = generateNext14Days();
     setAvailableDates(initialDates);
     
-    // If preSelectedDate is provided, use it; otherwise use first date
+    // Check if slot is from URL params
+    const slotFromUrl = isParamFromUrl('slotStart') && isParamFromUrl('slotEnd');
+    setIsSlotFromParams(slotFromUrl);
+    
+    // Priority 1: If preSelectedSlot is provided (user navigated back from payment), use its date
+    if (preSelectedSlot && preSelectedSlot.startTime) {
+      const slotDate = new Date(preSelectedSlot.startTime);
+      const matchingDate = initialDates.find(d => d.fullDate.toDateString() === slotDate.toDateString());
+      if (matchingDate) {
+        const dateKey = `${matchingDate.day}, ${matchingDate.date} ${matchingDate.month}`;
+        setSelectedDate(dateKey);
+        setCurrentSelectedDate(matchingDate.fullDate);
+        // Only lock date if it came from URL params (either slotDate or slotStart/slotEnd)
+        setIsDateFromParams(isParamFromUrl('slotDate') || slotFromUrl);
+        return;
+      }
+    }
+    
+    // Priority 2: If preSelectedDate is provided from URL params
     if (preSelectedDate) {
       const preSelected = new Date(preSelectedDate);
       const matchingDate = initialDates.find(d => d.fullDate.toDateString() === preSelected.toDateString());
@@ -172,17 +195,20 @@ export default function NewUserOfflineSlotSelection({
         const dateKey = `${matchingDate.day}, ${matchingDate.date} ${matchingDate.month}`;
         setSelectedDate(dateKey);
         setCurrentSelectedDate(matchingDate.fullDate);
+        // Only lock date if it came from URL params (either slotDate or slotStart/slotEnd)
+        setIsDateFromParams(isParamFromUrl('slotDate') || slotFromUrl);
         return;
       }
     }
     
+    // Priority 3: Default to first date
     if (!selectedDate && initialDates.length > 0) {
       const firstDate = initialDates[0];
       const dateKey = `${firstDate.day}, ${firstDate.date} ${firstDate.month}`;
       setSelectedDate(dateKey);
       setCurrentSelectedDate(firstDate.fullDate);
     }
-  }, [preSelectedDate]);
+  }, [preSelectedDate, preSelectedSlot]);
 
   useEffect(() => {
     if (!currentSelectedDate || slotsLoading) return;
@@ -241,9 +267,22 @@ export default function NewUserOfflineSlotSelection({
         return date;
       })
     );
-  }, [currentSelectedDate, availableSlots, slotsLoading, availabilityConsultants]);
+    
+    // Auto-select the pre-selected slot if provided and from URL params
+    if (preSelectedSlot && isSlotFromParams && !selectedTimeSlot) {
+      const matchingSlot = processedSlots.find(slot => {
+        const slotStart = new Date(slot.startTimeRaw);
+        const preSelectedStart = new Date(preSelectedSlot.startTime);
+        return slotStart.getTime() === preSelectedStart.getTime();
+      });
+      if (matchingSlot) {
+        setSelectedTimeSlot(matchingSlot);
+      }
+    }
+  }, [currentSelectedDate, availableSlots, slotsLoading, availabilityConsultants, preSelectedSlot, isSlotFromParams]);
 
   const handleDateSelect = (date: DateOption) => {
+    if (isDateFromParams) return;
     const dateKey = `${date.day}, ${date.date} ${date.month}`;
     analytics?.trackDateSelected(dateKey);
     setSelectedDate(dateKey);
@@ -252,7 +291,7 @@ export default function NewUserOfflineSlotSelection({
   };
 
   const handleTimeSlotSelect = (slot: TimeSlot) => {
-    if (!slot.isAvailable) return;
+    if (!slot.isAvailable || isSlotFromParams) return;
     analytics?.trackTimeSlotClicked(slot.displayTime, slot.consultantIds.length);
     setSelectedTimeSlot(slot);
   };
@@ -284,17 +323,20 @@ export default function NewUserOfflineSlotSelection({
         <div className={`p-4 ${isInDesktopContainer ? 'pb-6' : 'pb-32'}`}>
           <div className="mb-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Visit details</h3>
+            {isDateFromParams && (
+              <p className="text-sm text-gray-600 mb-3">Pre-selected date</p>
+            )}
 
             <div className="mb-4">
               <div
                 ref={scrollContainerRef}
                 className="flex overflow-x-auto space-x-3 pb-2"
-                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', opacity: isDateFromParams ? 0.7 : 1 }}
               >
                 {availableDates.map((dateOption) => {
                   const dateKey = `${dateOption.day}, ${dateOption.date} ${dateOption.month}`;
                   const isCurrentDate = selectedDate === dateKey;
-                  const isDisabled = Boolean(slotsLoading && !isCurrentDate);
+                  const isDisabled = Boolean((slotsLoading && !isCurrentDate) || isDateFromParams);
                   
                   return (
                     <button
@@ -350,13 +392,16 @@ export default function NewUserOfflineSlotSelection({
             {selectedDate && (
               <div className="mb-6">
                 <h4 className="text-base font-medium text-gray-900 mb-3">Available time slots</h4>
+                {isSlotFromParams && (
+                  <p className="text-sm text-gray-600 mb-3">Pre-selected time slot</p>
+                )}
                 
                 {slotsLoading ? (
                   <div className="flex justify-center items-center py-16">
                     <StanceHealthLoader message="Loading slots..." />
                   </div>
                 ) : currentTimeSlots.length > 0 ? (
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-2 gap-3" style={{ opacity: isSlotFromParams ? 0.7 : 1 }}>
                     {currentTimeSlots.map((slot: TimeSlot, index: number) => {
                       const isSelected = selectedTimeSlot && (
                         selectedTimeSlot.startTimeRaw === slot.startTimeRaw &&
@@ -367,14 +412,15 @@ export default function NewUserOfflineSlotSelection({
                         <button
                           key={`slot-${index}-${slot.startTimeRaw}`}
                           onClick={() => handleTimeSlotSelect(slot)}
-                          disabled={!slot.isAvailable}
+                          disabled={!slot.isAvailable || isSlotFromParams}
                           className={`p-3 rounded-xl border-2 text-sm font-medium transition-all ${
                             isSelected
                               ? 'border-blue-500 bg-blue-50 text-blue-700'
-                              : slot.isAvailable
+                              : slot.isAvailable && !isSlotFromParams
                               ? 'border-gray-200 bg-white text-gray-900 hover:border-gray-300'
                               : 'border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed'
                           }`}
+                          style={{ cursor: isSlotFromParams ? 'not-allowed' : undefined }}
                         >
                           <div className="text-sm font-semibold">{slot.displayTime}</div>
                           {process.env.NEXT_PUBLIC_ENVIRONMENT === 'development' && (

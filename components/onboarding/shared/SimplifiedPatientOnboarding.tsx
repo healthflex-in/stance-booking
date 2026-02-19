@@ -11,6 +11,7 @@ import { useMobileFlowAnalytics } from '@/services/mobile-analytics';
 import { getBookingCookies } from '@/utils/booking-cookies';
 import SessionTypeSelectionModal from './SessionTypeSelectionModal';
 import CrossOrgModal from './CrossOrgModal';
+import NewUserServiceModal from './NewUserServiceModal';
 
 interface SimplifiedPatientOnboardingProps {
   centerId: string;
@@ -46,6 +47,7 @@ export default function SimplifiedPatientOnboarding({
   const [showSessionTypeModal, setShowSessionTypeModal] = useState(false);
   const [isNavigating, setIsNavigating] = useState(false);
   const [showCrossOrgModal, setShowCrossOrgModal] = useState(false);
+  const [showNewUserServiceModal, setShowNewUserServiceModal] = useState(false);
   const [crossOrgPatient, setCrossOrgPatient] = useState<any>(null);
   const [formData, setFormData] = useState<FormData>({
     phone: '',
@@ -223,6 +225,16 @@ export default function SimplifiedPatientOnboarding({
         // Patient exists in current organization - proceed as repeat user
         setIsNewUser(false);
         setIsPhoneVerified(true);
+        
+        // Check if this is a new user service link
+        const isNewUserService = sessionStorage.getItem('isNewUserService') === 'true';
+        
+        if (isNewUserService) {
+          // Repeat user trying to access new user service - show modal
+          setShowNewUserServiceModal(true);
+          return;
+        }
+        
         if (preStoredAssessmentType) {
           // assessmentType pre-stored from URL params — skip session type modal
           handleRepeatUserContinueWithSessionType(preStoredAssessmentType);
@@ -778,6 +790,13 @@ export default function SimplifiedPatientOnboarding({
         onConfirm={handleCrossOrgConfirm}
         onCancel={handleCrossOrgCancel}
         loading={addingToOrg}
+      />
+
+      <NewUserServiceModal
+        isOpen={showNewUserServiceModal}
+        onClose={() => setShowNewUserServiceModal(false)}
+        onCallNow={handleCallNow}
+        isInDesktopContainer={isInDesktopContainer}
       />
     </div>
   );

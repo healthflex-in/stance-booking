@@ -8,6 +8,7 @@ import { useContainerDetection } from '@/hooks/useContainerDetection';
 import { PrimaryButton } from '@/components/ui-atoms';
 import { LocationSelectionModal, ServiceSelectionModal } from '@/components/onboarding/shared';
 import { BookingAnalytics } from '@/services/booking-analytics';
+import { isParamFromUrl } from '@/utils/booking-params';
 
 interface RepeatUserOfflineSessionDetailsProps {
   patientId: string;
@@ -31,6 +32,7 @@ export default function RepeatUserOfflineSessionDetails({
   const [selectedService, setSelectedService] = useState<any>(null);
   const [selectedDesignation, setSelectedDesignation] = useState<string>('Physiotherapist');
   const [isFromParams, setIsFromParams] = useState(false);
+  const [isConsultantTypeFromParams, setIsConsultantTypeFromParams] = useState(false);
 
   // Modal states
   const [showLocationModal, setShowLocationModal] = useState(false);
@@ -77,7 +79,8 @@ export default function RepeatUserOfflineSessionDetails({
       const center = centersData.centers.find((c: any) => c._id === centerId);
       if (center) {
         setSelectedCenter(center);
-        setIsFromParams(true);
+        // Only lock if it came from URL params
+        setIsFromParams(isParamFromUrl('centerId'));
       }
     }
   }, [centerId, centersData, selectedCenter]);
@@ -96,6 +99,8 @@ export default function RepeatUserOfflineSessionDetails({
     const storedConsultantType = sessionStorage.getItem('consultantType');
     if (storedConsultantType && (storedConsultantType === 'Physiotherapist' || storedConsultantType === 'S&C Coach')) {
       setSelectedDesignation(storedConsultantType);
+      // Only lock if it came from URL params
+      setIsConsultantTypeFromParams(isParamFromUrl('consultantType'));
     }
   }, []);
 
@@ -181,17 +186,18 @@ export default function RepeatUserOfflineSessionDetails({
               Consultant Type
             </h2>
             <p className="text-gray-600 text-sm mb-4">
-              Select the type of consultant you need
+              {isConsultantTypeFromParams ? 'Pre-selected consultant type' : 'Select the type of consultant you need'}
             </p>
-            <div className="bg-white rounded-xl p-1 border border-gray-200 flex">
+            <div className="bg-white rounded-xl p-1 border border-gray-200 flex" style={{ opacity: isConsultantTypeFromParams ? 0.7 : 1 }}>
               <button
                 type="button"
-                onClick={() => { analytics?.trackDesignationToggled('Physiotherapist'); setSelectedDesignation('Physiotherapist'); }}
+                onClick={() => { if (!isConsultantTypeFromParams) { analytics?.trackDesignationToggled('Physiotherapist'); setSelectedDesignation('Physiotherapist'); } }}
+                disabled={isConsultantTypeFromParams}
                 className={`flex-1 py-2 px-3 rounded-lg font-medium text-xs transition-all ${
                   selectedDesignation === 'Physiotherapist'
                     ? 'text-black shadow-sm'
                     : 'text-gray-600 hover:text-gray-900'
-                }`}
+                } ${isConsultantTypeFromParams ? 'cursor-not-allowed' : ''}`}
                 style={{
                   backgroundColor: selectedDesignation === 'Physiotherapist' ? '#DDFE71' : 'transparent'
                 }}
@@ -200,12 +206,13 @@ export default function RepeatUserOfflineSessionDetails({
               </button>
               <button
                 type="button"
-                onClick={() => { analytics?.trackDesignationToggled('S&C Coach'); setSelectedDesignation('S&C Coach'); }}
+                onClick={() => { if (!isConsultantTypeFromParams) { analytics?.trackDesignationToggled('S&C Coach'); setSelectedDesignation('S&C Coach'); } }}
+                disabled={isConsultantTypeFromParams}
                 className={`flex-1 py-2 px-3 rounded-lg font-medium text-xs transition-all ${
                   selectedDesignation === 'S&C Coach'
                     ? 'text-black shadow-sm'
                     : 'text-gray-600 hover:text-gray-900'
-                }`}
+                } ${isConsultantTypeFromParams ? 'cursor-not-allowed' : ''}`}
                 style={{
                   backgroundColor: selectedDesignation === 'S&C Coach' ? '#DDFE71' : 'transparent'
                 }}

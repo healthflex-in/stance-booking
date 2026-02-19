@@ -22,6 +22,7 @@ export interface BookingParams {
   treatmentPrice?: string;    // Integer as string
   treatmentDuration?: string; // Minutes as string
   assessmentType?: string;    // "in-person" | "online"
+  isNewUserService?: string;  // "true" | "false"
 }
 
 export const RECOGNIZED_KEYS: (keyof BookingParams)[] = [
@@ -38,6 +39,7 @@ export const RECOGNIZED_KEYS: (keyof BookingParams)[] = [
   'treatmentPrice',
   'treatmentDuration',
   'assessmentType',
+  'isNewUserService',
 ];
 
 /**
@@ -62,11 +64,15 @@ export function parseBookingParams(searchParams: URLSearchParams): BookingParams
  * Persists every non-empty field of a BookingParams object into
  * sessionStorage. Wrapped in try/catch so private-browsing or
  * storage-full scenarios don't crash the app.
+ * Also sets a flag to indicate data came from URL params.
  */
 export function storeBookingParamsInSession(params: BookingParams): void {
   if (typeof window === 'undefined') return;
 
   try {
+    // Set a flag to indicate these params came from URL
+    sessionStorage.setItem('paramsSource', 'url');
+    
     for (const key of RECOGNIZED_KEYS) {
       const value = params[key];
       if (value !== undefined && value !== null && value !== '') {
@@ -100,4 +106,24 @@ export function getBookingParamsFromSession(): BookingParams {
   }
 
   return result;
+}
+
+/**
+ * Checks if a specific parameter came from URL params (and should be locked)
+ * vs being set during normal booking flow (should not be locked).
+ */
+export function isParamFromUrl(paramKey: keyof BookingParams): boolean {
+  if (typeof window === 'undefined') return false;
+
+  try {
+    const paramsSource = sessionStorage.getItem('paramsSource');
+    const paramValue = sessionStorage.getItem(paramKey);
+    
+    // Only lock if:
+    // 1. The param exists in sessionStorage
+    // 2. The paramsSource flag is set to 'url'
+    return paramsSource === 'url' && paramValue !== null && paramValue !== '';
+  } catch {
+    return false;
+  }
 }
