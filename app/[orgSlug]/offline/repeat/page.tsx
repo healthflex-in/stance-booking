@@ -101,6 +101,8 @@ export default function RepeatOfflinePage() {
       }
       if (parsedParams.treatmentPrice) updates.treatmentPrice = parseInt(parsedParams.treatmentPrice);
       if (parsedParams.treatmentDuration) updates.treatmentDuration = parseInt(parsedParams.treatmentDuration);
+      
+      // Handle slotDate (date only) or slotStart/slotEnd (specific time slot)
       if (parsedParams.slotStart && parsedParams.slotEnd) {
         const slotStartDate = new Date(parseInt(parsedParams.slotStart) * 1000);
         updates.selectedTimeSlot = {
@@ -110,6 +112,9 @@ export default function RepeatOfflinePage() {
         };
         updates.selectedDate = slotStartDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
         updates.selectedFullDate = slotStartDate;
+      } else if (parsedParams.slotDate) {
+        // Store slotDate in sessionStorage for slot selection component to use
+        sessionStorage.setItem('slotDate', parsedParams.slotDate);
       }
       
       updateBookingData(updates);
@@ -337,6 +342,7 @@ export default function RepeatOfflinePage() {
           <RepeatUserOfflineSessionDetails
             patientId={bookingData.patientId}
             centerId={bookingData.centerId}
+            serviceId={bookingData.treatmentId || undefined}
             onBack={goToPreviousStep}
             onContinue={(data) => {
               updateBookingData({

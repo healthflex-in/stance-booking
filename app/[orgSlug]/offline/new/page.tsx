@@ -84,6 +84,8 @@ export default function NewOfflinePage() {
       if (parsedParams.consultantId) updates.consultantId = parsedParams.consultantId;
       if (parsedParams.treatmentPrice) updates.treatmentPrice = parseInt(parsedParams.treatmentPrice);
       if (parsedParams.treatmentDuration) updates.treatmentDuration = parseInt(parsedParams.treatmentDuration);
+      
+      // Handle slotDate (date only) or slotStart/slotEnd (specific time slot)
       if (parsedParams.slotStart && parsedParams.slotEnd) {
         const slotStartDate = new Date(parseInt(parsedParams.slotStart) * 1000);
         const slotEndDate = new Date(parseInt(parsedParams.slotEnd) * 1000);
@@ -94,6 +96,9 @@ export default function NewOfflinePage() {
         };
         updates.selectedDate = slotStartDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
         updates.selectedFullDate = slotStartDate;
+      } else if (parsedParams.slotDate) {
+        // Store slotDate in sessionStorage for slot selection component to use
+        sessionStorage.setItem('slotDate', parsedParams.slotDate);
       }
       
       setBookingData(prev => ({ ...prev, ...updates }));
@@ -140,6 +145,7 @@ export default function NewOfflinePage() {
         updates.selectedDate = slotStartDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
         updates.selectedFullDate = slotStartDate;
       }
+      // Note: slotDate is already in sessionStorage if it was provided
       
       setBookingData(prev => ({ ...prev, ...updates }));
       
@@ -255,6 +261,7 @@ export default function NewOfflinePage() {
             <NewUserOfflineSessionDetails
               patientId={bookingData.patientId}
               centerId={bookingData.centerId}
+              serviceId={bookingData.treatmentId}
               onBack={goToPreviousStep}
               onContinue={(data) => {
                 updateBookingData({

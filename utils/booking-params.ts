@@ -18,6 +18,7 @@ export interface BookingParams {
   partialAmount?: string;
   slotStart?: string;         // Unix timestamp as string
   slotEnd?: string;           // Unix timestamp as string
+  slotDate?: string;          // Date in YYYY-MM-DD format (alternative to slotStart/slotEnd)
   treatmentPrice?: string;    // Integer as string
   treatmentDuration?: string; // Minutes as string
   assessmentType?: string;    // "in-person" | "online"
@@ -33,6 +34,7 @@ export const RECOGNIZED_KEYS: (keyof BookingParams)[] = [
   'partialAmount',
   'slotStart',
   'slotEnd',
+  'slotDate',
   'treatmentPrice',
   'treatmentDuration',
   'assessmentType',

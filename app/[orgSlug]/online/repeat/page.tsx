@@ -96,6 +96,8 @@ export default function RepeatOnlinePage() {
       }
       if (parsedParams.treatmentPrice) updates.treatmentPrice = parseInt(parsedParams.treatmentPrice);
       if (parsedParams.treatmentDuration) updates.treatmentDuration = parseInt(parsedParams.treatmentDuration);
+      
+      // Handle slotDate (date only) or slotStart/slotEnd (specific time slot)
       if (parsedParams.slotStart && parsedParams.slotEnd) {
         const slotStartDate = new Date(parseInt(parsedParams.slotStart) * 1000);
         updates.selectedTimeSlot = {
@@ -105,6 +107,9 @@ export default function RepeatOnlinePage() {
         };
         updates.selectedDate = slotStartDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
         updates.selectedFullDate = slotStartDate;
+      } else if (parsedParams.slotDate) {
+        // Store slotDate in sessionStorage for slot selection component to use
+        sessionStorage.setItem('slotDate', parsedParams.slotDate);
       }
       
       updateBookingData(updates);

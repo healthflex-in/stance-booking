@@ -98,8 +98,18 @@ export default function NewUserOfflineSlotSelection({
     startDate: startOfDay,
     endDate: endOfDay,
     serviceDuration,
-    designation: 'Physiotherapist',
+    designation: undefined,
+    deliveryMode: 'OFFLINE',
     enabled: !!currentSelectedDate,
+  });
+
+  console.log('🔍 API Call Parameters:', {
+    centerId,
+    startDate: startOfDay.toISOString(),
+    endDate: endOfDay.toISOString(),
+    serviceDuration,
+    designation: undefined,
+    deliveryMode: 'OFFLINE'
   });
 
   const availableSlots = React.useMemo(() => {
