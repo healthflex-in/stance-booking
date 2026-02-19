@@ -128,6 +128,9 @@ export default function RepeatOfflinePage() {
         'booking-confirmed': 'booking-confirmed',
       };
       setCurrentStep(stepMap[initialStep] || 'session-details');
+      
+      // Clean up URL by removing query params (data is now in sessionStorage)
+      router.replace(`/${orgSlug}/offline/repeat`, { scroll: false });
       return;
     }
     

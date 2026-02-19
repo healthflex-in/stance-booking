@@ -126,6 +126,9 @@ export default function NewOnlinePage() {
         'booking-confirmed': 'booking-confirmed',
       };
       setCurrentStep(stepMap[initialStep] || 'session-details');
+      
+      // Clean up URL by removing query params (data is now in sessionStorage)
+      router.replace(`/${orgSlug}/online/new`, { scroll: false });
       return;
     }
     

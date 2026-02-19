@@ -8,13 +8,14 @@ import { useContainerDetection } from '@/hooks/useContainerDetection';
 import { PrimaryButton } from '@/components/ui-atoms';
 import { LocationSelectionModal, ServiceSelectionModal } from '@/components/onboarding/shared';
 import { BookingAnalytics } from '@/services/booking-analytics';
+import { isParamFromUrl } from '@/utils/booking-params';
 
 interface NewUserOfflineSessionDetailsProps {
   patientId: string;
   centerId: string;
   serviceId?: string;
   onBack: () => void;
-  onContinue: (data: { centerId: string; serviceId: string; serviceDuration: number; servicePrice: number }) => void;
+  onContinue: (data: { centerId: string; serviceId: string; serviceDuration: number; servicePrice: number; designation: string }) => void;
   analytics?: BookingAnalytics;
 }
 
@@ -31,13 +32,15 @@ export default function NewUserOfflineSessionDetails({
   const [selectedService, setSelectedService] = useState<any>(null);
   const [showLocationModal, setShowLocationModal] = useState(false);
   const [showServiceModal, setShowServiceModal] = useState(false);
-  const [isFromParams, setIsFromParams] = useState(false);
+  const [isCenterFromParams, setIsCenterFromParams] = useState(false);
+  const [isServiceFromParams, setIsServiceFromParams] = useState(false);
+  const [isLoadingPreselected, setIsLoadingPreselected] = useState(false);
 
   const { data: centersData } = useQuery(GET_CENTERS, {
     fetchPolicy: 'cache-first',
   });
 
-  const { data: servicesData } = useQuery(GET_SERVICES, {
+  const { data: servicesData, loading: servicesLoading } = useQuery(GET_SERVICES, {
     variables: { centerId: centerId ? [centerId] : [] },
     skip: !centerId || !serviceId,
     fetchPolicy: 'network-only',
@@ -48,23 +51,30 @@ export default function NewUserOfflineSessionDetails({
     return centersData.centers.filter((center: any) => center.isOnline === true);
   }, [centersData]);
 
-  // Pre-populate center and service if provided from params
+  // Pre-populate center if provided from params
   useEffect(() => {
     if (centerId && filteredCenters.length > 0 && !selectedCenter) {
+      setIsLoadingPreselected(true);
       const center = filteredCenters.find((c: any) => c._id === centerId);
       if (center) {
         setSelectedCenter(center);
-        setIsFromParams(true);
+        // Only lock if it came from URL params
+        setIsCenterFromParams(isParamFromUrl('centerId'));
       }
     }
   }, [centerId, filteredCenters, selectedCenter]);
 
+  // Pre-populate service if provided from params
   useEffect(() => {
     if (serviceId && servicesData?.services && !selectedService) {
       const service = servicesData.services.find((s: any) => s._id === serviceId);
       if (service) {
         setSelectedService(service);
+        // Only lock if it came from URL params
+        setIsServiceFromParams(isParamFromUrl('serviceId'));
       }
+      // Done loading preselected data
+      setIsLoadingPreselected(false);
     }
   }, [serviceId, servicesData, selectedService]);
 
@@ -74,16 +84,31 @@ export default function NewUserOfflineSessionDetails({
 
   const handleContinue = () => {
     if (!selectedService || !selectedCenter) return;
-    analytics?.trackSessionDetailsContinueClicked(selectedService._id, '');
+    // New users always use Physiotherapist
+    const designation = 'Physiotherapist';
+    analytics?.trackSessionDetailsContinueClicked(selectedService._id, designation);
     onContinue({
       centerId: selectedCenter._id,
       serviceId: selectedService._id,
       serviceDuration: selectedService.duration,
       servicePrice: selectedService.bookingAmount || selectedService.price || 0,
+      designation,
     });
   };
 
   const canProceed = selectedService && selectedCenter;
+
+  // Show loading screen while preselected data is being fetched
+  if (isLoadingPreselected || (centerId && serviceId && servicesLoading)) {
+    return (
+      <div className={`${isInDesktopContainer ? 'h-full' : 'min-h-screen'} bg-gray-50 flex items-center justify-center`}>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading your booking details...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`${isInDesktopContainer ? 'h-full' : 'min-h-screen'} bg-gray-50 flex flex-col`}>
@@ -94,9 +119,9 @@ export default function NewUserOfflineSessionDetails({
             <p className="text-sm text-gray-600 mb-6">Book your in-person session</p>
             
             <h2 className="text-xl font-semibold text-gray-900 mb-2">Location</h2>
-            <p className="text-gray-600 text-sm mb-4">{isFromParams ? 'Pre-selected location' : 'Select your preferred location'}</p>
-            <button onClick={() => { if (!isFromParams) setShowLocationModal(true); }} className="w-full" disabled={isFromParams}>
-              <div className="bg-white rounded-2xl p-4 border-2 transition-all" style={{ borderColor: selectedCenter ? '#DDFE71' : '#e5e7eb', opacity: isFromParams ? 0.7 : 1, cursor: isFromParams ? 'not-allowed' : 'pointer' }}>
+            <p className="text-gray-600 text-sm mb-4">{isCenterFromParams ? 'Pre-selected location' : 'Select your preferred location'}</p>
+            <button onClick={() => { if (!isCenterFromParams) setShowLocationModal(true); }} className="w-full" disabled={isCenterFromParams}>
+              <div className="bg-white rounded-2xl p-4 border-2 transition-all" style={{ borderColor: selectedCenter ? '#DDFE71' : '#e5e7eb', opacity: isCenterFromParams ? 0.7 : 1, cursor: isCenterFromParams ? 'not-allowed' : 'pointer' }}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
                     <div className="w-10 h-10 bg-green-50 rounded-xl flex items-center justify-center">
@@ -121,9 +146,10 @@ export default function NewUserOfflineSessionDetails({
 
           <div className="mb-6">
             <h2 className="text-xl font-semibold text-gray-900 mb-2">Service</h2>
-            <p className="text-gray-600 text-sm mb-4">{isFromParams ? 'Pre-selected service' : 'Choose the service you need'}</p>
-            <button onClick={() => { if (selectedCenter && !isFromParams) { analytics?.trackServiceModalOpened(); setShowServiceModal(true); } }} disabled={!selectedCenter || isFromParams} className="w-full">
-              <div className="bg-white rounded-2xl p-4 border-2 transition-all" style={{ borderColor: selectedService ? '#DDFE71' : '#e5e7eb', opacity: !selectedCenter || isFromParams ? 0.7 : 1, cursor: !selectedCenter || isFromParams ? 'not-allowed' : 'pointer' }}>
+            <p className="text-gray-600 text-sm mb-4">{isServiceFromParams ? 'Pre-selected service' : 'Choose the service you need'}</p>
+
+            <button onClick={() => { if (selectedCenter && !isServiceFromParams) { analytics?.trackServiceModalOpened(); setShowServiceModal(true); } }} disabled={!selectedCenter || isServiceFromParams} className="w-full">
+              <div className="bg-white rounded-2xl p-4 border-2 transition-all" style={{ borderColor: selectedService ? '#DDFE71' : '#e5e7eb', opacity: !selectedCenter || isServiceFromParams ? 0.7 : 1, cursor: !selectedCenter || isServiceFromParams ? 'not-allowed' : 'pointer' }}>
                 <div className="flex items-center justify-between">
                   <div className="flex-1 text-left">
                     {selectedService ? (
@@ -171,6 +197,7 @@ export default function NewUserOfflineSessionDetails({
         centerId={selectedCenter?._id || centerId}
         isNewUser={true}
         sessionType="in-person"
+        designation="Physiotherapist"
         onSelect={(service) => {
           analytics?.trackEvent('service_selected', { serviceId: service._id });
           setSelectedService(service);

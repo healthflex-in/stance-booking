@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useQuery } from '@apollo/client';
 import { Flame, X } from 'lucide-react';
 import { useContainerDetection } from '@/hooks/useContainerDetection';
-import { GET_SERVICES } from '@/gql/queries';
+import { GET_SERVICES, GET_USER } from '@/gql/queries';
 
 interface ServiceSelectionModalProps {
   isOpen: boolean;
@@ -45,6 +45,21 @@ export default function ServiceSelectionModal({
     fetchPolicy: 'network-only',
   });
 
+  // Fetch patient data to check status
+  const { data: patientData } = useQuery(GET_USER, {
+    variables: { userId: patientId },
+    skip: !patientId,
+    fetchPolicy: 'cache-first',
+  });
+
+  // Determine if patient should be treated as new user
+  // New user if: explicitly marked as new OR patient status is LEAD
+  const effectiveIsNewUser = React.useMemo(() => {
+    if (isNewUser) return true;
+    const patientStatus = patientData?.user?.profileData?.status;
+    return patientStatus === 'LEAD';
+  }, [isNewUser, patientData]);
+
   useEffect(() => {
     if (isOpen && (isValidCenterId || isOrganizationLevel)) {
       refetch();
@@ -81,11 +96,11 @@ export default function ServiceSelectionModal({
         if (!service.allowOnlineDelivery) {
           return false;
         }
-        // Filter by new user vs repeat user
-        if (isNewUser && !service.isNewUserService) {
+        // Filter by new user vs repeat user (including LEAD status check)
+        if (effectiveIsNewUser && !service.isNewUserService) {
           return false;
         }
-        if (!isNewUser && service.isNewUserService) {
+        if (!effectiveIsNewUser && service.isNewUserService) {
           return false;
         }
       } else {
@@ -93,11 +108,11 @@ export default function ServiceSelectionModal({
         if (service.isPrePaid) {
           return false;
         }
-        // Filter by new user vs repeat user
-        if (isNewUser && !service.isNewUserService) {
+        // Filter by new user vs repeat user (including LEAD status check)
+        if (effectiveIsNewUser && !service.isNewUserService) {
           return false;
         }
-        if (!isNewUser && service.isNewUserService) {
+        if (!effectiveIsNewUser && service.isNewUserService) {
           return false;
         }
         // Session type filtering for non-prepaid
@@ -152,7 +167,7 @@ export default function ServiceSelectionModal({
     }
 
     setServices(mappedServices);
-  }, [servicesData, isNewUser, sessionType, isPrePaid, centerId, organizationId, designation]);
+  }, [servicesData, effectiveIsNewUser, sessionType, isPrePaid, centerId, organizationId, designation]);
 
   useEffect(() => {
     if (isOpen) {

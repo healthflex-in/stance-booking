@@ -22,6 +22,7 @@ interface BookingData {
   treatmentId: string;
   treatmentPrice: number;
   treatmentDuration: number;
+  designation?: string;
   selectedDate: string;
   selectedFullDate?: Date;
   selectedTimeSlot: { startTime: string; endTime: string; displayTime: string };
@@ -36,6 +37,8 @@ export default function NewOfflinePage() {
   const [mounted, setMounted] = useState(false);
   const [currentStep, setCurrentStep] = useState<BookingStep>('session-details');
   const analytics = useBookingAnalytics('new-offline');
+  const [isInitializing, setIsInitializing] = useState(true);
+  const [isDesktop, setIsDesktop] = useState(false);
   const [bookingData, setBookingData] = useState<BookingData>({
     sessionType: 'in-person',
     patientId: '',
@@ -51,12 +54,9 @@ export default function NewOfflinePage() {
 
   useEffect(() => {
     setMounted(true);
+    setIsDesktop(window.innerWidth >= 768);
     analytics.trackFlowStart(process.env.NEXT_PUBLIC_ORGANIZATION_ID || '', bookingData.centerId);
   }, []);
-
-  useEffect(() => {
-    analytics.trackStepView(currentStep);
-  }, [currentStep]);
 
   useEffect(() => {
     if (!mounted) return;
@@ -82,6 +82,9 @@ export default function NewOfflinePage() {
       if (parsedParams.centerId) updates.centerId = parsedParams.centerId;
       if (parsedParams.serviceId) updates.treatmentId = parsedParams.serviceId;
       if (parsedParams.consultantId) updates.consultantId = parsedParams.consultantId;
+      if (parsedParams.consultantType) {
+        updates.designation = parsedParams.consultantType === 'S&C Coach' ? 'SNC_Coach' : 'Physiotherapist';
+      }
       if (parsedParams.treatmentPrice) updates.treatmentPrice = parseInt(parsedParams.treatmentPrice);
       if (parsedParams.treatmentDuration) updates.treatmentDuration = parseInt(parsedParams.treatmentDuration);
       
@@ -112,6 +115,14 @@ export default function NewOfflinePage() {
         'booking-confirmed': 'booking-confirmed',
       };
       setCurrentStep(stepMap[initialStep] || 'session-details');
+      
+      // Clean up URL by removing query params (data is now in sessionStorage)
+      router.replace(`/${orgSlug}/offline/new`, { scroll: false });
+      
+      // Add a small delay to ensure loading screen is visible
+      setTimeout(() => {
+        setIsInitializing(false);
+      }, 300);
       return;
     }
     
@@ -120,6 +131,7 @@ export default function NewOfflinePage() {
     const storedCenterId = sessionStorage.getItem('centerId');
     const storedServiceId = sessionStorage.getItem('serviceId');
     const storedConsultantId = sessionStorage.getItem('consultantId');
+    const storedConsultantType = sessionStorage.getItem('consultantType');
     const storedTreatmentPrice = sessionStorage.getItem('treatmentPrice');
     const storedTreatmentDuration = sessionStorage.getItem('treatmentDuration');
     const storedSlotStart = sessionStorage.getItem('slotStart');
@@ -132,6 +144,9 @@ export default function NewOfflinePage() {
       };
       if (storedServiceId) updates.treatmentId = storedServiceId;
       if (storedConsultantId) updates.consultantId = storedConsultantId;
+      if (storedConsultantType) {
+        updates.designation = storedConsultantType === 'S&C Coach' ? 'SNC_Coach' : 'Physiotherapist';
+      }
       if (storedTreatmentPrice) updates.treatmentPrice = parseInt(storedTreatmentPrice);
       if (storedTreatmentDuration) updates.treatmentDuration = parseInt(storedTreatmentDuration);
       if (storedSlotStart && storedSlotEnd) {
@@ -168,6 +183,7 @@ export default function NewOfflinePage() {
       };
       setCurrentStep(stepMap[resolvedStep] || 'session-details');
     }
+    setIsInitializing(false);
   }, [mounted, searchParams]);
 
   const goToNextStep = () => {
@@ -222,12 +238,34 @@ export default function NewOfflinePage() {
 
   const canGoBack = currentStep !== 'session-details' && currentStep !== 'booking-confirmed';
 
-  if (!mounted) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+  // Show loading screen while initializing
+  if (!mounted || isInitializing) {
+    const LoadingScreen = () => (
+      <div className="flex items-center justify-center h-screen bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading your booking...</p>
+        </div>
       </div>
     );
+
+    // For desktop, wrap in container
+    if (isDesktop) {
+      return (
+        <div className="fixed inset-0 z-50">
+          <div className="absolute inset-0 bg-gray-100" />
+          <div className="absolute inset-0 bg-black/20 backdrop-blur-sm" />
+          
+          <div className="absolute inset-0 flex items-center justify-center p-4">
+            <div className="w-full max-w-sm mx-auto bg-white rounded-2xl shadow-2xl overflow-hidden relative" style={{ height: '90vh' }}>
+              <LoadingScreen />
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    return <LoadingScreen />;
   }
 
   const BookingContent = () => (
@@ -269,6 +307,7 @@ export default function NewOfflinePage() {
                   treatmentId: data.serviceId,
                   treatmentDuration: data.serviceDuration,
                   treatmentPrice: data.servicePrice,
+                  designation: data.designation,
                 });
                 goToNextStep();
               }}
@@ -282,6 +321,7 @@ export default function NewOfflinePage() {
               serviceDuration={bookingData.treatmentDuration}
               patientId={bookingData.patientId}
               preSelectedDate={sessionStorage.getItem('slotDate') || undefined}
+              preSelectedSlot={bookingData.selectedTimeSlot.startTime ? bookingData.selectedTimeSlot : undefined}
               onSlotSelect={(consultantId, slot) => {
                 const slotDate = new Date(slot.startTimeRaw);
                 updateBookingData({
@@ -317,7 +357,8 @@ export default function NewOfflinePage() {
     </>
   );
 
-  if (typeof window !== 'undefined' && window.innerWidth >= 768) {
+  // Desktop container view
+  if (isDesktop) {
     return (
       <div className="fixed inset-0 z-50">
         <div className="absolute inset-0 bg-gray-100" />
@@ -334,6 +375,6 @@ export default function NewOfflinePage() {
     );
   }
 
+  // Mobile view
   return <BookingContent />;
 }
-

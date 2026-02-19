@@ -10,6 +10,7 @@ import { useContainerDetection } from '@/hooks/useContainerDetection';
 import { Button } from '@/components/ui-atoms';
 import { BookingAnalytics } from '@/services/booking-analytics';
 import { StanceHealthLoader } from '@/components/loader/StanceHealthLoader';
+import { isParamFromUrl } from '@/utils/booking-params';
 
 interface BookingData {
   sessionType: 'in-person';
@@ -39,6 +40,8 @@ export default function NewUserOfflinePaymentConfirmation({
   const [paymentAmount, setPaymentAmount] = useState<number | null>(null);
   const [amountError, setAmountError] = useState('');
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [isPaymentTypeFromParams, setIsPaymentTypeFromParams] = useState(false);
+  const [isLoadingData, setIsLoadingData] = useState(true);
 
   // Auto-select payment option from sessionStorage (set by URL params)
   React.useEffect(() => {
@@ -46,20 +49,24 @@ export default function NewUserOfflinePaymentConfirmation({
       const storedPaymentType = sessionStorage.getItem('paymentType');
       if (storedPaymentType === 'token') {
         setPaymentAmount(100);
+        // Only lock if it came from URL params
+        setIsPaymentTypeFromParams(isParamFromUrl('paymentType'));
       } else if (storedPaymentType === 'full') {
         // Will be set properly once actualPrice is available
         setPaymentAmount(null); // set below once price loads
+        // Only lock if it came from URL params
+        setIsPaymentTypeFromParams(isParamFromUrl('paymentType'));
       }
     } catch {
       // sessionStorage unavailable
     }
   }, []);
 
-  const { data: centersData } = useQuery(GET_CENTERS);
-  const { data: servicesData } = useQuery(GET_SERVICES, {
+  const { data: centersData, loading: centersLoading } = useQuery(GET_CENTERS);
+  const { data: servicesData, loading: servicesLoading } = useQuery(GET_SERVICES, {
     variables: { centerId: [bookingData.centerId] },
   });
-  const { data: userData } = useQuery(GET_USER, {
+  const { data: userData, loading: userLoading } = useQuery(GET_USER, {
     variables: { userId: bookingData.patientId },
   });
 
@@ -84,6 +91,19 @@ export default function NewUserOfflinePaymentConfirmation({
     }
   }, [actualPrice, paymentAmount]);
 
+  // Handle loading state - wait for all data to be available
+  React.useEffect(() => {
+    const isDataLoading = centersLoading || servicesLoading || userLoading;
+    const hasRequiredData = currentCenter && currentService && patient;
+    
+    if (!isDataLoading && hasRequiredData) {
+      // Add a small delay to ensure loading screen is visible
+      setTimeout(() => {
+        setIsLoadingData(false);
+      }, 300);
+    }
+  }, [centersLoading, servicesLoading, userLoading, currentCenter, currentService, patient]);
+
   const patientDetails = {
     name: patient?.profileData ? `${patient.profileData.firstName} ${patient.profileData.lastName}` : '',
     phone: patient?.phone || '',
@@ -91,13 +111,17 @@ export default function NewUserOfflinePaymentConfirmation({
   };
 
   const handlePayFullClick = () => {
-    setPaymentAmount(actualPrice);
-    setAmountError('');
+    if (!isPaymentTypeFromParams) {
+      setPaymentAmount(actualPrice);
+      setAmountError('');
+    }
   };
 
   const handleTokenPayClick = () => {
-    setPaymentAmount(100);
-    setAmountError('');
+    if (!isPaymentTypeFromParams) {
+      setPaymentAmount(100);
+      setAmountError('');
+    }
   };
 
   const [isCreatingAppointment, setIsCreatingAppointment] = useState(false);
@@ -153,6 +177,15 @@ export default function NewUserOfflinePaymentConfirmation({
       setIsCreatingAppointment(false);
     }
   };
+
+  // Show loading screen while data is being fetched
+  if (isLoadingData) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <StanceHealthLoader message="Loading payment details..." />
+      </div>
+    );
+  }
 
   if (isCreatingAppointment) {
     return (
@@ -246,15 +279,19 @@ export default function NewUserOfflinePaymentConfirmation({
 
           <div className="bg-white rounded-2xl border border-gray-200 p-4 mb-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Select Payment Option</h3>
+            {isPaymentTypeFromParams && (
+              <p className="text-sm text-gray-600 mb-3">Pre-selected payment option</p>
+            )}
             
-            <div className="space-y-3">
+            <div className="space-y-3" style={{ opacity: isPaymentTypeFromParams ? 0.7 : 1 }}>
               <button
                 onClick={handlePayFullClick}
+                disabled={isPaymentTypeFromParams}
                 className={`w-full p-4 rounded-xl border-2 transition-all text-left ${
                   paymentAmount === actualPrice
                     ? 'border-blue-500 bg-blue-50'
                     : 'border-gray-200 hover:border-gray-300'
-                }`}
+                } ${isPaymentTypeFromParams ? 'cursor-not-allowed' : ''}`}
               >
                 <div className="flex items-center justify-between">
                   <div>
@@ -275,11 +312,12 @@ export default function NewUserOfflinePaymentConfirmation({
 
               <button
                 onClick={handleTokenPayClick}
+                disabled={isPaymentTypeFromParams}
                 className={`w-full p-4 rounded-xl border-2 transition-all text-left ${
                   paymentAmount === 100
                     ? 'border-blue-500 bg-blue-50'
                     : 'border-gray-200 hover:border-gray-300'
-                }`}
+                } ${isPaymentTypeFromParams ? 'cursor-not-allowed' : ''}`}
               >
                 <div className="flex items-center justify-between">
                   <div>

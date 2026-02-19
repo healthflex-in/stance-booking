@@ -9,6 +9,7 @@ import { PrimaryButton } from '@/components/ui-atoms';
 import { LocationSelectionModal, ServiceSelectionModal } from '@/components/onboarding/shared';
 
 import { BookingAnalytics } from '@/services/booking-analytics';
+import { isParamFromUrl } from '@/utils/booking-params';
 
 interface RepeatUserOnlineSessionDetailsProps {
   patientId: string;
@@ -28,9 +29,20 @@ export default function RepeatUserOnlineSessionDetails({
   const { isInDesktopContainer } = useContainerDetection();
   const [selectedService, setSelectedService] = useState<any>(null);
   const [selectedDesignation, setSelectedDesignation] = useState<string>('Physiotherapist');
+  const [isConsultantTypeFromParams, setIsConsultantTypeFromParams] = useState(false);
 
   // Modal states
   const [showServiceModal, setShowServiceModal] = useState(false);
+
+  // Set consultant type from sessionStorage
+  useEffect(() => {
+    const storedConsultantType = sessionStorage.getItem('consultantType');
+    if (storedConsultantType && (storedConsultantType === 'Physiotherapist' || storedConsultantType === 'S&C Coach')) {
+      setSelectedDesignation(storedConsultantType);
+      // Only lock if it came from URL params
+      setIsConsultantTypeFromParams(isParamFromUrl('consultantType'));
+    }
+  }, []);
 
 
 
@@ -91,20 +103,23 @@ export default function RepeatUserOnlineSessionDetails({
               Consultant Type
             </h2>
             <p className="text-gray-600 text-sm mb-4">
-              Select the type of consultant you need
+              {isConsultantTypeFromParams ? 'Pre-selected consultant type' : 'Select the type of consultant you need'}
             </p>
-            <div className="bg-white rounded-xl p-1 border-2 flex relative" style={{ borderColor: '#DDFE71' }}>
+            <div className="bg-white rounded-xl p-1 border-2 flex relative" style={{ borderColor: '#DDFE71', opacity: isConsultantTypeFromParams ? 0.7 : 1 }}>
               <button
                 type="button"
                 onClick={() => {
-                  analytics.trackDesignationToggled('Physiotherapist');
-                  setSelectedDesignation('Physiotherapist');
+                  if (!isConsultantTypeFromParams) {
+                    analytics.trackDesignationToggled('Physiotherapist');
+                    setSelectedDesignation('Physiotherapist');
+                  }
                 }}
+                disabled={isConsultantTypeFromParams}
                 className={`flex-1 py-2 px-3 rounded-lg font-medium text-xs transition-all ${
                   selectedDesignation === 'Physiotherapist'
                     ? 'text-black shadow-sm'
                     : 'text-gray-600 hover:text-gray-900'
-                }`}
+                } ${isConsultantTypeFromParams ? 'cursor-not-allowed' : ''}`}
                 style={{
                   backgroundColor: selectedDesignation === 'Physiotherapist' ? '#DDFE71' : 'transparent'
                 }}
@@ -115,14 +130,17 @@ export default function RepeatUserOnlineSessionDetails({
               <button
                 type="button"
                 onClick={() => {
-                  analytics.trackDesignationToggled('S&C Coach');
-                  setSelectedDesignation('S&C Coach');
+                  if (!isConsultantTypeFromParams) {
+                    analytics.trackDesignationToggled('S&C Coach');
+                    setSelectedDesignation('S&C Coach');
+                  }
                 }}
+                disabled={isConsultantTypeFromParams}
                 className={`flex-1 py-2 px-3 rounded-lg font-medium text-xs transition-all ${
                   selectedDesignation === 'S&C Coach'
                     ? 'text-black shadow-sm'
                     : 'text-gray-600 hover:text-gray-900'
-                }`}
+                } ${isConsultantTypeFromParams ? 'cursor-not-allowed' : ''}`}
                 style={{
                   backgroundColor: selectedDesignation === 'S&C Coach' ? '#DDFE71' : 'transparent'
                 }}
