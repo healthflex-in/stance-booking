@@ -102,6 +102,7 @@ export function getDefaultCenterId(orgSlug: string): string | null {
 /**
  * Get token package ID by center ID
  * Used for token payment (₹100) package creation
+ * @deprecated Use getTokenPackageIdByServiceId instead
  */
 export function getTokenPackageIdByCenterId(centerId: string): string | null {
   // All three centers are in Stance Health organization
@@ -118,6 +119,54 @@ export function getTokenPackageIdByCenterId(centerId: string): string | null {
   };
   
   return centerPackageMap[centerId] || null;
+}
+
+/**
+ * Get token package ID by service ID and center ID
+ * Used for token payment package creation
+ * Packages are specific to both service AND center
+ */
+export function getTokenPackageIdByServiceAndCenter(serviceId: string, centerId: string): string | null {
+  // Map (service + center) to their corresponding token packages
+  // Format: 'serviceId:centerId': 'packageId'
+  const servicePackageMap: Record<string, string | undefined> = {
+    // Stance Circle Day Assessment (6996db75122ea6953b7b3012) - ₹100 token packages
+    '6996db75122ea6953b7b3012:6825aaa0d6f864397d730519': '6996e2048b99b818f6a65f21', // HSR - ₹100
+    '6996db75122ea6953b7b3012:68468dd74aa11d735edd5d64': '6996e2888b99b818f6a66076', // Whitefield - ₹100
+    '6996db75122ea6953b7b3012:688092ed7110183bb855bbb7': '6996e2ec8b99b818f6a66113', // Indiranagar - ₹100
+    
+    // Insider Day service (6960a532c64acf3d3279ab52)
+    '6960a532c64acf3d3279ab52:6825aaa0d6f864397d730519': '6997f76f8b99b818f6a79674', // HSR - ₹100
+    
+    // TODO: Add more service+center to package mappings here
+  };
+  
+  const key = `${serviceId}:${centerId}`;
+  return servicePackageMap[key] || null;
+}
+
+/**
+ * Get token package ID by service ID
+ * Used for token payment (₹100) package creation
+ * @deprecated Use getTokenPackageIdByServiceAndCenter instead for better accuracy
+ */
+export function getTokenPackageIdByServiceId(serviceId: string): string | null {
+  // Map service IDs to their corresponding token packages
+  // The package's "services" array in DB contains the service IDs it's valid for
+  const servicePackageMap: Record<string, string | undefined> = {
+    // Insider Day Balance - HSR package (6997f76f8b99b818f6a79674)
+    // Valid for service: 6960a532c64acf3d3279ab52
+    '6960a532c64acf3d3279ab52': '6997f76f8b99b818f6a79674',
+    
+    // Stance Circle Day Assessment - defaults to HSR package
+    '6996db75122ea6953b7b3012': '6997f76f8b99b818f6a79674',
+    
+    // TODO: Add more service-to-package mappings here
+    // Format: 'service-id': 'package-id'
+    // The package should have this service ID in its "services" array in the database
+  };
+  
+  return servicePackageMap[serviceId] || null;
 }
 
 /**
