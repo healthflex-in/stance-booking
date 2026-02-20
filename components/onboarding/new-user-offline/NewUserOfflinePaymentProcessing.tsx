@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import RazorpayScriptLoader from '@/components/loader/RazorpayScriptLoader';
 import RazorpayLoader from '@/components/loader/RazorLoader';
 import MobileLoadingScreen from '../shared/MobileLoadingScreen';
-import { getTokenPackageIdByCenterId } from '@/utils/booking-config';
+import { getTokenPackageIdByServiceAndCenter, getTokenPackageIdByServiceId, getTokenPackageIdByCenterId } from '@/utils/booking-config';
 
 interface NewUserOfflinePaymentProcessingProps {
   amount: number;
@@ -201,14 +201,27 @@ export default function NewUserOfflinePaymentProcessing({
         }
         orderInput.appointment = appointmentId;
       } else {
-        // Use the centralized package ID lookup by center ID
-        const packageId = getTokenPackageIdByCenterId(centerId);
+        // Try service+center based package lookup first (most accurate)
+        let packageId = getTokenPackageIdByServiceAndCenter(treatmentId, centerId);
         
+        // Fallback to service-only lookup if service+center mapping doesn't exist
         if (!packageId) {
-          console.error('❌ No package ID found for center:', centerId);
-          throw new Error('Package configuration missing for selected center');
+          console.warn('⚠️ No service+center specific package found, trying service-only lookup');
+          packageId = getTokenPackageIdByServiceId(treatmentId);
         }
         
+        // Final fallback to center-based lookup (old approach)
+        if (!packageId) {
+          console.warn('⚠️ No service-specific package found, falling back to center-based package');
+          packageId = getTokenPackageIdByCenterId(centerId);
+        }
+        
+        if (!packageId) {
+          console.error('❌ No package ID found for service:', treatmentId, 'center:', centerId);
+          throw new Error('Package configuration missing for selected service/center');
+        }
+        
+        console.log('✅ Using package:', packageId, 'for service:', treatmentId, 'center:', centerId);
         orderInput.packageId = packageId;
       }
 
