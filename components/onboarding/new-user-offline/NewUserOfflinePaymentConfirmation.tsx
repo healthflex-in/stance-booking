@@ -68,6 +68,7 @@ export default function NewUserOfflinePaymentConfirmation({
   });
   const { data: userData, loading: userLoading } = useQuery(GET_USER, {
     variables: { userId: bookingData.patientId },
+    fetchPolicy: 'network-only', // Force fresh fetch for newly created patients
   });
 
   const [createAppointment] = useMutation(CREATE_APPOINTMENT);
@@ -96,13 +97,34 @@ export default function NewUserOfflinePaymentConfirmation({
     const isDataLoading = centersLoading || servicesLoading || userLoading;
     const hasRequiredData = currentCenter && currentService && patient;
     
+    console.log('Loading state check:', {
+      centersLoading,
+      servicesLoading,
+      userLoading,
+      hasCurrentCenter: !!currentCenter,
+      hasCurrentService: !!currentService,
+      hasPatient: !!patient,
+      patientId: bookingData.patientId,
+    });
+    
     if (!isDataLoading && hasRequiredData) {
       // Add a small delay to ensure loading screen is visible
       setTimeout(() => {
         setIsLoadingData(false);
       }, 300);
+    } else if (!isDataLoading && !hasRequiredData) {
+      // If loading is done but we don't have required data, still show the component
+      // This handles cases where queries might fail or return empty
+      console.warn('Loading complete but missing required data:', {
+        hasCurrentCenter: !!currentCenter,
+        hasCurrentService: !!currentService,
+        hasPatient: !!patient,
+      });
+      setTimeout(() => {
+        setIsLoadingData(false);
+      }, 300);
     }
-  }, [centersLoading, servicesLoading, userLoading, currentCenter, currentService, patient]);
+  }, [centersLoading, servicesLoading, userLoading, currentCenter, currentService, patient, bookingData.patientId]);
 
   const patientDetails = {
     name: patient?.profileData ? `${patient.profileData.firstName} ${patient.profileData.lastName}` : '',
