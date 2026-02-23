@@ -7,6 +7,7 @@ import { GET_CENTERS, GET_USER } from '@/gql/queries';
 import { useContainerDetection } from '@/hooks/useContainerDetection';
 import { PrimaryButton } from '@/components/ui-atoms';
 import { LocationSelectionModal, ServiceSelectionModal } from '@/components/onboarding/shared';
+import { BookingAnalytics } from '@/services/booking-analytics';
 
 interface PrepaidRepeatSessionDetailsProps {
   patientId: string;
@@ -14,9 +15,10 @@ interface PrepaidRepeatSessionDetailsProps {
   isNewUser: boolean;
   onBack: () => void;
   onContinue: (data: { centerId: string; serviceId: string; serviceDuration: number; servicePrice: number; designation?: string }) => void;
+  analytics?: BookingAnalytics;
 }
 
-export default function PrepaidRepeatSessionDetails({ patientId, centerId, onBack, onContinue }: PrepaidRepeatSessionDetailsProps) {
+export default function PrepaidRepeatSessionDetails({ patientId, centerId, onBack, onContinue, analytics }: PrepaidRepeatSessionDetailsProps) {
   const { isInDesktopContainer } = useContainerDetection();
   const [selectedCenter, setSelectedCenter] = useState<any>(null);
   const [selectedService, setSelectedService] = useState<any>(null);
@@ -49,6 +51,9 @@ export default function PrepaidRepeatSessionDetails({ patientId, centerId, onBac
 
   const handleContinue = () => {
     if (!selectedService || !selectedCenter) return;
+    
+    analytics?.trackSessionDetailsContinueClicked(selectedService._id, selectedDesignation);
+    
     onContinue({
       centerId: selectedCenter._id,
       serviceId: selectedService._id,

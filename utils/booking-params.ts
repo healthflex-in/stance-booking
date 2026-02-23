@@ -1,11 +1,15 @@
 'use client';
 
+import { tabStorage } from './tab-storage';
+
 /**
  * Booking parameter utilities for parsing URL params, persisting to
- * sessionStorage, and reading them back.
+ * tab-isolated storage, and reading them back.
  *
  * These mirror the BookingParams interface used by the Dashboard's
  * booking-link-utils so that data round-trips cleanly between the two apps.
+ * 
+ * Uses tab-isolated storage to prevent conflicts when multiple tabs are open.
  */
 
 export interface BookingParams {
@@ -62,7 +66,7 @@ export function parseBookingParams(searchParams: URLSearchParams): BookingParams
 
 /**
  * Persists every non-empty field of a BookingParams object into
- * sessionStorage. Wrapped in try/catch so private-browsing or
+ * tab-isolated storage. Wrapped in try/catch so private-browsing or
  * storage-full scenarios don't crash the app.
  * Also sets a flag to indicate data came from URL params.
  */
@@ -71,21 +75,21 @@ export function storeBookingParamsInSession(params: BookingParams): void {
 
   try {
     // Set a flag to indicate these params came from URL
-    sessionStorage.setItem('paramsSource', 'url');
+    tabStorage.setItem('paramsSource', 'url');
     
     for (const key of RECOGNIZED_KEYS) {
       const value = params[key];
       if (value !== undefined && value !== null && value !== '') {
-        sessionStorage.setItem(key, value);
+        tabStorage.setItem(key, value);
       }
     }
   } catch {
-    // sessionStorage may be unavailable in private browsing – silently ignore
+    // storage may be unavailable in private browsing – silently ignore
   }
 }
 
 /**
- * Reads previously-stored booking params back from sessionStorage.
+ * Reads previously-stored booking params back from tab-isolated storage.
  * Returns a BookingParams object containing only the keys that have
  * non-empty values in storage.
  */
@@ -96,13 +100,13 @@ export function getBookingParamsFromSession(): BookingParams {
 
   try {
     for (const key of RECOGNIZED_KEYS) {
-      const value = sessionStorage.getItem(key);
+      const value = tabStorage.getItem(key);
       if (value !== null && value !== '') {
         result[key] = value;
       }
     }
   } catch {
-    // sessionStorage may be unavailable – return whatever we have so far
+    // storage may be unavailable – return whatever we have so far
   }
 
   return result;
@@ -116,11 +120,11 @@ export function isParamFromUrl(paramKey: keyof BookingParams): boolean {
   if (typeof window === 'undefined') return false;
 
   try {
-    const paramsSource = sessionStorage.getItem('paramsSource');
-    const paramValue = sessionStorage.getItem(paramKey);
+    const paramsSource = tabStorage.getItem('paramsSource');
+    const paramValue = tabStorage.getItem(paramKey);
     
     // Only lock if:
-    // 1. The param exists in sessionStorage
+    // 1. The param exists in tab storage
     // 2. The paramsSource flag is set to 'url'
     return paramsSource === 'url' && paramValue !== null && paramValue !== '';
   } catch {

@@ -8,6 +8,7 @@ import { SimplifiedPatientOnboarding } from '@/components/onboarding/shared';
 import { getOrganizationBySlug, getDefaultCenterId } from '@/utils/booking-config';
 import { setBookingCookies, getBookingCookies } from '@/utils/booking-cookies';
 import { parseBookingParams, storeBookingParamsInSession, BookingParams } from '@/utils/booking-params';
+import { bookingStorage } from '@/utils/booking-storage';
 
 type BookingStep =
   | 'patient-onboarding'
@@ -114,8 +115,8 @@ function BookPageContent() {
         if (!redirectingRef.current) {
           redirectingRef.current = true;
 
-          sessionStorage.setItem('patientId', parsedParams.patientId);
-          sessionStorage.setItem('centerId', parsedParams.centerId || defaultCenterId);
+          bookingStorage.setItem('patientId', parsedParams.patientId);
+          bookingStorage.setItem('centerId', parsedParams.centerId || defaultCenterId);
 
           // Determine flow type from assessmentType
           const isOnline = parsedParams.assessmentType === 'online';
@@ -133,8 +134,8 @@ function BookPageContent() {
   }, [orgSlug]); // Only re-run if orgSlug changes
 
   const handlePatientOnboardingComplete = (patientId: string, isNewUser: boolean, sessionType: 'in-person' | 'online') => {
-    sessionStorage.setItem('patientId', patientId);
-    sessionStorage.setItem('centerId', bookingData.centerId || '');
+    bookingStorage.setItem('patientId', patientId);
+    bookingStorage.setItem('centerId', bookingData.centerId || '');
 
     // Check if we have a stored assessmentType from URL params that should override sessionType
     const storedParams = parsedParamsRef.current;

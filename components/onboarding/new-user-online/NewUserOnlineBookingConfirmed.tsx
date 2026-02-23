@@ -39,6 +39,14 @@ export default function NewUserOnlineBookingConfirmed({ bookingData, analytics }
         bookingData.consultantId,
         bookingData.centerId
       );
+      
+      // Track payment success acknowledgment
+      analytics.trackPaymentSuccessAcknowledged(
+        appointmentId,
+        bookingData.patientId,
+        bookingData.consultantId,
+        bookingData.centerId
+      );
     }
   }, [appointmentId, analytics, bookingData]);
 

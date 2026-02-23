@@ -12,6 +12,7 @@ import { Button } from '@/components/ui-atoms';
 import { StanceHealthLoader } from '@/components/loader/StanceHealthLoader';
 import { EmailCollectionModal } from '@/components/onboarding/shared';
 import { BookingAnalytics } from '@/services/booking-analytics';
+import { bookingStorage } from '@/utils/booking-storage';
 
 interface BookingData {
   sessionType: 'online';
@@ -147,15 +148,15 @@ export default function RepeatUserOnlinePaymentConfirmation({
       }
 
       console.log('✅ Appointment ID:', appointmentId);
-      sessionStorage.setItem('appointmentId', appointmentId);
-      sessionStorage.setItem('paymentType', 'invoice');
-      sessionStorage.setItem('paymentAmount', bookingData.treatmentPrice.toString());
+      bookingStorage.setItem('appointmentId', appointmentId);
+      bookingStorage.setItem('paymentType', 'invoice');
+      bookingStorage.setItem('paymentAmount', bookingData.treatmentPrice.toString());
       
       // Track payment initiation
       analytics.trackPaymentInitiated(bookingData.treatmentPrice, appointmentId);
       
-      // Verify sessionStorage was written
-      const storedId = sessionStorage.getItem('appointmentId');
+      // Verify storage was written
+      const storedId = bookingStorage.getItem('appointmentId');
       console.log('✅ Verified stored appointment ID:', storedId);
       
       if (!storedId) {
@@ -177,16 +178,16 @@ export default function RepeatUserOnlinePaymentConfirmation({
   };
 
   const handlePaymentSuccess = async (paymentId: string, invoiceId?: string) => {
-    const appointmentId = sessionStorage.getItem('appointmentId');
+    const appointmentId = bookingStorage.getItem('appointmentId');
     
     // Track payment success
     if (appointmentId) {
       analytics.trackPaymentSuccess(paymentId, bookingData.treatmentPrice, appointmentId);
     }
     
-    sessionStorage.removeItem('appointmentId');
-    sessionStorage.removeItem('paymentType');
-    sessionStorage.removeItem('paymentAmount');
+    bookingStorage.removeItem('appointmentId');
+    bookingStorage.removeItem('paymentType');
+    bookingStorage.removeItem('paymentAmount');
     setIsProcessingPayment(false);
     onNext(appointmentId || undefined);
   };
@@ -198,8 +199,8 @@ export default function RepeatUserOnlinePaymentConfirmation({
     analytics.trackPaymentFailure(errorMsg);
     
     setIsProcessingPayment(false);
-    sessionStorage.removeItem('paymentType');
-    sessionStorage.removeItem('paymentAmount');
+    bookingStorage.removeItem('paymentType');
+    bookingStorage.removeItem('paymentAmount');
     router.push(`/${orgSlug}/failure?error=${encodeURIComponent(errorMsg)}`);
   };
 

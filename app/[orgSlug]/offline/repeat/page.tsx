@@ -15,6 +15,7 @@ import {
 import { getBookingCookies } from '@/utils/booking-cookies';
 import { parseBookingParams, storeBookingParamsInSession } from '@/utils/booking-params';
 import { resolveInitialStep } from '@/utils/booking-step-navigation';
+import { bookingStorage } from '@/utils/booking-storage';
 
 type BookingStep = 'session-details' | 'slot-selection' | 'confirmation' | 'booking-confirmed';
 
@@ -113,8 +114,8 @@ export default function RepeatOfflinePage() {
         updates.selectedDate = slotStartDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
         updates.selectedFullDate = slotStartDate;
       } else if (parsedParams.slotDate) {
-        // Store slotDate in sessionStorage for slot selection component to use
-        sessionStorage.setItem('slotDate', parsedParams.slotDate);
+        // Store slotDate in tab storage for slot selection component to use
+        bookingStorage.setItem('slotDate', parsedParams.slotDate);
       }
       
       updateBookingData(updates);
@@ -134,18 +135,18 @@ export default function RepeatOfflinePage() {
       return;
     }
     
-    // Fallback to sessionStorage — read ALL stored params
+    // Fallback to tab storage — read ALL stored params
     if (typeof window !== 'undefined') {
-      const storedPatientId = sessionStorage.getItem('patientId');
-      const storedCenterId = sessionStorage.getItem('centerId');
+      const storedPatientId = bookingStorage.getItem('patientId');
+      const storedCenterId = bookingStorage.getItem('centerId');
       if (storedPatientId) {
-        const storedServiceId = sessionStorage.getItem('serviceId');
-        const storedConsultantId = sessionStorage.getItem('consultantId');
-        const storedConsultantType = sessionStorage.getItem('consultantType');
-        const storedTreatmentPrice = sessionStorage.getItem('treatmentPrice');
-        const storedTreatmentDuration = sessionStorage.getItem('treatmentDuration');
-        const storedSlotStart = sessionStorage.getItem('slotStart');
-        const storedSlotEnd = sessionStorage.getItem('slotEnd');
+        const storedServiceId = bookingStorage.getItem('serviceId');
+        const storedConsultantId = bookingStorage.getItem('consultantId');
+        const storedConsultantType = bookingStorage.getItem('consultantType');
+        const storedTreatmentPrice = bookingStorage.getItem('treatmentPrice');
+        const storedTreatmentDuration = bookingStorage.getItem('treatmentDuration');
+        const storedSlotStart = bookingStorage.getItem('slotStart');
+        const storedSlotEnd = bookingStorage.getItem('slotEnd');
         
         const updates: Partial<BookingData> = {
           patientId: storedPatientId,
@@ -366,7 +367,7 @@ export default function RepeatOfflinePage() {
             centerId={bookingData.centerId}
             serviceDuration={bookingData.treatmentDuration}
             designation={bookingData.designation}
-            preSelectedDate={sessionStorage.getItem('slotDate') || undefined}
+            preSelectedDate={bookingStorage.getItem('slotDate') || undefined}
             onSlotSelect={handleSlotSelect}
             onBack={goToPreviousStep}
             analytics={analytics}

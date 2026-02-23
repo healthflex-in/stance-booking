@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import RazorpayScriptLoader from '@/components/loader/RazorpayScriptLoader';
 import RazorpayLoader from '@/components/loader/RazorLoader';
 import MobileLoadingScreen from '../shared/MobileLoadingScreen';
+import { bookingStorage } from '@/utils/booking-storage';
 
 interface RepeatUserOnlinePaymentProcessingProps {
   amount: number;
@@ -149,15 +150,15 @@ export default function RepeatUserOnlinePaymentProcessing({
 
   const createOrder = async () => {
     try {
-      const appointmentId = sessionStorage.getItem('appointmentId');
+      const appointmentId = bookingStorage.getItem('appointmentId');
       console.log('📝 Attempting to create order with appointmentId:', appointmentId);
       
       if (!appointmentId) {
-        console.error('❌ No appointmentId found in sessionStorage');
-        console.error('❌ SessionStorage contents:', {
-          appointmentId: sessionStorage.getItem('appointmentId'),
-          paymentType: sessionStorage.getItem('paymentType'),
-          paymentAmount: sessionStorage.getItem('paymentAmount'),
+        console.error('❌ No appointmentId found in storage');
+        console.error('❌ Storage contents:', {
+          appointmentId: bookingStorage.getItem('appointmentId'),
+          paymentType: bookingStorage.getItem('paymentType'),
+          paymentAmount: bookingStorage.getItem('paymentAmount'),
         });
         throw new Error('Appointment ID not found in session');
       }

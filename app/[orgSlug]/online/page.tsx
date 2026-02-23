@@ -6,6 +6,7 @@ import OnlineOnboarding from '@/components/onboarding/OnlineOnboarding';
 import { StanceHealthLoader } from '@/components/loader/StanceHealthLoader';
 import { getBookingCookies } from '@/utils/booking-cookies';
 import { parseBookingParams, storeBookingParamsInSession } from '@/utils/booking-params';
+import { bookingStorage } from '@/utils/booking-storage';
 
 export default function OnlinePage() {
   const params = useParams();
@@ -44,9 +45,9 @@ export default function OnlinePage() {
   }, [orgSlug, router]);
 
   const handleComplete = (patientId: string, isNewUser: boolean) => {
-    sessionStorage.setItem('patientId', patientId);
+    bookingStorage.setItem('patientId', patientId);
     
-    // All params are already in sessionStorage — the flow pages read from there
+    // All params are already in tab storage — the flow pages read from there
     if (isNewUser) {
       router.push(`/${orgSlug}/online/new`);
     } else {
