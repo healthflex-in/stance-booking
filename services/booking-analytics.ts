@@ -83,6 +83,7 @@ export class BookingAnalytics {
     const eventMapping: Record<string, () => void> = {
       'flow_start': () => metaPixelEvents.trackLead(params),
       'slot_selected': () => metaPixelEvents.trackSchedule(params),
+      'profile_completion_clicked': () => metaPixelEvents.trackCompleteRegistration(params),
       'proceed_to_payment_clicked': () => metaPixelEvents.trackInitiateCheckout({ value: params.amount, ...params }),
       'payment_initiated': () => metaPixelEvents.trackAddPaymentInfo({ value: params.amount, ...params }),
       'payment_success': () => metaPixelEvents.trackPurchase({ value: params.amount, transaction_id: params.payment_id, ...params }),
@@ -311,7 +312,44 @@ export class BookingAnalytics {
     });
   }
 
+  // Profile Completion - Specific Events
+  trackProfileCompletionClicked(patientId: string, centerId: string, isNewUser: boolean) {
+    if (!patientId || !centerId) {
+      console.error('Missing required parameters for profile completion tracking');
+      return;
+    }
+    
+    this.trackEvent('profile_completion_clicked', {
+      patient_id: patientId,
+      center_id: centerId,
+      is_new_user: isNewUser,
+    });
+  }
 
+  trackPaymentSuccessAcknowledged(appointmentId: string, patientId: string, consultantId: string, centerId: string) {
+    if (!appointmentId || !patientId || !consultantId || !centerId) {
+      console.error('Missing required parameters for payment success acknowledgment tracking');
+      return;
+    }
+    
+    this.trackEvent('payment_success_acknowledged', {
+      appointment_id: appointmentId,
+      patient_id: patientId,
+      consultant_id: consultantId,
+      center_id: centerId,
+    });
+  }
+
+  // Confirmation - Specific Events
+  trackConfirmBookingClicked(appointmentId: string, amount: number, serviceId: string, consultantId: string) {
+    this.trackEvent('confirm_booking_clicked', {
+      appointment_id: appointmentId,
+      amount,
+      currency: 'INR',
+      service_id: serviceId,
+      consultant_id: consultantId,
+    });
+  }
 
   // Navigation - Specific Events
   trackBackNavigation(fromStep: BookingStep) {

@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import OfflineOnboarding from '@/components/onboarding/OfflineOnboarding';
 import { getBookingCookies } from '@/utils/booking-cookies';
 import { parseBookingParams, storeBookingParamsInSession } from '@/utils/booking-params';
+import { bookingStorage } from '@/utils/booking-storage';
 
 export default function OfflinePage() {
   const params = useParams();
@@ -32,10 +33,10 @@ export default function OfflinePage() {
     
     if (urlPatientId) {
       // Direct patient link - skip onboarding, go straight to booking
-      sessionStorage.setItem('patientId', urlPatientId);
-      if (urlCenterId) sessionStorage.setItem('centerId', urlCenterId);
+      bookingStorage.setItem('patientId', urlPatientId);
+      if (urlCenterId) bookingStorage.setItem('centerId', urlCenterId);
       
-      // Redirect to repeat flow — the flow page reads from sessionStorage
+      // Redirect to repeat flow — the flow page reads from tab storage
       router.push(`/${orgSlug}/offline/repeat`);
       return;
     }
@@ -46,8 +47,8 @@ export default function OfflinePage() {
       return;
     }
 
-    // Check sessionStorage for centerId (from a previous dynamic link flow)
-    const storedCenterId = sessionStorage.getItem('centerId');
+    // Check tab storage for centerId (from a previous dynamic link flow)
+    const storedCenterId = bookingStorage.getItem('centerId');
     if (storedCenterId) {
       setCenterId(storedCenterId);
       return;
@@ -63,10 +64,10 @@ export default function OfflinePage() {
   }, [orgSlug, router]);
 
   const handleComplete = (patientId: string, isNewUser: boolean) => {
-    sessionStorage.setItem('patientId', patientId);
-    if (centerId) sessionStorage.setItem('centerId', centerId);
+    bookingStorage.setItem('patientId', patientId);
+    if (centerId) bookingStorage.setItem('centerId', centerId);
     
-    // All params are already in sessionStorage — the flow pages read from there
+    // All params are already in tab storage — the flow pages read from there
     if (isNewUser) {
       router.push(`/${orgSlug}/offline/new`);
     } else {

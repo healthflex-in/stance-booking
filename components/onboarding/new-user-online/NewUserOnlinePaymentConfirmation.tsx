@@ -12,6 +12,7 @@ import { Button } from '@/components/ui-atoms';
 import { StanceHealthLoader } from '@/components/loader/StanceHealthLoader';
 import { EmailCollectionModal } from '@/components/onboarding/shared';
 import { useMobileFlowAnalytics } from '@/services/mobile-analytics';
+import { bookingStorage } from '@/utils/booking-storage';
 
 interface BookingData {
   sessionType: 'online' | 'in-person';
@@ -153,14 +154,14 @@ export default function NewUserOnlinePaymentConfirmation({
       }
 
       console.log('✅ Appointment ID:', appointmentId);
-      sessionStorage.setItem('appointmentId', appointmentId);
-      sessionStorage.setItem('paymentType', 'invoice');
-      sessionStorage.setItem('paymentAmount', bookingData.treatmentPrice.toString());
+      bookingStorage.setItem('appointmentId', appointmentId);
+      bookingStorage.setItem('paymentType', 'invoice');
+      bookingStorage.setItem('paymentAmount', bookingData.treatmentPrice.toString());
       
       analytics.trackPaymentInitiated(bookingData.treatmentPrice, appointmentId);
       
-      // Verify sessionStorage was written
-      const storedId = sessionStorage.getItem('appointmentId');
+      // Verify storage was written
+      const storedId = bookingStorage.getItem('appointmentId');
       console.log('✅ Verified stored appointment ID:', storedId);
       
       if (!storedId) {
@@ -226,10 +227,10 @@ export default function NewUserOnlinePaymentConfirmation({
             console.error('❌ Failed to update patient status:', error);
           }
           
-          const storedAppointmentId = sessionStorage.getItem('appointmentId');
-          sessionStorage.removeItem('appointmentId');
-          sessionStorage.removeItem('paymentType');
-          sessionStorage.removeItem('paymentAmount');
+          const storedAppointmentId = bookingStorage.getItem('appointmentId');
+          bookingStorage.removeItem('appointmentId');
+          bookingStorage.removeItem('paymentType');
+          bookingStorage.removeItem('paymentAmount');
           setIsProcessingPayment(false);
           if (storedAppointmentId) {
             onNext(storedAppointmentId);
@@ -237,8 +238,8 @@ export default function NewUserOnlinePaymentConfirmation({
         }}
         onPaymentFailure={async (error) => {
           setIsProcessingPayment(false);
-          sessionStorage.removeItem('paymentType');
-          sessionStorage.removeItem('paymentAmount');
+          bookingStorage.removeItem('paymentType');
+          bookingStorage.removeItem('paymentAmount');
           const errorMsg = typeof error === 'string' ? error : error?.description || error?.message || 'Payment failed';
           setAmountError(errorMsg);
         }}

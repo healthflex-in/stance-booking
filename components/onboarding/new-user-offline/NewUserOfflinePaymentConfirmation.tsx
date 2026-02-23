@@ -11,6 +11,7 @@ import { Button } from '@/components/ui-atoms';
 import { BookingAnalytics } from '@/services/booking-analytics';
 import { StanceHealthLoader } from '@/components/loader/StanceHealthLoader';
 import { isParamFromUrl } from '@/utils/booking-params';
+import { bookingStorage } from '@/utils/booking-storage';
 
 interface BookingData {
   sessionType: 'in-person';
@@ -43,10 +44,10 @@ export default function NewUserOfflinePaymentConfirmation({
   const [isPaymentTypeFromParams, setIsPaymentTypeFromParams] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(true);
 
-  // Auto-select payment option from sessionStorage (set by URL params)
+  // Auto-select payment option from tab storage (set by URL params)
   React.useEffect(() => {
     try {
-      const storedPaymentType = sessionStorage.getItem('paymentType');
+      const storedPaymentType = bookingStorage.getItem('paymentType');
       if (storedPaymentType === 'token') {
         setPaymentAmount(100);
         // Only lock if it came from URL params
@@ -58,7 +59,7 @@ export default function NewUserOfflinePaymentConfirmation({
         setIsPaymentTypeFromParams(isParamFromUrl('paymentType'));
       }
     } catch {
-      // sessionStorage unavailable
+      // storage unavailable
     }
   }, []);
 
@@ -83,12 +84,12 @@ export default function NewUserOfflinePaymentConfirmation({
   // Auto-select full payment once price is known
   React.useEffect(() => {
     try {
-      const storedPaymentType = sessionStorage.getItem('paymentType');
+      const storedPaymentType = bookingStorage.getItem('paymentType');
       if (storedPaymentType === 'full' && actualPrice > 0 && paymentAmount === null) {
         setPaymentAmount(actualPrice);
       }
     } catch {
-      // sessionStorage unavailable
+      // storage unavailable
     }
   }, [actualPrice, paymentAmount]);
 
@@ -186,9 +187,9 @@ export default function NewUserOfflinePaymentConfirmation({
 
       analytics?.trackPaymentInitiated(paymentAmount, appointmentId);
       // Store appointment ID and payment info
-      sessionStorage.setItem('appointmentId', appointmentId);
-      sessionStorage.setItem('paymentType', isFullPayment ? 'invoice' : 'package');
-      sessionStorage.setItem('paymentAmount', paymentAmount.toString());
+      bookingStorage.setItem('appointmentId', appointmentId);
+      bookingStorage.setItem('paymentType', isFullPayment ? 'invoice' : 'package');
+      bookingStorage.setItem('paymentAmount', paymentAmount.toString());
       
       // Set states in correct order
       setIsCreatingAppointment(false);
@@ -230,20 +231,20 @@ export default function NewUserOfflinePaymentConfirmation({
         consultantId={bookingData.consultantId}
         treatmentId={bookingData.treatmentId}
         onPaymentSuccess={async (paymentId, invoiceId) => {
-          const appointmentId = sessionStorage.getItem('appointmentId') || '';
+          const appointmentId = bookingStorage.getItem('appointmentId') || '';
           analytics?.trackPaymentSuccess(paymentId, paymentAmount!, appointmentId);
-          sessionStorage.removeItem('appointmentId');
-          sessionStorage.removeItem('paymentType');
-          sessionStorage.removeItem('paymentAmount');
+          bookingStorage.removeItem('appointmentId');
+          bookingStorage.removeItem('paymentType');
+          bookingStorage.removeItem('paymentAmount');
           setIsProcessingPayment(false);
           onNext();
         }}
         onPaymentFailure={async (error) => {
-          const appointmentId = sessionStorage.getItem('appointmentId') || undefined;
+          const appointmentId = bookingStorage.getItem('appointmentId') || undefined;
           analytics?.trackPaymentFailure(typeof error === 'string' ? error : error?.description || 'Payment failed', appointmentId);
           setIsProcessingPayment(false);
-          sessionStorage.removeItem('paymentType');
-          sessionStorage.removeItem('paymentAmount');
+          bookingStorage.removeItem('paymentType');
+          bookingStorage.removeItem('paymentAmount');
           const errorMsg = typeof error === 'string' ? error : error?.description || error?.message || 'Payment failed';
           setAmountError(errorMsg);
         }}

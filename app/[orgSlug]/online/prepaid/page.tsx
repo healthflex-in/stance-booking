@@ -6,6 +6,7 @@ import PrepaidOnboarding from '@/components/onboarding/PrepaidOnboarding';
 import { StanceHealthLoader } from '@/components/loader/StanceHealthLoader';
 import { getBookingCookies } from '@/utils/booking-cookies';
 import { useBookingAnalytics } from '@/hooks/useBookingAnalytics';
+import { bookingStorage } from '@/utils/booking-storage';
 
 export default function PrepaidPage() {
   const params = useParams();
@@ -27,8 +28,8 @@ export default function PrepaidPage() {
   }, [orgSlug, router, analytics]);
 
   const handleComplete = (patientId: string, isNewUser: boolean) => {
-    sessionStorage.setItem('patientId', patientId);
-    sessionStorage.setItem('organizationId', organizationId);
+    bookingStorage.setItem('patientId', patientId);
+    bookingStorage.setItem('organizationId', organizationId);
     
     if (isNewUser) {
       router.push(`/${orgSlug}/online/prepaid/new`);

@@ -6,6 +6,7 @@ import { SEND_APPOINTMENT_EMAIL, SEND_CONSULTANT_MEET_INVITE, GET_USER, GET_SERV
 import { CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
+import { BookingAnalytics } from '@/services/booking-analytics';
 
 interface PrepaidNewBookingConfirmedProps {
   bookingData: {
@@ -17,9 +18,10 @@ interface PrepaidNewBookingConfirmedProps {
     selectedDate: string;
     appointmentId?: string;
   };
+  analytics: BookingAnalytics;
 }
 
-export default function PrepaidNewBookingConfirmed({ bookingData }: PrepaidNewBookingConfirmedProps) {
+export default function PrepaidNewBookingConfirmed({ bookingData, analytics }: PrepaidNewBookingConfirmedProps) {
   const router = useRouter();
   const [emailsSent, setEmailsSent] = useState(false);
   const [resendingEmail, setResendingEmail] = useState(false);
@@ -47,6 +49,18 @@ export default function PrepaidNewBookingConfirmed({ bookingData }: PrepaidNewBo
   const currentService = servicesData?.services.find((s: any) => s._id === bookingData.treatmentId);
   const patient = userData?.user;
   const consultant = consultantData?.user;
+
+  // Track payment success acknowledgment
+  useEffect(() => {
+    if (appointmentId) {
+      analytics.trackPaymentSuccessAcknowledged(
+        appointmentId,
+        bookingData.patientId,
+        bookingData.consultantId,
+        bookingData.centerId
+      );
+    }
+  }, [appointmentId, analytics, bookingData]);
 
   useEffect(() => {
     if (!emailsSent && !emailSendInProgress.current && patient && consultant && currentService && appointmentData) {

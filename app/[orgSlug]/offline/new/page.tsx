@@ -6,6 +6,7 @@ import { ArrowLeft } from 'lucide-react';
 import { useBookingAnalytics } from '@/hooks/useBookingAnalytics';
 import { NewUserOfflineBookingConfirmed, NewUserOfflinePaymentConfirmation, NewUserOfflineSessionDetails, NewUserOfflineSlotSelection } from '@/components/onboarding/new-user-offline';
 import { parseBookingParams, storeBookingParamsInSession } from '@/utils/booking-params';
+import { bookingStorage } from '@/utils/booking-storage';
 import { resolveInitialStep } from '@/utils/booking-step-navigation';
 
 type BookingStep =
@@ -100,8 +101,8 @@ export default function NewOfflinePage() {
         updates.selectedDate = slotStartDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
         updates.selectedFullDate = slotStartDate;
       } else if (parsedParams.slotDate) {
-        // Store slotDate in sessionStorage for slot selection component to use
-        sessionStorage.setItem('slotDate', parsedParams.slotDate);
+        // Store slotDate in tab storage for slot selection component to use
+        bookingStorage.setItem('slotDate', parsedParams.slotDate);
       }
       
       setBookingData(prev => ({ ...prev, ...updates }));
@@ -126,16 +127,16 @@ export default function NewOfflinePage() {
       return;
     }
     
-    // Fallback to sessionStorage — read ALL stored params, not just patientId/centerId
-    const storedPatientId = sessionStorage.getItem('patientId');
-    const storedCenterId = sessionStorage.getItem('centerId');
-    const storedServiceId = sessionStorage.getItem('serviceId');
-    const storedConsultantId = sessionStorage.getItem('consultantId');
-    const storedConsultantType = sessionStorage.getItem('consultantType');
-    const storedTreatmentPrice = sessionStorage.getItem('treatmentPrice');
-    const storedTreatmentDuration = sessionStorage.getItem('treatmentDuration');
-    const storedSlotStart = sessionStorage.getItem('slotStart');
-    const storedSlotEnd = sessionStorage.getItem('slotEnd');
+    // Fallback to tab storage — read ALL stored params, not just patientId/centerId
+    const storedPatientId = bookingStorage.getItem('patientId');
+    const storedCenterId = bookingStorage.getItem('centerId');
+    const storedServiceId = bookingStorage.getItem('serviceId');
+    const storedConsultantId = bookingStorage.getItem('consultantId');
+    const storedConsultantType = bookingStorage.getItem('consultantType');
+    const storedTreatmentPrice = bookingStorage.getItem('treatmentPrice');
+    const storedTreatmentDuration = bookingStorage.getItem('treatmentDuration');
+    const storedSlotStart = bookingStorage.getItem('slotStart');
+    const storedSlotEnd = bookingStorage.getItem('slotEnd');
     
     if (storedPatientId) {
       const updates: Partial<BookingData> = {
@@ -320,7 +321,7 @@ export default function NewOfflinePage() {
               centerId={bookingData.centerId}
               serviceDuration={bookingData.treatmentDuration}
               patientId={bookingData.patientId}
-              preSelectedDate={sessionStorage.getItem('slotDate') || undefined}
+              preSelectedDate={bookingStorage.getItem('slotDate') || undefined}
               preSelectedSlot={bookingData.selectedTimeSlot.startTime ? bookingData.selectedTimeSlot : undefined}
               onSlotSelect={(consultantId, slot) => {
                 const slotDate = new Date(slot.startTimeRaw);

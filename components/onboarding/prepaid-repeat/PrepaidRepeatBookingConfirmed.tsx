@@ -6,6 +6,7 @@ import { GET_CENTERS, SEND_APPOINTMENT_EMAIL, SEND_CONSULTANT_MEET_INVITE, GET_U
 import { CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
+import { BookingAnalytics } from '@/services/booking-analytics';
 
 interface PrepaidRepeatBookingConfirmedProps {
   bookingData: {
@@ -18,9 +19,10 @@ interface PrepaidRepeatBookingConfirmedProps {
     selectedDate: string;
     appointmentId?: string;
   };
+  analytics: BookingAnalytics;
 }
 
-export default function PrepaidRepeatBookingConfirmed({ bookingData }: PrepaidRepeatBookingConfirmedProps) {
+export default function PrepaidRepeatBookingConfirmed({ bookingData, analytics }: PrepaidRepeatBookingConfirmedProps) {
   const router = useRouter();
   const [resendingEmail, setResendingEmail] = useState(false);
   const creationInProgress = useRef(false);
@@ -46,6 +48,18 @@ export default function PrepaidRepeatBookingConfirmed({ bookingData }: PrepaidRe
   });
 
   const currentCenter = centersData?.centers.find((center: any) => center._id === bookingData.centerId);
+
+  // Track payment success acknowledgment
+  useEffect(() => {
+    if (bookingData.appointmentId) {
+      analytics.trackPaymentSuccessAcknowledged(
+        bookingData.appointmentId,
+        bookingData.patientId,
+        bookingData.consultantId,
+        bookingData.centerId
+      );
+    }
+  }, [bookingData.appointmentId, analytics, bookingData]);
 
   useEffect(() => {
     if (bookingData.appointmentId && !creationInProgress.current && userData && consultantData && centersData && servicesData && appointmentData) {

@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { CREATE_APPOINTMENT, UPDATE_PATIENT, GET_USER } from '@/gql/queries';
 import { getBookingCookies } from '@/utils/booking-cookies';
 import { useBookingAnalytics } from '@/hooks/useBookingAnalytics';
+import { bookingStorage } from '@/utils/booking-storage';
 import { PrepaidRepeatSessionDetails } from '@/components/onboarding/prepaid-repeat';
 import { PrepaidRepeatSlotSelection } from '@/components/onboarding/prepaid-repeat';
 import { PrepaidRepeatConfirmation } from '@/components/onboarding/prepaid-repeat';
@@ -82,12 +83,12 @@ export default function PrepaidRepeatPage() {
   useEffect(() => {
     if (!mounted) return;
     
-    const storedPatientId = sessionStorage.getItem('patientId');
-    const storedOrganizationId = sessionStorage.getItem('organizationId');
+    const storedPatientId = bookingStorage.getItem('patientId');
+    const storedOrganizationId = bookingStorage.getItem('organizationId');
     
     if (storedPatientId && storedOrganizationId) {
       setBookingData(prev => ({ ...prev, patientId: storedPatientId, organizationId: storedOrganizationId }));
-      sessionStorage.removeItem('patientId');
+      bookingStorage.removeItem('patientId');
     } else {
       router.push(`/${orgSlug}`);
     }
@@ -277,7 +278,7 @@ export default function PrepaidRepeatPage() {
         )}
 
         {currentStep === 'booking-confirmed' && (
-          <PrepaidRepeatBookingConfirmed bookingData={bookingData} />
+          <PrepaidRepeatBookingConfirmed bookingData={bookingData} analytics={analytics} />
         )}
       </div>
     </div>

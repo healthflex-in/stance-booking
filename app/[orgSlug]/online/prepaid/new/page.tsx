@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { CREATE_APPOINTMENT, UPDATE_PATIENT } from '@/gql/queries';
 import { getBookingCookies } from '@/utils/booking-cookies';
 import { useBookingAnalytics } from '@/hooks/useBookingAnalytics';
+import { bookingStorage } from '@/utils/booking-storage';
 import { PrepaidNewSessionDetails } from '@/components/onboarding/prepaid-new';
 import { NewUserOnlineServiceSelection } from '@/components/onboarding/new-user-online';
 import { PrepaidNewSlotSelection } from '@/components/onboarding/prepaid-new';
@@ -71,10 +72,10 @@ export default function PrepaidNewPage() {
   useEffect(() => {
     if (!mounted) return;
     
-    const storedPatientId = sessionStorage.getItem('patientId');
+    const storedPatientId = bookingStorage.getItem('patientId');
     if (storedPatientId) {
       setBookingData(prev => ({ ...prev, patientId: storedPatientId }));
-      sessionStorage.removeItem('patientId');
+      bookingStorage.removeItem('patientId');
     } else {
       router.push(`/${orgSlug}`);
     }
@@ -247,7 +248,7 @@ export default function PrepaidNewPage() {
         )}
 
         {currentStep === 'booking-confirmed' && (
-          <PrepaidNewBookingConfirmed bookingData={bookingData} />
+          <PrepaidNewBookingConfirmed bookingData={bookingData} analytics={analytics} />
         )}
       </div>
     </div>

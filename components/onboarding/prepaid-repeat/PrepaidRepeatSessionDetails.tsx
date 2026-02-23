@@ -48,6 +48,8 @@ export default function PrepaidRepeatSessionDetails({ patientId, organizationId,
   const handleContinue = () => {
     if (!selectedService) return;
 
+    analytics?.trackSessionDetailsContinueClicked(selectedService._id, 'Physiotherapist');
+
     onContinue({
       organizationId,
       serviceId: selectedService._id,
