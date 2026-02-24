@@ -7,15 +7,18 @@ import { useContainerDetection } from '@/hooks/useContainerDetection';
 import { Button } from '@/components/ui-atoms';
 import { StanceHealthLoader } from '@/components/loader/StanceHealthLoader';
 import { EmailCollectionModal } from '@/components/onboarding/shared';
+import { BookingAnalytics } from '@/services/booking-analytics';
 
 interface PrepaidConfirmationProps {
   bookingData: any;
   onConfirm: () => void;
+  analytics?: BookingAnalytics;
 }
 
 export default function PrepaidConfirmation({
   bookingData,
   onConfirm,
+  analytics,
 }: PrepaidConfirmationProps) {
   const { isInDesktopContainer } = useContainerDetection();
   const [isCreating, setIsCreating] = useState(false);
@@ -47,6 +50,12 @@ export default function PrepaidConfirmation({
       return;
     }
     
+    analytics?.trackConfirmBookingClicked(
+      '',
+      bookingData.treatmentPrice || 0,
+      bookingData.treatmentId,
+      bookingData.consultantId || ''
+    );
     setIsCreating(true);
     try {
       await onConfirm();

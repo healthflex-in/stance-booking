@@ -274,6 +274,7 @@ export default function PrepaidRepeatPage() {
             bookingData={bookingData}
             onConfirm={handleConfirmBooking}
             isCreating={isCreatingAppointment}
+            analytics={analytics}
           />
         )}
 

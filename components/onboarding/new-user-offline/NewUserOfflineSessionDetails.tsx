@@ -54,12 +54,15 @@ export default function NewUserOfflineSessionDetails({
   // Pre-populate center if provided from params
   useEffect(() => {
     if (centerId && filteredCenters.length > 0 && !selectedCenter) {
-      setIsLoadingPreselected(true);
       const center = filteredCenters.find((c: any) => c._id === centerId);
       if (center) {
         setSelectedCenter(center);
         // Only lock if it came from URL params
         setIsCenterFromParams(isParamFromUrl('centerId'));
+      }
+      // Only show loading if we also need to preselect a service
+      if (serviceId) {
+        setIsLoadingPreselected(true);
       }
     }
   }, [centerId, filteredCenters, selectedCenter]);
@@ -184,7 +187,7 @@ export default function NewUserOfflineSessionDetails({
         centers={filteredCenters}
         sessionType="in-person"
         onSelect={(center) => {
-          analytics?.trackEvent('center_selected', { centerId: center._id });
+          analytics?.trackEvent('center_selected', { centerId: center._id, centerName: center.name });
           setSelectedCenter(center);
           setShowLocationModal(false);
         }}

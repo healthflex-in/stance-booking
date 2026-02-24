@@ -8,14 +8,16 @@ import { useContainerDetection } from '@/hooks/useContainerDetection';
 import { Button } from '@/components/ui-atoms';
 import { StanceHealthLoader } from '@/components/loader/StanceHealthLoader';
 import { EmailCollectionModal } from '@/components/onboarding/shared';
+import { BookingAnalytics } from '@/services/booking-analytics';
 
 interface PrepaidRepeatConfirmationProps {
   bookingData: any;
   onConfirm: () => void;
   isCreating?: boolean;
+  analytics?: BookingAnalytics;
 }
 
-export default function PrepaidRepeatConfirmation({ bookingData, onConfirm, isCreating = false }: PrepaidRepeatConfirmationProps) {
+export default function PrepaidRepeatConfirmation({ bookingData, onConfirm, isCreating = false, analytics }: PrepaidRepeatConfirmationProps) {
   const { isInDesktopContainer } = useContainerDetection();
   const [showEmailModal, setShowEmailModal] = useState(false);
 
@@ -44,6 +46,12 @@ export default function PrepaidRepeatConfirmation({ bookingData, onConfirm, isCr
       setShowEmailModal(true);
       return;
     }
+    analytics?.trackConfirmBookingClicked(
+      '',
+      bookingData.treatmentPrice || 0,
+      bookingData.treatmentId || '',
+      bookingData.consultantId || ''
+    );
     await onConfirm();
   };
 

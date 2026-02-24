@@ -108,8 +108,16 @@ export class BookingAnalytics {
     const timeOnPreviousStep = Date.now() - this.stepStartTime;
     this.stepStartTime = Date.now();
 
-    this.trackEvent('step_view', {
-      step,
+    const stepEventNames: Record<string, string> = {
+      'session-details': 'session_details_step',
+      'slot-selection': 'slot_availability_step',
+      'payment-confirmation': 'payment_step',
+      'booking-confirmed': 'booking_confirmed_step',
+      'confirmation': 'confirm_booking_step',
+    };
+
+    const eventName = stepEventNames[step] || `${step}_step`;
+    this.trackEvent(eventName, {
       time_on_previous_step: timeOnPreviousStep,
       ...metadata,
     });

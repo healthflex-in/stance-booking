@@ -186,6 +186,18 @@ export default function NewOnlinePage() {
     }
   }, [mounted, orgSlug, router, searchParams]);
 
+  const stepNames: Record<BookingStep, string> = {
+    'session-details': 'Session Details',
+    'slot-selection': 'Slot Availability',
+    'payment-confirmation': 'Payment',
+    'booking-confirmed': 'Booking Confirmed',
+  };
+
+  useEffect(() => {
+    if (!mounted) return;
+    analytics.trackStepView(currentStep, { step_name: stepNames[currentStep] || currentStep });
+  }, [currentStep, mounted]);
+
   const goToNextStep = () => {
     const stepOrder: BookingStep[] = [
       'session-details',
@@ -198,7 +210,6 @@ export default function NewOnlinePage() {
       const nextStep = stepOrder[currentIndex + 1];
       analytics.trackStepComplete(currentStep);
       setCurrentStep(nextStep);
-      analytics.trackStepView(nextStep);
     }
   };
 

@@ -6,6 +6,7 @@ import { GET_CENTERS, GET_SERVICES, GET_USER } from '@/gql/queries';
 import { useContainerDetection } from '@/hooks/useContainerDetection';
 import { Button } from '@/components/ui-atoms';
 import { StanceHealthLoader } from '@/components/loader/StanceHealthLoader';
+import { BookingAnalytics } from '@/services/booking-analytics';
 
 interface BookingData {
   sessionType: 'in-person';
@@ -22,12 +23,14 @@ interface RepeatUserOfflineConfirmationProps {
   bookingData: BookingData;
   onConfirm: () => void;
   isCreating?: boolean;
+  analytics?: BookingAnalytics;
 }
 
 export default function RepeatUserOfflineConfirmation({
   bookingData,
   onConfirm,
   isCreating = false,
+  analytics,
 }: RepeatUserOfflineConfirmationProps) {
   const { isInDesktopContainer } = useContainerDetection();
 
@@ -57,6 +60,12 @@ export default function RepeatUserOfflineConfirmation({
   const isLoading = centersLoading || servicesLoading || userLoading || consultantLoading;
 
   const handleConfirm = async () => {
+    analytics?.trackConfirmBookingClicked(
+      '',
+      bookingData.treatmentPrice,
+      bookingData.treatmentId,
+      bookingData.consultantId
+    );
     await onConfirm();
   };
 

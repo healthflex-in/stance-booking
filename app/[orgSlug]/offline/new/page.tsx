@@ -61,6 +61,17 @@ export default function NewOfflinePage() {
 
   useEffect(() => {
     if (!mounted) return;
+    const stepNames: Record<BookingStep, string> = {
+      'session-details': 'Session Details',
+      'slot-selection': 'Slot Availability',
+      'payment-confirmation': 'Payment',
+      'booking-confirmed': 'Booking Confirmed',
+    };
+    analytics.trackStepView(currentStep, { step_name: stepNames[currentStep] || currentStep });
+  }, [currentStep, mounted]);
+
+  useEffect(() => {
+    if (!mounted) return;
     
     // Check URL params first
     const parsedParams = parseBookingParams(searchParams);

@@ -653,7 +653,10 @@ export default function SimplifiedPatientOnboarding({
                     <div className="bg-white rounded-xl p-1 border-2 flex relative" style={{ borderColor: '#DDFE71' }}>
                       <button
                         type="button"
-                        onClick={() => setSessionType('in-person')}
+                        onClick={() => {
+                          setSessionType('in-person');
+                          mobileAnalytics.trackEvent('session_type_clicked', { session_type: 'in-person', center_id: centerId });
+                        }}
                         className={`flex-1 py-2 px-3 rounded-lg font-medium text-xs transition-all ${
                           sessionType === 'in-person'
                             ? 'text-black shadow-sm'
@@ -670,7 +673,10 @@ export default function SimplifiedPatientOnboarding({
                           <div className="w-px bg-gray-300 mx-1" />
                           <button
                             type="button"
-                            onClick={() => setSessionType('online')}
+                            onClick={() => {
+                              setSessionType('online');
+                              mobileAnalytics.trackEvent('session_type_clicked', { session_type: 'online', center_id: centerId });
+                            }}
                             className={`flex-1 py-2 px-3 rounded-lg font-medium text-xs transition-all ${
                               sessionType === 'online'
                                 ? 'text-black shadow-sm'
@@ -779,6 +785,7 @@ export default function SimplifiedPatientOnboarding({
         onClose={() => !isNavigating && setShowSessionTypeModal(false)}
         onSelect={(selectedSessionType) => {
           setSessionType(selectedSessionType);
+          mobileAnalytics.trackEvent('session_type_clicked', { session_type: selectedSessionType, center_id: centerId });
           handleRepeatUserContinueWithSessionType(selectedSessionType);
         }}
         selectedSessionType={sessionType || undefined}
