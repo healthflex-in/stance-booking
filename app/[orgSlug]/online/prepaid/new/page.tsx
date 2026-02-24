@@ -244,6 +244,7 @@ export default function PrepaidNewPage() {
             bookingData={bookingData}
             onConfirm={handleConfirmBooking}
             isCreating={isCreatingAppointment}
+            analytics={analytics}
           />
         )}
 

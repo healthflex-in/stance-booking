@@ -73,7 +73,13 @@ export default function RepeatOfflinePage() {
   }, [analytics]);
 
   useEffect(() => {
-    analytics.trackStepView(currentStep);
+    const stepNames: Record<BookingStep, string> = {
+      'session-details': 'Session Details',
+      'slot-selection': 'Slot Availability',
+      'confirmation': 'Confirm Booking',
+      'booking-confirmed': 'Booking Confirmed',
+    };
+    analytics.trackStepView(currentStep, { step_name: stepNames[currentStep] || currentStep });
   }, [currentStep]);
 
   useEffect(() => {
@@ -379,6 +385,7 @@ export default function RepeatOfflinePage() {
             bookingData={bookingData}
             onConfirm={handleConfirmBooking}
             isCreating={isCreatingAppointment}
+            analytics={analytics}
           />
         )}
 

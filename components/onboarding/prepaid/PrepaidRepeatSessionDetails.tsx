@@ -177,6 +177,7 @@ export default function PrepaidRepeatSessionDetails({ patientId, centerId, onBac
         centers={filteredCenters}
         sessionType="online"
         onSelect={(center) => {
+          analytics?.trackEvent('center_selected', { centerId: center._id, centerName: center.name });
           setSelectedCenter(center);
           setShowLocationModal(false);
         }}

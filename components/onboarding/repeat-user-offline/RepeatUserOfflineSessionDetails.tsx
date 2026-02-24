@@ -287,6 +287,7 @@ export default function RepeatUserOfflineSessionDetails({
         centers={filteredCenters}
         sessionType="in-person"
         onSelect={(center) => {
+          analytics?.trackEvent('center_selected', { centerId: center._id, centerName: center.name });
           setSelectedCenter(center);
           setShowLocationModal(false);
         }}

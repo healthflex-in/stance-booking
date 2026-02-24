@@ -10,6 +10,7 @@ import { StanceHealthLoader } from '@/components/loader/StanceHealthLoader';
 import CrossOrgModal from './shared/CrossOrgModal';
 import NewUserServiceModal from './shared/NewUserServiceModal';
 import { useContainerDetection } from '@/hooks/useContainerDetection';
+import { useMobileFlowAnalytics } from '@/services/mobile-analytics';
 
 interface OnlineOnboardingProps {
   organizationId: string;
@@ -28,6 +29,15 @@ interface FormData {
 
 export default function OnlineOnboarding({ organizationId, onComplete }: OnlineOnboardingProps) {
   const { isInDesktopContainer } = useContainerDetection();
+  const mobileAnalytics = useMobileFlowAnalytics();
+  const [trackedFields, setTrackedFields] = useState({
+    phone: false,
+    firstName: false,
+    lastName: false,
+    email: false,
+    dob: false,
+    notes: false,
+  });
   const [isPhoneVerified, setIsPhoneVerified] = useState(false);
   const [isNewUser, setIsNewUser] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
@@ -66,6 +76,7 @@ export default function OnlineOnboarding({ organizationId, onComplete }: OnlineO
   const [createPatient, { loading: creating }] = useMutation(CREATE_PATIENT, {
     onCompleted: (data) => {
       toast.success('Patient created successfully');
+      mobileAnalytics.trackPatientCreated(data.createPatient._id, organizationId, false);
       onComplete(data.createPatient._id, true);
     },
     onError: (error) => {
@@ -255,6 +266,10 @@ export default function OnlineOnboarding({ organizationId, onComplete }: OnlineO
                   onChange={(e) => {
                     const digitsOnly = e.target.value.replace(/\D/g, '');
                     updateFormData('phone', digitsOnly);
+                    if (digitsOnly.length > 0 && !trackedFields.phone) {
+                      mobileAnalytics.trackPhoneNumberEntered(organizationId);
+                      setTrackedFields(prev => ({ ...prev, phone: true }));
+                    }
                     if (isPhoneVerified) {
                       setIsPhoneVerified(false);
                       setIsNewUser(false);
@@ -269,7 +284,10 @@ export default function OnlineOnboarding({ organizationId, onComplete }: OnlineO
                 />
                 {formData.phone.length === 10 && !isPhoneVerified && (
                   <button
-                    onClick={handlePhoneVerification}
+                    onClick={() => {
+                      mobileAnalytics.trackPhoneVerificationAttempt(formData.phone, organizationId);
+                      handlePhoneVerification();
+                    }}
                     disabled={isVerifying}
                     className="absolute right-2 top-1/2 transform -translate-y-1/2 px-2 py-1 rounded text-xs font-medium text-black transition-all disabled:bg-gray-400 disabled:cursor-not-allowed"
                     style={{ backgroundColor: isVerifying ? '#9CA3AF' : '#DDFE71' }}
@@ -288,7 +306,13 @@ export default function OnlineOnboarding({ organizationId, onComplete }: OnlineO
                 <input
                   type="text"
                   value={formData.firstName}
-                  onChange={(e) => updateFormData('firstName', e.target.value)}
+                  onChange={(e) => {
+                    updateFormData('firstName', e.target.value);
+                    if (e.target.value.trim().length > 0 && !trackedFields.firstName) {
+                      mobileAnalytics.trackFirstNameEntered(organizationId);
+                      setTrackedFields(prev => ({ ...prev, firstName: true }));
+                    }
+                  }}
                   disabled={!isPhoneVerified}
                   className={`w-full p-3 border-2 rounded-xl ${
                     formErrors.firstName ? 'border-red-300' : 'border-gray-200'
@@ -302,7 +326,13 @@ export default function OnlineOnboarding({ organizationId, onComplete }: OnlineO
                 <input
                   type="text"
                   value={formData.lastName}
-                  onChange={(e) => updateFormData('lastName', e.target.value)}
+                  onChange={(e) => {
+                    updateFormData('lastName', e.target.value);
+                    if (e.target.value.trim().length > 0 && !trackedFields.lastName) {
+                      mobileAnalytics.trackLastNameEntered(organizationId);
+                      setTrackedFields(prev => ({ ...prev, lastName: true }));
+                    }
+                  }}
                   disabled={!isPhoneVerified}
                   className={`w-full p-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 outline-none ${!isPhoneVerified ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                   placeholder="Last name"
@@ -315,7 +345,13 @@ export default function OnlineOnboarding({ organizationId, onComplete }: OnlineO
               <input
                 type="email"
                 value={formData.email}
-                onChange={(e) => updateFormData('email', e.target.value)}
+                onChange={(e) => {
+                  updateFormData('email', e.target.value);
+                  if (e.target.value.trim().length > 0 && !trackedFields.email) {
+                    mobileAnalytics.trackEmailEntered(organizationId);
+                    setTrackedFields(prev => ({ ...prev, email: true }));
+                  }
+                }}
                 disabled={!isPhoneVerified}
                 className={`w-full p-3 border-2 rounded-xl ${
                   formErrors.email ? 'border-red-300' : 'border-gray-200'
@@ -336,7 +372,10 @@ export default function OnlineOnboarding({ organizationId, onComplete }: OnlineO
                   <button
                     key={option.value}
                     type="button"
-                    onClick={() => updateFormData('gender', option.value)}
+                    onClick={() => {
+                      updateFormData('gender', option.value);
+                      mobileAnalytics.trackGenderSelected(option.value, organizationId);
+                    }}
                     disabled={!isPhoneVerified}
                     className={`p-3 border-2 rounded-xl transition-all ${
                       formData.gender === option.value
@@ -355,7 +394,13 @@ export default function OnlineOnboarding({ organizationId, onComplete }: OnlineO
               <input
                 type="date"
                 value={formData.dob}
-                onChange={(e) => updateFormData('dob', e.target.value)}
+                onChange={(e) => {
+                  updateFormData('dob', e.target.value);
+                  if (e.target.value && !trackedFields.dob) {
+                    mobileAnalytics.trackDateOfBirthEntered(organizationId);
+                    setTrackedFields(prev => ({ ...prev, dob: true }));
+                  }
+                }}
                 disabled={!isPhoneVerified}
                 className={`w-full p-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 outline-none ${!isPhoneVerified ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                 max={new Date().toISOString().split('T')[0]}
@@ -371,7 +416,13 @@ export default function OnlineOnboarding({ organizationId, onComplete }: OnlineO
               <label className="block text-sm font-medium text-gray-700 mb-2">Bio / Notes (Optional)</label>
               <textarea
                 value={formData.bio}
-                onChange={(e) => updateFormData('bio', e.target.value)}
+                onChange={(e) => {
+                  updateFormData('bio', e.target.value);
+                  if (e.target.value.trim().length > 0 && !trackedFields.notes) {
+                    mobileAnalytics.trackNotesEntered(organizationId);
+                    setTrackedFields(prev => ({ ...prev, notes: true }));
+                  }
+                }}
                 disabled={!isPhoneVerified}
                 className={`w-full h-32 p-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 outline-none resize-none ${!isPhoneVerified ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                 placeholder="Add any additional information..."
@@ -384,7 +435,10 @@ export default function OnlineOnboarding({ organizationId, onComplete }: OnlineO
       <div className={`${isInDesktopContainer ? 'flex-shrink-0' : 'fixed bottom-0 left-0 right-0'} bg-white border-t border-gray-200 p-4`}>
         {!isPhoneVerified ? (
           <button
-            onClick={handlePhoneVerification}
+            onClick={() => {
+              mobileAnalytics.trackPhoneVerificationAttempt(formData.phone, organizationId);
+              handlePhoneVerification();
+            }}
             disabled={isVerifying || !formData.phone || formData.phone.length !== 10}
             className="w-full py-4 rounded-2xl font-semibold text-black transition-all disabled:bg-gray-400 disabled:cursor-not-allowed"
             style={{ backgroundColor: isVerifying || !formData.phone || formData.phone.length !== 10 ? '#9CA3AF' : '#DDFE71' }}
@@ -393,7 +447,10 @@ export default function OnlineOnboarding({ organizationId, onComplete }: OnlineO
           </button>
         ) : isNewUser ? (
           <button
-            onClick={handleSubmit}
+            onClick={() => {
+              mobileAnalytics.trackContinueButtonClicked('patient_onboarding', organizationId, formData.phone);
+              handleSubmit();
+            }}
             disabled={creating}
             className="w-full py-4 rounded-2xl font-semibold text-black transition-all disabled:bg-gray-400 disabled:cursor-not-allowed"
             style={{ backgroundColor: creating ? '#9CA3AF' : '#DDFE71' }}

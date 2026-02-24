@@ -8,6 +8,7 @@ import { useContainerDetection } from '@/hooks/useContainerDetection';
 import { Button } from '@/components/ui-atoms';
 import { StanceHealthLoader } from '@/components/loader/StanceHealthLoader';
 import { EmailCollectionModal } from '@/components/onboarding/shared';
+import { BookingAnalytics } from '@/services/booking-analytics';
 
 interface BookingData {
   patientId: string;
@@ -24,9 +25,10 @@ interface PrepaidNewConfirmationProps {
   bookingData: BookingData;
   onConfirm: () => void;
   isCreating?: boolean;
+  analytics?: BookingAnalytics;
 }
 
-export default function PrepaidNewConfirmation({ bookingData, onConfirm, isCreating = false }: PrepaidNewConfirmationProps) {
+export default function PrepaidNewConfirmation({ bookingData, onConfirm, isCreating = false, analytics }: PrepaidNewConfirmationProps) {
   const { isInDesktopContainer } = useContainerDetection();
   const [error, setError] = useState('');
   const [showEmailModal, setShowEmailModal] = useState(false);
@@ -63,6 +65,13 @@ export default function PrepaidNewConfirmation({ bookingData, onConfirm, isCreat
         setShowEmailModal(true);
         return;
       }
+
+      analytics?.trackConfirmBookingClicked(
+        '',
+        bookingData.treatmentPrice || 0,
+        bookingData.treatmentId,
+        bookingData.consultantId || ''
+      );
 
       // Update patient's center to the selected center
       await updatePatient({
