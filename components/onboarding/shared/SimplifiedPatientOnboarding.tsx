@@ -9,6 +9,7 @@ import { CREATE_PATIENT, PATIENT_EXISTS, PATIENT_BY_PHONE, GET_CENTERS, CHECK_PA
 import { useContainerDetection } from '@/hooks/useContainerDetection';
 import { useMobileFlowAnalytics } from '@/services/mobile-analytics';
 import { getBookingCookies } from '@/utils/booking-cookies';
+import { tabStorage } from '@/utils/tab-storage';
 import SessionTypeSelectionModal from './SessionTypeSelectionModal';
 import CrossOrgModal from './CrossOrgModal';
 import NewUserServiceModal from './NewUserServiceModal';
@@ -227,7 +228,7 @@ export default function SimplifiedPatientOnboarding({
         setIsPhoneVerified(true);
         
         // Check if this is a new user service link
-        const isNewUserService = sessionStorage.getItem('isNewUserService') === 'true';
+        const isNewUserService = tabStorage.getItem('isNewUserService') === 'true';
         
         if (isNewUserService) {
           // Repeat user trying to access new user service - show modal

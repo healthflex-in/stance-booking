@@ -8,6 +8,7 @@ import { NewUserOfflineBookingConfirmed, NewUserOfflinePaymentConfirmation, NewU
 import { parseBookingParams, storeBookingParamsInSession } from '@/utils/booking-params';
 import { bookingStorage } from '@/utils/booking-storage';
 import { resolveInitialStep } from '@/utils/booking-step-navigation';
+import NewUserServiceModal from '@/components/onboarding/shared/NewUserServiceModal';
 
 type BookingStep =
   | 'session-details'
@@ -40,6 +41,7 @@ export default function NewOfflinePage() {
   const analytics = useBookingAnalytics('new-offline');
   const [isInitializing, setIsInitializing] = useState(true);
   const [isDesktop, setIsDesktop] = useState(false);
+  const [showNewUserServiceModal, setShowNewUserServiceModal] = useState(false);
   const [bookingData, setBookingData] = useState<BookingData>({
     sessionType: 'in-person',
     patientId: '',
@@ -92,6 +94,16 @@ export default function NewOfflinePage() {
       const updates: Partial<BookingData> = {};
       if (parsedParams.patientId) updates.patientId = parsedParams.patientId;
       if (parsedParams.centerId) updates.centerId = parsedParams.centerId;
+
+      // If this is a new-user-only service link but the patient already exists (repeat user),
+      // block them from proceeding — show the modal instead
+      const isNewUserServiceLink = parsedParams.isNewUserService === 'true'
+        || sessionStorage.getItem('isNewUserService') === 'true';
+      if (isNewUserServiceLink && parsedParams.patientId) {
+        setShowNewUserServiceModal(true);
+        setIsInitializing(false);
+        return;
+      }
       if (parsedParams.serviceId) updates.treatmentId = parsedParams.serviceId;
       if (parsedParams.consultantId) updates.consultantId = parsedParams.consultantId;
       if (parsedParams.consultantType) {
@@ -251,8 +263,7 @@ export default function NewOfflinePage() {
   const canGoBack = currentStep !== 'session-details' && currentStep !== 'booking-confirmed';
 
   // Show loading screen while initializing
-  if (!mounted || isInitializing) {
-    const LoadingScreen = () => (
+  if (!mounted || isInitializing) {    const LoadingScreen = () => (
       <div className="flex items-center justify-center h-screen bg-gray-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
@@ -282,8 +293,7 @@ export default function NewOfflinePage() {
 
   const BookingContent = () => (
     <>
-      <div className="h-full bg-gray-50 flex flex-col">
-        <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between flex-shrink-0">
+      <div className="h-full bg-gray-50 flex flex-col">        <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between flex-shrink-0">
           {canGoBack && (
             <button
               onClick={goToPreviousStep}
@@ -372,21 +382,39 @@ export default function NewOfflinePage() {
   // Desktop container view
   if (isDesktop) {
     return (
-      <div className="fixed inset-0 z-50">
-        <div className="absolute inset-0 bg-gray-100" />
-        <div className="absolute inset-0 bg-black/20 backdrop-blur-sm" />
-        
-        <div className="absolute inset-0 flex items-center justify-center p-4">
-          <div className="w-full max-w-sm mx-auto bg-white rounded-2xl shadow-2xl overflow-hidden relative" style={{ height: '90vh' }}>
-            <div className="h-full overflow-y-auto">
-              <BookingContent />
+      <>
+        <div className="fixed inset-0 z-50">
+          <div className="absolute inset-0 bg-gray-100" />
+          <div className="absolute inset-0 bg-black/20 backdrop-blur-sm" />
+          
+          <div className="absolute inset-0 flex items-center justify-center p-4">
+            <div className="w-full max-w-sm mx-auto bg-white rounded-2xl shadow-2xl overflow-hidden relative" style={{ height: '90vh' }}>
+              <div className="h-full overflow-y-auto">
+                <BookingContent />
+              </div>
             </div>
           </div>
         </div>
-      </div>
+        <NewUserServiceModal
+          isOpen={showNewUserServiceModal}
+          onClose={() => router.replace(`/${orgSlug}`)}
+          onCallNow={() => { window.location.href = 'tel:+919019410049'; }}
+          isInDesktopContainer={true}
+        />
+      </>
     );
   }
 
   // Mobile view
-  return <BookingContent />;
+  return (
+    <>
+      <BookingContent />
+      <NewUserServiceModal
+        isOpen={showNewUserServiceModal}
+        onClose={() => router.replace(`/${orgSlug}`)}
+        onCallNow={() => { window.location.href = 'tel:+919019410049'; }}
+        isInDesktopContainer={isDesktop}
+      />
+    </>
+  );
 }
