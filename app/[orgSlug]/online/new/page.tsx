@@ -8,6 +8,7 @@ import { useBookingAnalytics } from '@/hooks/useBookingAnalytics';
 import { parseBookingParams, storeBookingParamsInSession } from '@/utils/booking-params';
 import { bookingStorage } from '@/utils/booking-storage';
 import { resolveInitialStep } from '@/utils/booking-step-navigation';
+import NewUserServiceModal from '@/components/onboarding/shared/NewUserServiceModal';
 
 import {
   NewUserOnlinePaymentConfirmation,
@@ -48,6 +49,7 @@ export default function NewOnlinePage() {
   
   const [mounted, setMounted] = useState(false);
   const [currentStep, setCurrentStep] = useState<BookingStep>('session-details');
+  const [showNewUserServiceModal, setShowNewUserServiceModal] = useState(false);
   const [bookingData, setBookingData] = useState<BookingData>({
     sessionType: 'online',
     patientId: '',
@@ -97,6 +99,16 @@ export default function NewOnlinePage() {
       const updates: Partial<BookingData> = {};
       if (parsedParams.patientId) updates.patientId = parsedParams.patientId;
       if (parsedParams.centerId) updates.centerId = parsedParams.centerId;
+
+      // If this is a new-user-only service link but the patient already exists (repeat user),
+      // block them from proceeding — show the modal instead
+      const isNewUserServiceLink = parsedParams.isNewUserService === 'true'
+        || sessionStorage.getItem('isNewUserService') === 'true';
+      if (isNewUserServiceLink && parsedParams.patientId) {
+        setShowNewUserServiceModal(true);
+        return;
+      }
+
       if (parsedParams.serviceId) updates.treatmentId = parsedParams.serviceId;
       if (parsedParams.consultantId) updates.consultantId = parsedParams.consultantId;
       if (parsedParams.treatmentPrice) updates.treatmentPrice = parseInt(parsedParams.treatmentPrice);
@@ -355,22 +367,40 @@ export default function NewOnlinePage() {
   // Desktop container view
   if (typeof window !== 'undefined' && window.innerWidth >= 768) {
     return (
-      <div className="fixed inset-0 z-50">
-        <div className="absolute inset-0 bg-gray-100" />
-        <div className="absolute inset-0 bg-black/20 backdrop-blur-sm" />
-        
-        <div className="absolute inset-0 flex items-center justify-center p-4">
-          <div className="w-full max-w-sm mx-auto bg-white rounded-2xl shadow-2xl overflow-hidden relative" style={{ height: '90vh' }}>
-            <div className="h-full overflow-y-auto">
-              <BookingContent />
+      <>
+        <div className="fixed inset-0 z-50">
+          <div className="absolute inset-0 bg-gray-100" />
+          <div className="absolute inset-0 bg-black/20 backdrop-blur-sm" />
+          
+          <div className="absolute inset-0 flex items-center justify-center p-4">
+            <div className="w-full max-w-sm mx-auto bg-white rounded-2xl shadow-2xl overflow-hidden relative" style={{ height: '90vh' }}>
+              <div className="h-full overflow-y-auto">
+                <BookingContent />
+              </div>
             </div>
           </div>
         </div>
-      </div>
+        <NewUserServiceModal
+          isOpen={showNewUserServiceModal}
+          onClose={() => router.replace(`/${orgSlug}`)}
+          onCallNow={() => { window.location.href = 'tel:+919019410049'; }}
+          isInDesktopContainer={true}
+        />
+      </>
     );
   }
 
   // Mobile view
-  return <BookingContent />;
+  return (
+    <>
+      <BookingContent />
+      <NewUserServiceModal
+        isOpen={showNewUserServiceModal}
+        onClose={() => router.replace(`/${orgSlug}`)}
+        onCallNow={() => { window.location.href = 'tel:+919019410049'; }}
+        isInDesktopContainer={false}
+      />
+    </>
+  );
 }
 

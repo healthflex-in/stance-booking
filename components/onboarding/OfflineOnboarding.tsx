@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { User } from 'lucide-react';
 import { CHECK_PATIENT_BY_PHONE, ADD_PATIENT_TO_ORGANIZATION, CREATE_PATIENT } from '@/gql/queries';
 import { getBookingCookies } from '@/utils/booking-cookies';
+import { tabStorage } from '@/utils/tab-storage';
 import { StanceHealthLoader } from '@/components/loader/StanceHealthLoader';
 import CrossOrgModal from './shared/CrossOrgModal';
 import NewUserServiceModal from './shared/NewUserServiceModal';
@@ -116,7 +117,7 @@ export default function OfflineOnboarding({ centerId, onComplete }: OfflineOnboa
         setIsPhoneVerified(true);
       } else if (exists && !isInDifferentOrg) {
         // Check if this is a new user service link
-        const isNewUserService = sessionStorage.getItem('isNewUserService') === 'true';
+        const isNewUserService = tabStorage.getItem('isNewUserService') === 'true';
         
         if (isNewUserService) {
           // Repeat user trying to access new user service - show modal

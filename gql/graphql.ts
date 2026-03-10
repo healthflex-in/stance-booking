@@ -1945,6 +1945,15 @@ export enum MessageTemplateType {
   Waitlist = 'WAITLIST'
 }
 
+export type MetricDetail = {
+  __typename?: 'MetricDetail';
+  description: Scalars['String']['output'];
+  displayFormat: Scalars['String']['output'];
+  key: Scalars['String']['output'];
+  name: Scalars['String']['output'];
+  unit: Scalars['String']['output'];
+};
+
 export enum MuscleGroup {
   Adductors = 'ADDUCTORS',
   BicepsBrachii = 'BICEPS_BRACHII',
@@ -3017,6 +3026,20 @@ export type PatientExistsResult = {
   patient?: Maybe<User>;
 };
 
+export type PatientPhaseAnalysis = {
+  __typename?: 'PatientPhaseAnalysis';
+  _id: Scalars['ObjectID']['output'];
+  assumptionsAndDataGaps?: Maybe<Array<Scalars['String']['output']>>;
+  createdAt?: Maybe<Scalars['Timestamp']['output']>;
+  generatedDate?: Maybe<Scalars['String']['output']>;
+  patient: User;
+  patientName?: Maybe<Scalars['String']['output']>;
+  phaseMismatchAlerts?: Maybe<Array<Scalars['String']['output']>>;
+  phases?: Maybe<Scalars['JSON']['output']>;
+  protocolAndGoalShifts?: Maybe<Array<Scalars['String']['output']>>;
+  updatedAt?: Maybe<Scalars['Timestamp']['output']>;
+};
+
 export enum PatientStatus {
   Active = 'ACTIVE',
   Lead = 'LEAD',
@@ -3322,6 +3345,7 @@ export type Query = {
   patientAppointmentCount: Scalars['Int']['output'];
   patientByPhone?: Maybe<User>;
   patientExists: Scalars['Boolean']['output'];
+  patientPhaseAnalyses?: Maybe<Array<PatientPhaseAnalysis>>;
   patientSummaries?: Maybe<Array<PatientSummary>>;
   /** Get all permissions of the logged in user */
   permissions: Array<Maybe<UserPermissions>>;
@@ -3355,6 +3379,14 @@ export type Query = {
   userPermissions: Array<Maybe<UserPermissions>>;
   /** get all users */
   users: PaginatedUsers;
+  /** Get VALD exercise data for a patient by stance ID */
+  valdData?: Maybe<ValdData>;
+  /** Get specific exercise data by name */
+  valdExercise?: Maybe<ValdExercise>;
+  /** Get exercise metadata (display names and metric details) */
+  valdExerciseMetadata: Array<ValdExerciseMetadata>;
+  /** Get all exercise names for a patient */
+  valdExerciseNames: Array<Scalars['String']['output']>;
   validateOnboardingToken: OnboardingData;
   /** Get notification history for a user or slot */
   waitlistNotificationHistory: Array<WaitlistNotificationLog>;
@@ -3630,6 +3662,11 @@ export type QueryPatientExistsArgs = {
 };
 
 
+export type QueryPatientPhaseAnalysesArgs = {
+  patientId: Scalars['ObjectID']['input'];
+};
+
+
 export type QueryPatientSummariesArgs = {
   patientId: Scalars['ObjectID']['input'];
 };
@@ -3711,6 +3748,22 @@ export type QueryUsersArgs = {
   search?: InputMaybe<Scalars['String']['input']>;
   sort?: InputMaybe<UserSortInput>;
   userType?: InputMaybe<UserType>;
+};
+
+
+export type QueryValdDataArgs = {
+  stanceId: Scalars['String']['input'];
+};
+
+
+export type QueryValdExerciseArgs = {
+  exerciseName: Scalars['String']['input'];
+  stanceId: Scalars['String']['input'];
+};
+
+
+export type QueryValdExerciseNamesArgs = {
+  stanceId: Scalars['String']['input'];
 };
 
 
@@ -4213,7 +4266,7 @@ export type UpdateCenterInput = {
   isOnline?: InputMaybe<Scalars['Boolean']['input']>;
   location?: InputMaybe<Scalars['URL']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;
-  phone?: InputMaybe<Scalars['String']['input']>;
+  phone: Scalars['String']['input'];
 };
 
 export type UpdateConsultantInput = {
@@ -4228,7 +4281,7 @@ export type UpdateConsultantInput = {
   gender?: InputMaybe<Gender>;
   lastName?: InputMaybe<Scalars['String']['input']>;
   location?: InputMaybe<AddressInput>;
-  phone?: InputMaybe<Scalars['String']['input']>;
+  phone: Scalars['String']['input'];
   profilePicture?: InputMaybe<Scalars['String']['input']>;
   services?: InputMaybe<Array<Scalars['ObjectID']['input']>>;
   specialization?: InputMaybe<Specialization>;
@@ -4391,7 +4444,7 @@ export type UpdateStaffInput = {
   email?: InputMaybe<Scalars['String']['input']>;
   firstName?: InputMaybe<Scalars['String']['input']>;
   lastName?: InputMaybe<Scalars['String']['input']>;
-  phone?: InputMaybe<Scalars['String']['input']>;
+  phone: Scalars['String']['input'];
   profilePicture?: InputMaybe<Scalars['String']['input']>;
 };
 
@@ -4483,6 +4536,84 @@ export enum UserType {
   Patient = 'PATIENT',
   Staff = 'STAFF'
 }
+
+export type ValdData = {
+  __typename?: 'ValdData';
+  _id: Scalars['ObjectID']['output'];
+  createdAt: Scalars['Timestamp']['output'];
+  dynamo?: Maybe<Scalars['JSON']['output']>;
+  forceDeck?: Maybe<Scalars['JSON']['output']>;
+  forceFrame?: Maybe<Scalars['JSON']['output']>;
+  is_dynamo: Scalars['Boolean']['output'];
+  is_forcedeck: Scalars['Boolean']['output'];
+  is_forceframe: Scalars['Boolean']['output'];
+  lastRecordedUtc?: Maybe<Scalars['Timestamp']['output']>;
+  stanceId: Scalars['String']['output'];
+  updatedAt: Scalars['Timestamp']['output'];
+};
+
+export type ValdDynamoData = {
+  __typename?: 'ValdDynamoData';
+  handStrengthData?: Maybe<Scalars['JSON']['output']>;
+};
+
+export type ValdExercise = {
+  __typename?: 'ValdExercise';
+  data: Scalars['JSON']['output'];
+  deviceType: Scalars['String']['output'];
+  exerciseName: Scalars['String']['output'];
+};
+
+export type ValdExerciseData = {
+  __typename?: 'ValdExerciseData';
+  data: Scalars['JSON']['output'];
+  graph: Scalars['JSON']['output'];
+  sessionDate: Scalars['String']['output'];
+  sessionDates: Array<Scalars['String']['output']>;
+};
+
+export type ValdExerciseGraphData = {
+  __typename?: 'ValdExerciseGraphData';
+  avg_asym?: Maybe<Scalars['Float']['output']>;
+  avg_left?: Maybe<Scalars['Float']['output']>;
+  avg_right?: Maybe<Scalars['Float']['output']>;
+  color: Scalars['String']['output'];
+  graph_type: Scalars['String']['output'];
+  max_asym?: Maybe<Scalars['Float']['output']>;
+  max_left?: Maybe<Scalars['Float']['output']>;
+  max_right?: Maybe<Scalars['Float']['output']>;
+  unit: Scalars['String']['output'];
+  x_axis_entities: Array<Scalars['String']['output']>;
+  y_axis_entities_asym?: Maybe<Array<Scalars['Float']['output']>>;
+  y_axis_entities_left?: Maybe<Array<Scalars['Float']['output']>>;
+  y_axis_entities_right?: Maybe<Array<Scalars['Float']['output']>>;
+  y_axis_label: Scalars['String']['output'];
+};
+
+export type ValdExerciseMetadata = {
+  __typename?: 'ValdExerciseMetadata';
+  bodyPart?: Maybe<Scalars['String']['output']>;
+  category?: Maybe<Scalars['String']['output']>;
+  description?: Maybe<Scalars['String']['output']>;
+  deviceType?: Maybe<Scalars['String']['output']>;
+  displayName: Scalars['String']['output'];
+  key: Scalars['String']['output'];
+  metrics?: Maybe<Array<Maybe<MetricDetail>>>;
+};
+
+export type ValdExerciseMetric = {
+  __typename?: 'ValdExerciseMetric';
+  avg: Scalars['Float']['output'];
+  max: Scalars['Float']['output'];
+  values: Array<Scalars['Float']['output']>;
+};
+
+export type ValdExerciseMetricData = {
+  __typename?: 'ValdExerciseMetricData';
+  asym?: Maybe<ValdExerciseMetric>;
+  left?: Maybe<ValdExerciseMetric>;
+  right?: Maybe<ValdExerciseMetric>;
+};
 
 export type VerifyEmailOtpInput = {
   email: Scalars['String']['input'];

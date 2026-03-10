@@ -138,6 +138,11 @@ export function getTokenPackageIdByServiceAndCenter(serviceId: string, centerId:
     // Insider Day service (6960a532c64acf3d3279ab52)
     '6960a532c64acf3d3279ab52:6825aaa0d6f864397d730519': '6997f76f8b99b818f6a79674', // HSR - ₹100
     
+    // Referral - First Assessment (69ae80ea6242fdf87cb8ecd4) - ₹100 token, ₹400 balance
+    '69ae80ea6242fdf87cb8ecd4:688092ed7110183bb855bbb7': '69ae82154a33d641136d2213', // Indiranagar - ₹100
+    '69ae80ea6242fdf87cb8ecd4:6825aaa0d6f864397d730519': '69ae82154a33d641136d2213', // HSR - ₹100
+    '69ae80ea6242fdf87cb8ecd4:68468dd74aa11d735edd5d64': '69ae82154a33d641136d2213', // Whitefield - ₹100
+    
     // TODO: Add more service+center to package mappings here
   };
   
