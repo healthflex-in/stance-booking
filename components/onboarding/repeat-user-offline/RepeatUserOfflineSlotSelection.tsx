@@ -96,6 +96,7 @@ export default function RepeatUserOfflineSlotSelection({
     consultantId: selectedConsultant?._id,
     designation: backendDesignation,
     enabled: !!currentSelectedDate,
+    isRepeatUser: true,
   });
 
   // Build consultant list from availability API (single source of truth)

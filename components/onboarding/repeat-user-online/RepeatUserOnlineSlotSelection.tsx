@@ -9,6 +9,7 @@ import { StanceHealthLoader } from '@/components/loader/StanceHealthLoader';
 
 import { BookingAnalytics } from '@/services/booking-analytics';
 import { isParamFromUrl } from '@/utils/booking-params';
+import { getBookingCookies } from '@/utils/booking-cookies';
 
 interface RepeatUserOnlineSlotSelectionProps {
   organizationId: string;
@@ -79,11 +80,14 @@ export default function RepeatUserOnlineSlotSelection({
 
   const { consultants: availabilityConsultants, loading: slotsLoading } = useAvailability({
     organizationId,
+    centerId: getBookingCookies().centerId || undefined,
     startDate: startOfDay,
     endDate: endOfDay,
     serviceDuration,
     designation,
+    deliveryMode: 'ONLINE',
     enabled: !!currentSelectedDate,
+    isRepeatUser: true,
   });
 
   const consultants = React.useMemo(() => {
