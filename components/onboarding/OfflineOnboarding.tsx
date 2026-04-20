@@ -4,12 +4,19 @@ import React, { useState } from 'react';
 import { useLazyQuery, useMutation } from '@apollo/client';
 import { toast } from 'sonner';
 import { User } from 'lucide-react';
-import { CHECK_PATIENT_BY_PHONE, ADD_PATIENT_TO_ORGANIZATION, CREATE_PATIENT } from '@/gql/queries';
+import {
+  CHECK_PATIENT_BY_PHONE,
+  ADD_PATIENT_TO_ORGANIZATION,
+  CREATE_PATIENT,
+  SEND_EMAIL_OTP,
+  VERIFY_EMAIL_OTP,
+} from '@/gql/queries';
 import { getBookingCookies } from '@/utils/booking-cookies';
 import { tabStorage } from '@/utils/tab-storage';
 import { StanceHealthLoader } from '@/components/loader/StanceHealthLoader';
 import CrossOrgModal from './shared/CrossOrgModal';
 import NewUserServiceModal from './shared/NewUserServiceModal';
+import EmailOTPModal from './shared/EmailOTPModal';
 import { useContainerDetection } from '@/hooks/useContainerDetection';
 import { useMobileFlowAnalytics } from '@/services/mobile-analytics';
 
@@ -28,45 +35,43 @@ interface FormData {
   bio: string;
 }
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export default function OfflineOnboarding({ centerId, onComplete }: OfflineOnboardingProps) {
   const { isInDesktopContainer } = useContainerDetection();
   const mobileAnalytics = useMobileFlowAnalytics();
-  const [trackedFields, setTrackedFields] = useState({
-    phone: false,
-    firstName: false,
-    lastName: false,
-    email: false,
-    dob: false,
-    notes: false,
-  });
+
   const [isPhoneVerified, setIsPhoneVerified] = useState(false);
   const [isNewUser, setIsNewUser] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
+
+  const [showOTPModal, setShowOTPModal] = useState(false);
+  const [otpToken, setOtpToken] = useState<string | null>(null);
+  const [otpEmail, setOtpEmail] = useState('');
+  const [otpError, setOtpError] = useState<string | null>(null);
+  const [isSendingOTP, setIsSendingOTP] = useState(false);
+  const [isVerifyingOTP, setIsVerifyingOTP] = useState(false);
+  const [emailVerified, setEmailVerified] = useState(false);
+  const [repeatPatientId, setRepeatPatientId] = useState<string | null>(null);
+
+  const [trackedFields, setTrackedFields] = useState({
+    phone: false, firstName: false, lastName: false, email: false, dob: false, notes: false,
+  });
   const [showCrossOrgModal, setShowCrossOrgModal] = useState(false);
   const [showNewUserServiceModal, setShowNewUserServiceModal] = useState(false);
   const [crossOrgPatient, setCrossOrgPatient] = useState<any>(null);
   const [formData, setFormData] = useState<FormData>({
-    phone: '',
-    firstName: '',
-    lastName: '',
-    email: '',
-    gender: 'MALE',
-    dob: '',
-    bio: '',
+    phone: '', firstName: '', lastName: '', email: '', gender: 'MALE', dob: '', bio: '',
   });
   const [formErrors, setFormErrors] = useState<any>({});
 
-  const [checkPatientByPhone] = useLazyQuery(CHECK_PATIENT_BY_PHONE, {
-    fetchPolicy: 'network-only',
-  });
+  const [checkPatientByPhone] = useLazyQuery(CHECK_PATIENT_BY_PHONE, { fetchPolicy: 'network-only' });
 
   const [addPatientToOrg, { loading: addingToOrg }] = useMutation(ADD_PATIENT_TO_ORGANIZATION, {
     onCompleted: () => {
       toast.success('Added to organization successfully!');
       setShowCrossOrgModal(false);
-      if (crossOrgPatient) {
-        onComplete(crossOrgPatient._id, false);
-      }
+      if (crossOrgPatient) onComplete(crossOrgPatient._id, false);
     },
     onError: (error) => {
       console.error('Error adding patient to organization:', error);
@@ -85,59 +90,120 @@ export default function OfflineOnboarding({ centerId, onComplete }: OfflineOnboa
     },
   });
 
+  const [sendEmailOTPMutation] = useMutation(SEND_EMAIL_OTP);
+  const [verifyEmailOTPMutation] = useMutation(VERIFY_EMAIL_OTP);
+
+  const openOTPModal = async (email: string) => {
+    setOtpEmail(email);
+    setOtpError(null);
+    setShowOTPModal(true);
+    setIsSendingOTP(true);
+    try {
+      const { data } = await sendEmailOTPMutation({ variables: { email } });
+      setOtpToken(data.sendEmailOTP);
+    } catch (err) {
+      setOtpError('Failed to send OTP. Please try again.');
+    } finally {
+      setIsSendingOTP(false);
+    }
+  };
+
+  const handleVerifyOTP = async (code: string) => {
+    if (!otpToken) { setOtpError('OTP token missing. Please resend.'); return; }
+    setIsVerifyingOTP(true);
+    setOtpError(null);
+    try {
+      const { data } = await verifyEmailOTPMutation({
+        variables: { input: { email: otpEmail, otp: code, token: otpToken } },
+      });
+      const session = data.verifyEmailOTP;
+      if (repeatPatientId) {
+        localStorage.setItem('token', session.token);
+        localStorage.setItem('refreshToken', session.refreshToken);
+        localStorage.setItem('user', JSON.stringify(session.user));
+        setShowOTPModal(false);
+        onComplete(repeatPatientId, false);
+      } else {
+        setEmailVerified(true);
+        setShowOTPModal(false);
+        toast.success('Email verified!');
+      }
+    } catch (err) {
+      setOtpError('Invalid OTP. Please try again.');
+    } finally {
+      setIsVerifyingOTP(false);
+    }
+  };
+
+  const handleResendOTP = async () => {
+    setIsSendingOTP(true);
+    setOtpError(null);
+    try {
+      const { data } = await sendEmailOTPMutation({ variables: { email: otpEmail } });
+      setOtpToken(data.sendEmailOTP);
+    } catch (err) {
+      setOtpError('Failed to resend OTP. Please try again.');
+    } finally {
+      setIsSendingOTP(false);
+    }
+  };
+
+  const handleUpdateEmail = async (newEmail: string) => {
+    setIsSendingOTP(true);
+    setOtpError(null);
+    try {
+      const { data } = await sendEmailOTPMutation({ variables: { email: newEmail } });
+      setOtpToken(data.sendEmailOTP);
+      setOtpEmail(newEmail);
+    } catch (err) {
+      setOtpError('Failed to send OTP. Please try again.');
+    } finally {
+      setIsSendingOTP(false);
+    }
+  };
+
   const handlePhoneVerification = async () => {
     if (!formData.phone || formData.phone.length !== 10) {
       setFormErrors({ phone: 'Phone number must be 10 digits' });
       return;
     }
-
+    const cookies = getBookingCookies();
+    const organizationId = cookies.organizationId;
+    if (!organizationId) {
+      toast.error('Organization not found. Please refresh the page.');
+      return;
+    }
     setIsVerifying(true);
     try {
-      const cookies = getBookingCookies();
-      const organizationId = cookies.organizationId;
-
-      if (!organizationId) {
-        toast.error('Organization not found. Please refresh the page.');
-        setIsVerifying(false);
-        return;
-      }
-
       const { data: checkData } = await checkPatientByPhone({
-        variables: { 
-          phone: formData.phone,
-          organizationId 
-        },
+        variables: { phone: formData.phone, organizationId },
       });
-
       const { exists, patient, isInDifferentOrg } = checkData?.checkPatientByPhone || {};
 
       if (exists && isInDifferentOrg) {
         setCrossOrgPatient(patient);
         setShowCrossOrgModal(true);
         setIsPhoneVerified(true);
-      } else if (exists && !isInDifferentOrg) {
-        // Check if this is a new user service link
+        return;
+      }
+
+      if (exists && !isInDifferentOrg) {
         const isNewUserService = tabStorage.getItem('isNewUserService') === 'true';
-        
         if (isNewUserService) {
-          // Repeat user trying to access new user service - show modal
           setShowNewUserServiceModal(true);
-          setIsPhoneVerified(false);
           setFormData(prev => ({ ...prev, phone: '' }));
-          setIsVerifying(false);
           return;
         }
-        
+        setRepeatPatientId(patient._id);
+        setIsPhoneVerified(true);
         setIsNewUser(false);
-        setIsPhoneVerified(true);
-        toast.success('Welcome back!');
-        // Immediately redirect repeat users
-        onComplete(patient._id, false);
-      } else {
-        setIsNewUser(true);
-        setIsPhoneVerified(true);
-        toast.success('Phone number verified! Please fill in your details.');
+        openOTPModal(patient.email || ''); // fire and forget
+        return;
       }
+
+      setIsNewUser(true);
+      setIsPhoneVerified(true);
+      toast.success('Phone number verified! Please fill in your details.');
     } catch (error) {
       console.error('Error checking patient existence:', error);
       toast.error('Error verifying phone number. Please try again.');
@@ -148,22 +214,12 @@ export default function OfflineOnboarding({ centerId, onComplete }: OfflineOnboa
 
   const handleCrossOrgConfirm = async () => {
     if (!crossOrgPatient) return;
-
     const cookies = getBookingCookies();
-    const currentOrgId = cookies.organizationId;
-
-    if (!currentOrgId) {
-      toast.error('Organization not found. Please refresh the page.');
-      return;
-    }
-
+    const organizationId = cookies.organizationId;
+    if (!organizationId) { toast.error('Organization not found.'); return; }
     try {
       await addPatientToOrg({
-        variables: {
-          patientId: crossOrgPatient._id,
-          organizationId: currentOrgId,
-          centerIds: [centerId],
-        },
+        variables: { patientId: crossOrgPatient._id, organizationId, centerIds: [centerId] },
       });
     } catch (error) {
       console.error('Error in cross-org confirmation:', error);
@@ -177,31 +233,23 @@ export default function OfflineOnboarding({ centerId, onComplete }: OfflineOnboa
     setFormData(prev => ({ ...prev, phone: '' }));
   };
 
-  const handleCallNow = () => {
-    window.location.href = 'tel:+919019410049';
-  };
-
   const validateForm = () => {
     const errors: any = {};
-    if (!formData.firstName || !formData.firstName.trim()) {
-      errors.firstName = 'First name is required';
-    }
-    if (!formData.phone || formData.phone.length !== 10) {
-      errors.phone = 'Phone number must be 10 digits';
-    }
-    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      errors.email = 'Invalid email address';
-    }
+    if (!formData.firstName?.trim()) errors.firstName = 'First name is required';
+    if (!formData.phone || formData.phone.length !== 10) errors.phone = 'Phone number must be 10 digits';
+    if (formData.email && !EMAIL_REGEX.test(formData.email)) errors.email = 'Invalid email address';
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
 
   const handleSubmit = async () => {
     if (!validateForm()) return;
-
+    if (formData.email && !emailVerified) {
+      toast.error('Please verify your email before continuing.');
+      return;
+    }
     const dobDate = formData.dob ? new Date(formData.dob) : null;
     const dobTimestamp = dobDate ? Math.floor(dobDate.getTime() / 1000) : null;
-
     const input = {
       phone: formData.phone,
       firstName: formData.firstName,
@@ -215,7 +263,6 @@ export default function OfflineOnboarding({ centerId, onComplete }: OfflineOnboa
       patientType: 'OP_Patient',
       cohort: 'SURGICAL',
     };
-
     try {
       await createPatient({ variables: { input } });
     } catch (error) {
@@ -224,53 +271,48 @@ export default function OfflineOnboarding({ centerId, onComplete }: OfflineOnboa
   };
 
   const updateFormData = (field: string, value: any) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
-    if (formErrors[field]) {
-      setFormErrors((prev: any) => ({ ...prev, [field]: undefined }));
+    setFormData(prev => ({ ...prev, [field]: value }));
+    if (formErrors[field]) setFormErrors((prev: any) => ({ ...prev, [field]: undefined }));
+    if (field === 'email' && emailVerified) {
+      setEmailVerified(false);
+      setOtpToken(null);
     }
+  };
+
+  const handleEmailBlur = () => {
+    if (!isNewUser || !isPhoneVerified) return;
+    if (!formData.email || !EMAIL_REGEX.test(formData.email)) return;
+    if (emailVerified) return;
+    openOTPModal(formData.email);
   };
 
   return (
     <div className={`${isInDesktopContainer ? 'h-full' : 'min-h-screen'} bg-gray-50 flex flex-col`}>
-      <div 
+      <div
         className="relative h-36 w-full flex-shrink-0"
-        style={{
-          backgroundImage: 'url(/indra.webp)',
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          backgroundRepeat: 'no-repeat'
-        }}
+        style={{ backgroundImage: 'url(/indra.webp)', backgroundSize: 'cover', backgroundPosition: 'center' }}
       >
-        <div className="absolute inset-0 bg-blue-500 bg-opacity-20"></div>
+        <div className="absolute inset-0 bg-blue-500 bg-opacity-20" />
       </div>
-      
+
       <div className="flex-shrink-0 bg-gray-50 p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 bg-gray-500 rounded-xl flex items-center justify-center">
               <User className="w-5 h-5 text-[#DDFE71]" />
             </div>
-            <h6 className="text-sm font-semibold text-gray-900">
-              Book Your In-Person Appointment
-            </h6>
+            <h6 className="text-sm font-semibold text-gray-900">Book Your In-Person Appointment</h6>
           </div>
-          <img 
-            src="/stance-logo.png" 
-            alt="Stance Health" 
-            className="h-16 w-auto"
-          />
+          <img src="/stance-logo.png" alt="Stance Health" className="h-16 w-auto" />
         </div>
       </div>
 
       <div className="flex-1 overflow-y-auto">
         <div className={`p-4 ${isInDesktopContainer ? 'pb-6' : 'pb-32'}`}>
           <p className="text-gray-600 text-sm mb-6">
-            {!isPhoneVerified 
-              ? 'Enter your phone number to get started'
-              : 'Complete your profile details'
-            }
+            {!isPhoneVerified ? 'Enter your phone number to get started' : 'Complete your profile details'}
           </p>
-          
+
           <div className="space-y-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Phone Number *</label>
@@ -288,6 +330,8 @@ export default function OfflineOnboarding({ centerId, onComplete }: OfflineOnboa
                     if (isPhoneVerified) {
                       setIsPhoneVerified(false);
                       setIsNewUser(false);
+                      setRepeatPatientId(null);
+                      setEmailVerified(false);
                     }
                   }}
                   disabled={isPhoneVerified}
@@ -304,7 +348,7 @@ export default function OfflineOnboarding({ centerId, onComplete }: OfflineOnboa
                       handlePhoneVerification();
                     }}
                     disabled={isVerifying}
-                    className="absolute right-2 top-1/2 transform -translate-y-1/2 px-2 py-1 rounded text-xs font-medium text-black transition-all disabled:bg-gray-400 disabled:cursor-not-allowed"
+                    className="absolute right-2 top-1/2 transform -translate-y-1/2 px-2 py-1 rounded text-xs font-medium text-black disabled:bg-gray-400"
                     style={{ backgroundColor: isVerifying ? '#9CA3AF' : '#DDFE71' }}
                   >
                     {isVerifying ? 'Verifying...' : 'Verify'}
@@ -315,134 +359,139 @@ export default function OfflineOnboarding({ centerId, onComplete }: OfflineOnboa
               {isPhoneVerified && <p className="text-green-600 text-xs mt-1">✓ Phone number verified</p>}
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">First Name *</label>
-                <input
-                  type="text"
-                  value={formData.firstName}
-                  onChange={(e) => {
-                    updateFormData('firstName', e.target.value);
-                    if (e.target.value.trim().length > 0 && !trackedFields.firstName) {
-                      mobileAnalytics.trackFirstNameEntered(centerId);
-                      setTrackedFields(prev => ({ ...prev, firstName: true }));
-                    }
-                  }}
-                  disabled={!isPhoneVerified}
-                  className={`w-full p-3 border-2 rounded-xl ${
-                    formErrors.firstName ? 'border-red-300' : 'border-gray-200'
-                  } focus:border-blue-500 outline-none ${!isPhoneVerified ? 'bg-gray-100 cursor-not-allowed' : ''}`}
-                  placeholder="First name"
-                />
-                {formErrors.firstName && <p className="text-red-500 text-xs mt-1">{formErrors.firstName}</p>}
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Last Name</label>
-                <input
-                  type="text"
-                  value={formData.lastName}
-                  onChange={(e) => {
-                    updateFormData('lastName', e.target.value);
-                    if (e.target.value.trim().length > 0 && !trackedFields.lastName) {
-                      mobileAnalytics.trackLastNameEntered(centerId);
-                      setTrackedFields(prev => ({ ...prev, lastName: true }));
-                    }
-                  }}
-                  disabled={!isPhoneVerified}
-                  className={`w-full p-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 outline-none ${!isPhoneVerified ? 'bg-gray-100 cursor-not-allowed' : ''}`}
-                  placeholder="Last name"
-                />
-              </div>
-            </div>
+            {isPhoneVerified && isNewUser && (
+              <>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">First Name *</label>
+                    <input
+                      type="text"
+                      value={formData.firstName}
+                      onChange={(e) => {
+                        updateFormData('firstName', e.target.value);
+                        if (e.target.value.trim().length > 0 && !trackedFields.firstName) {
+                          mobileAnalytics.trackFirstNameEntered(centerId);
+                          setTrackedFields(prev => ({ ...prev, firstName: true }));
+                        }
+                      }}
+                      className={`w-full p-3 border-2 rounded-xl ${formErrors.firstName ? 'border-red-300' : 'border-gray-200'} focus:border-blue-500 outline-none`}
+                      placeholder="First name"
+                    />
+                    {formErrors.firstName && <p className="text-red-500 text-xs mt-1">{formErrors.firstName}</p>}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Last Name</label>
+                    <input
+                      type="text"
+                      value={formData.lastName}
+                      onChange={(e) => {
+                        updateFormData('lastName', e.target.value);
+                        if (e.target.value.trim().length > 0 && !trackedFields.lastName) {
+                          mobileAnalytics.trackLastNameEntered(centerId);
+                          setTrackedFields(prev => ({ ...prev, lastName: true }));
+                        }
+                      }}
+                      className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 outline-none"
+                      placeholder="Last name"
+                    />
+                  </div>
+                </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
-              <input
-                type="email"
-                value={formData.email}
-                onChange={(e) => {
-                  updateFormData('email', e.target.value);
-                  if (e.target.value.trim().length > 0 && !trackedFields.email) {
-                    mobileAnalytics.trackEmailEntered(centerId);
-                    setTrackedFields(prev => ({ ...prev, email: true }));
-                  }
-                }}
-                disabled={!isPhoneVerified}
-                className={`w-full p-3 border-2 rounded-xl ${
-                  formErrors.email ? 'border-red-300' : 'border-gray-200'
-                } focus:border-blue-500 outline-none ${!isPhoneVerified ? 'bg-gray-100 cursor-not-allowed' : ''}`}
-                placeholder="your.email@example.com"
-              />
-              {formErrors.email && <p className="text-red-500 text-xs mt-1">{formErrors.email}</p>}
-            </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Email Address
+                    {emailVerified && <span className="ml-2 text-green-600 text-xs">✓ Verified</span>}
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => {
+                        updateFormData('email', e.target.value);
+                        if (e.target.value.trim().length > 0 && !trackedFields.email) {
+                          mobileAnalytics.trackEmailEntered(centerId);
+                          setTrackedFields(prev => ({ ...prev, email: true }));
+                        }
+                      }}
+                      className={`w-full p-3 pr-20 border-2 rounded-xl ${
+                        formErrors.email ? 'border-red-300' : emailVerified ? 'border-green-300 bg-green-50' : 'border-gray-200'
+                      } focus:border-blue-500 outline-none`}
+                      placeholder="your.email@example.com"
+                    />
+                    {!emailVerified && formData.email && EMAIL_REGEX.test(formData.email) && (
+                      <button
+                        onClick={() => openOTPModal(formData.email)}
+                        disabled={isSendingOTP}
+                        className="absolute right-2 top-1/2 transform -translate-y-1/2 px-2 py-1 rounded text-xs font-medium text-black disabled:bg-gray-400 disabled:cursor-not-allowed"
+                        style={{ backgroundColor: isSendingOTP ? '#9CA3AF' : '#DDFE71' }}
+                      >
+                        {isSendingOTP ? 'Sending...' : 'Verify'}
+                      </button>
+                    )}
+                  </div>
+                  {formErrors.email && <p className="text-red-500 text-xs mt-1">{formErrors.email}</p>}
+                </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-3">Gender</label>
-              <div className="grid grid-cols-3 gap-2">
-                {[
-                  { value: 'MALE', label: 'Male' },
-                  { value: 'FEMALE', label: 'Female' },
-                  { value: 'OTHER', label: 'Other' },
-                ].map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => {
-                      updateFormData('gender', option.value);
-                      mobileAnalytics.trackGenderSelected(option.value, centerId);
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-3">Gender</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[{ value: 'MALE', label: 'Male' }, { value: 'FEMALE', label: 'Female' }, { value: 'OTHER', label: 'Other' }].map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => {
+                          updateFormData('gender', option.value);
+                          mobileAnalytics.trackGenderSelected(option.value, centerId);
+                        }}
+                        className={`p-3 border-2 rounded-xl transition-all ${
+                          formData.gender === option.value ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-700 hover:border-gray-300'
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Date of Birth</label>
+                  <input
+                    type="date"
+                    value={formData.dob}
+                    onChange={(e) => {
+                      updateFormData('dob', e.target.value);
+                      if (e.target.value && !trackedFields.dob) {
+                        mobileAnalytics.trackDateOfBirthEntered(centerId);
+                        setTrackedFields(prev => ({ ...prev, dob: true }));
+                      }
                     }}
-                    disabled={!isPhoneVerified}
-                    className={`p-3 border-2 rounded-xl transition-all ${
-                      formData.gender === option.value
-                        ? 'border-blue-500 bg-blue-50 text-blue-700'
-                        : 'border-gray-200 text-gray-700 hover:border-gray-300'
-                    } ${!isPhoneVerified ? 'bg-gray-100 cursor-not-allowed opacity-50' : ''}`}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
-            </div>
+                    className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 outline-none"
+                    max={new Date().toISOString().split('T')[0]}
+                  />
+                  {formData.dob && (
+                    <p className="text-sm text-gray-500 mt-1">
+                      Age: {Math.floor((Date.now() - new Date(formData.dob).getTime()) / (365.25 * 24 * 60 * 60 * 1000))} years
+                    </p>
+                  )}
+                </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Date of Birth</label>
-              <input
-                type="date"
-                value={formData.dob}
-                onChange={(e) => {
-                  updateFormData('dob', e.target.value);
-                  if (e.target.value && !trackedFields.dob) {
-                    mobileAnalytics.trackDateOfBirthEntered(centerId);
-                    setTrackedFields(prev => ({ ...prev, dob: true }));
-                  }
-                }}
-                disabled={!isPhoneVerified}
-                className={`w-full p-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 outline-none ${!isPhoneVerified ? 'bg-gray-100 cursor-not-allowed' : ''}`}
-                max={new Date().toISOString().split('T')[0]}
-              />
-              {formData.dob && isPhoneVerified && (
-                <p className="text-sm text-gray-500 mt-1">
-                  Age: {Math.floor((Date.now() - new Date(formData.dob).getTime()) / (365.25 * 24 * 60 * 60 * 1000))} years
-                </p>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Bio / Notes (Optional)</label>
-              <textarea
-                value={formData.bio}
-                onChange={(e) => {
-                  updateFormData('bio', e.target.value);
-                  if (e.target.value.trim().length > 0 && !trackedFields.notes) {
-                    mobileAnalytics.trackNotesEntered(centerId);
-                    setTrackedFields(prev => ({ ...prev, notes: true }));
-                  }
-                }}
-                disabled={!isPhoneVerified}
-                className={`w-full h-32 p-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 outline-none resize-none ${!isPhoneVerified ? 'bg-gray-100 cursor-not-allowed' : ''}`}
-                placeholder="Add any additional information..."
-              />
-            </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Bio / Notes (Optional)</label>
+                  <textarea
+                    value={formData.bio}
+                    onChange={(e) => {
+                      updateFormData('bio', e.target.value);
+                      if (e.target.value.trim().length > 0 && !trackedFields.notes) {
+                        mobileAnalytics.trackNotesEntered(centerId);
+                        setTrackedFields(prev => ({ ...prev, notes: true }));
+                      }
+                    }}
+                    className="w-full h-32 p-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 outline-none resize-none"
+                    placeholder="Add any additional information..."
+                  />
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -466,11 +515,11 @@ export default function OfflineOnboarding({ centerId, onComplete }: OfflineOnboa
               mobileAnalytics.trackContinueButtonClicked('patient_onboarding', centerId, formData.phone);
               handleSubmit();
             }}
-            disabled={creating}
+            disabled={creating || (!!formData.email && !emailVerified)}
             className="w-full py-4 rounded-2xl font-semibold text-black transition-all disabled:bg-gray-400 disabled:cursor-not-allowed"
-            style={{ backgroundColor: creating ? '#9CA3AF' : '#DDFE71' }}
+            style={{ backgroundColor: creating || (!!formData.email && !emailVerified) ? '#9CA3AF' : '#DDFE71' }}
           >
-            {creating ? 'Creating Profile...' : 'Continue'}
+            {creating ? 'Creating Profile...' : formData.email && !emailVerified ? 'Verify email to continue' : 'Continue'}
           </button>
         ) : null}
       </div>
@@ -483,6 +532,26 @@ export default function OfflineOnboarding({ centerId, onComplete }: OfflineOnboa
         </div>
       )}
 
+      <EmailOTPModal
+        isOpen={showOTPModal}
+        email={otpEmail}
+        isSending={isSendingOTP}
+        isVerifying={isVerifyingOTP}
+        error={otpError}
+        onVerify={handleVerifyOTP}
+        onResend={handleResendOTP}
+        onUpdateEmail={handleUpdateEmail}
+        onClose={() => {
+          setShowOTPModal(false);
+          setOtpError(null);
+          if (repeatPatientId && !emailVerified) {
+            setIsPhoneVerified(false);
+            setRepeatPatientId(null);
+            setFormData(prev => ({ ...prev, phone: '' }));
+          }
+        }}
+      />
+
       <CrossOrgModal
         isOpen={showCrossOrgModal}
         patient={crossOrgPatient}
@@ -494,7 +563,7 @@ export default function OfflineOnboarding({ centerId, onComplete }: OfflineOnboa
       <NewUserServiceModal
         isOpen={showNewUserServiceModal}
         onClose={() => setShowNewUserServiceModal(false)}
-        onCallNow={handleCallNow}
+        onCallNow={() => { window.location.href = 'tel:+919019410049'; }}
         isInDesktopContainer={isInDesktopContainer}
       />
     </div>
