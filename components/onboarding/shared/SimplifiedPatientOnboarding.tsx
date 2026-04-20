@@ -1,11 +1,11 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useMutation, useLazyQuery, useQuery } from '@apollo/client';
 import { toast } from 'sonner';
 import { User } from 'lucide-react';
 import { StanceHealthLoader } from '@/components/loader/StanceHealthLoader';
-import { CREATE_PATIENT, PATIENT_EXISTS, PATIENT_BY_PHONE, GET_CENTERS, CHECK_PATIENT_BY_PHONE, ADD_PATIENT_TO_ORGANIZATION } from '@/gql/queries';
+import { CREATE_PATIENT, PATIENT_EXISTS, PATIENT_BY_PHONE, GET_CENTERS, CHECK_PATIENT_BY_PHONE, ADD_PATIENT_TO_ORGANIZATION, SEND_EMAIL_OTP, VERIFY_EMAIL_OTP } from '@/gql/queries';
 import { useContainerDetection } from '@/hooks/useContainerDetection';
 import { useMobileFlowAnalytics } from '@/services/mobile-analytics';
 import { getBookingCookies } from '@/utils/booking-cookies';
@@ -13,6 +13,7 @@ import { tabStorage } from '@/utils/tab-storage';
 import SessionTypeSelectionModal from './SessionTypeSelectionModal';
 import CrossOrgModal from './CrossOrgModal';
 import NewUserServiceModal from './NewUserServiceModal';
+import EmailOTPModal from './EmailOTPModal';
 
 interface SimplifiedPatientOnboardingProps {
   centerId: string;
@@ -76,6 +77,18 @@ export default function SimplifiedPatientOnboarding({
   });
   const mobileAnalytics = useMobileFlowAnalytics();
 
+  // OTP state — simple booleans, modal handles everything
+  const [showOTPModal, setShowOTPModal] = useState(false);
+  const [otpToken, setOtpToken] = useState<string | null>(null);
+  const [otpEmail, setOtpEmail] = useState('');
+  const [otpError, setOtpError] = useState<string | null>(null);
+  const [isSendingOTP, setIsSendingOTP] = useState(false);
+  const [isVerifyingOTP, setIsVerifyingOTP] = useState(false);
+  const [emailVerified, setEmailVerified] = useState(false);
+  const [pendingRepeatPatientId, setPendingRepeatPatientId] = useState<string | null>(null);
+  const [pendingSessionType, setPendingSessionType] = useState<'in-person' | 'online' | null>(null);
+  const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
   const { data: centersData } = useQuery(GET_CENTERS, {
     fetchPolicy: 'network-only', // Changed to network-only to ensure fresh data per org
   });
@@ -112,7 +125,9 @@ export default function SimplifiedPatientOnboarding({
     },
   });
 
-  // Read pre-stored assessmentType from sessionStorage (set by URL params via entry page)
+  const [sendEmailOTPMutation] = useMutation(SEND_EMAIL_OTP);
+  const [verifyEmailOTPMutation] = useMutation(VERIFY_EMAIL_OTP);
+
   useEffect(() => {
     try {
       const stored = sessionStorage.getItem('assessmentType');
@@ -189,6 +204,90 @@ export default function SimplifiedPatientOnboarding({
     },
   });
 
+  // ─── OTP modal handlers ──────────────────────────────────────────────────────
+
+  const openOTPModal = async (email: string) => {
+    setOtpEmail(email);
+    setOtpError(null);
+    setShowOTPModal(true);
+    setIsSendingOTP(true);
+    try {
+      const { data } = await sendEmailOTPMutation({ variables: { email } });
+      setOtpToken(data.sendEmailOTP);
+    } catch (err) {
+      setOtpError('Failed to send OTP. Please try again.');
+    } finally {
+      setIsSendingOTP(false);
+    }
+  };
+
+  const handleVerifyOTP = async (code: string) => {
+    if (!otpToken) { setOtpError('OTP token missing. Please resend.'); return; }
+    setIsVerifyingOTP(true);
+    setOtpError(null);
+    try {
+      const { data } = await verifyEmailOTPMutation({
+        variables: { input: { email: otpEmail, otp: code, token: otpToken } },
+      });
+      const session = data.verifyEmailOTP;
+
+      if (pendingRepeatPatientId) {
+        localStorage.setItem('token', session.token);
+        localStorage.setItem('refreshToken', session.refreshToken);
+        localStorage.setItem('user', JSON.stringify(session.user));
+        const st = pendingSessionType!;
+        setShowOTPModal(false);
+        setPendingRepeatPatientId(null);
+        setPendingSessionType(null);
+        onComplete(pendingRepeatPatientId, false, st);
+      } else {
+        setEmailVerified(true);
+        setShowOTPModal(false);
+        toast.success('Email verified!');
+      }
+    } catch (err) {
+      setOtpError('Invalid OTP. Please try again.');
+    } finally {
+      setIsVerifyingOTP(false);
+    }
+  };
+
+  const handleResendOTP = async () => {
+    setIsSendingOTP(true);
+    setOtpError(null);
+    try {
+      const { data } = await sendEmailOTPMutation({ variables: { email: otpEmail } });
+      setOtpToken(data.sendEmailOTP);
+    } catch (err) {
+      setOtpError('Failed to resend OTP. Please try again.');
+    } finally {
+      setIsSendingOTP(false);
+    }
+  };
+
+  const handleUpdateEmail = async (newEmail: string) => {
+    setIsSendingOTP(true);
+    setOtpError(null);
+    try {
+      const { data } = await sendEmailOTPMutation({ variables: { email: newEmail } });
+      setOtpToken(data.sendEmailOTP);
+      setOtpEmail(newEmail);
+    } catch (err) {
+      setOtpError('Failed to send OTP. Please try again.');
+    } finally {
+      setIsSendingOTP(false);
+    }
+  };
+
+  const handleEmailBlur = () => {
+    if (!isNewUser || !isPhoneVerified) return;
+    if (!formData.email || !EMAIL_REGEX.test(formData.email)) return;
+    if (emailVerified) return;
+    openOTPModal(formData.email);
+  };
+
+  // ─── Phone verification ──────────────────────────────────────────────────────
+
   const handlePhoneVerification = async () => {
     if (!formData.phone || formData.phone.length !== 10) {
       setFormErrors({ phone: 'Phone number must be 10 digits' });
@@ -223,24 +322,28 @@ export default function SimplifiedPatientOnboarding({
         setShowCrossOrgModal(true);
         setIsPhoneVerified(true);
       } else if (exists && !isInDifferentOrg) {
-        // Patient exists in current organization - proceed as repeat user
+        // Patient exists in current organization - gate with email OTP
         setIsNewUser(false);
         setIsPhoneVerified(true);
-        
+
         // Check if this is a new user service link
         const isNewUserService = tabStorage.getItem('isNewUserService') === 'true';
-        
         if (isNewUserService) {
-          // Repeat user trying to access new user service - show modal
           setShowNewUserServiceModal(true);
           return;
         }
-        
-        if (preStoredAssessmentType) {
-          // assessmentType pre-stored from URL params — skip session type modal
-          handleRepeatUserContinueWithSessionType(preStoredAssessmentType);
+
+        // Store patient id and session type for after OTP
+        const email: string = patient.email || '';
+        const resolvedSessionType = preStoredAssessmentType || null;
+        setPendingRepeatPatientId(patient._id);
+        setPendingSessionType(resolvedSessionType);
+
+        if (EMAIL_REGEX.test(email)) {
+          openOTPModal(email); // fire and forget — modal opens instantly
         } else {
-          setShowSessionTypeModal(true);
+          setOtpEmail('');
+          setShowOTPModal(true);
         }
       } else {
         // New patient - show form
@@ -338,6 +441,9 @@ export default function SimplifiedPatientOnboarding({
     if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       errors.email = 'Invalid email address';
       mobileAnalytics.trackPatientFormValidationError('email', 'invalid_format', centerId);
+    }
+    if (!emailVerified && formData.email) {
+      errors.email = 'Please verify your email first';
     }
 
     setFormErrors(errors);
@@ -495,23 +601,41 @@ export default function SimplifiedPatientOnboarding({
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">
           Email Address
+          {emailVerified && <span className="ml-2 text-green-600 text-xs">✓ Verified</span>}
         </label>
-        <input
-          type="email"
-          value={formData.email}
-          onChange={(e) => {
-            updateFormData('email', e.target.value);
-            if (e.target.value.trim().length > 0 && !trackedFields.email) {
-              mobileAnalytics.trackEmailEntered(centerId);
-              setTrackedFields(prev => ({ ...prev, email: true }));
-            }
-          }}
-          disabled={!isPhoneVerified}
-          className={`w-full p-3 border-2 rounded-xl ${
-            formErrors.email ? 'border-red-300' : 'border-gray-200'
-          } focus:border-blue-500 outline-none ${!isPhoneVerified ? 'bg-gray-100 cursor-not-allowed' : ''}`}
-          placeholder="your.email@example.com"
-        />
+        <div className="relative">
+          <input
+            type="email"
+            value={formData.email}
+            onChange={(e) => {
+              updateFormData('email', e.target.value);
+              if (e.target.value.trim().length > 0 && !trackedFields.email) {
+                mobileAnalytics.trackEmailEntered(centerId);
+                setTrackedFields(prev => ({ ...prev, email: true }));
+              }
+              if (emailVerified) {
+                setEmailVerified(false);
+                setOtpToken(null);
+                setOtpError(null);
+              }
+            }}
+            disabled={!isPhoneVerified}
+            className={`w-full p-3 pr-20 border-2 rounded-xl ${
+              formErrors.email ? 'border-red-300' : emailVerified ? 'border-green-300 bg-green-50' : 'border-gray-200'
+            } focus:border-blue-500 outline-none ${!isPhoneVerified ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+            placeholder="your.email@example.com"
+          />
+          {isPhoneVerified && !emailVerified && formData.email && EMAIL_REGEX.test(formData.email) && (
+            <button
+              onClick={() => openOTPModal(formData.email)}
+              disabled={isSendingOTP}
+              className="absolute right-2 top-1/2 transform -translate-y-1/2 px-2 py-1 rounded text-xs font-medium text-black disabled:bg-gray-400 disabled:cursor-not-allowed"
+              style={{ backgroundColor: isSendingOTP ? '#9CA3AF' : '#DDFE71' }}
+            >
+              {isSendingOTP ? 'Sending...' : 'Verify'}
+            </button>
+          )}
+        </div>
         {formErrors.email && (
           <p className="text-red-500 text-xs mt-1">{formErrors.email}</p>
         )}
@@ -642,6 +766,8 @@ export default function SimplifiedPatientOnboarding({
             <div className="space-y-6">
               {renderPhoneInput()}
               
+              {/* Repeat user — OTP modal is handled separately */}
+
               {isPhoneVerified && isNewUser && !preStoredAssessmentType && (() => {
                 const cookies = getBookingCookies();
                 const isHyfit = cookies.orgSlug === 'hyfit' || cookies.orgSlug === 'devhyfit';
@@ -741,18 +867,18 @@ export default function SimplifiedPatientOnboarding({
                   mobileAnalytics.trackContinueButtonClicked('patient_onboarding', centerId, formData.phone);
                   handleContinue();
                 }}
-                disabled={creating}
+                disabled={creating || (!!formData.email && !emailVerified)}
                 className="flex-1 py-4 rounded-2xl text-sm text-black transition-all disabled:bg-gray-400 disabled:cursor-not-allowed"
-                style={{ backgroundColor: creating ? '#9CA3AF' : '#DDFE71' }}
+                style={{ backgroundColor: creating || (!!formData.email && !emailVerified) ? '#9CA3AF' : '#DDFE71' }}
               >
-                {creating ? 'Creating Profile...' : 'Continue'}
+                {creating ? 'Creating Profile...' : formData.email && !emailVerified ? 'Verify email to continue' : 'Continue'}
               </button>
             ) : (
               <button
                 onClick={() => {
                   handleRepeatUserContinue();
                 }}
-                disabled={isNavigating}
+                disabled={isNavigating || isSendingOTP || isVerifyingOTP}
                 className="flex-1 py-4 rounded-2xl text-sm text-black transition-all disabled:bg-gray-400 disabled:cursor-not-allowed"
                 style={{ backgroundColor: isNavigating ? '#9CA3AF' : '#DDFE71' }}
               >
@@ -798,6 +924,28 @@ export default function SimplifiedPatientOnboarding({
         onConfirm={handleCrossOrgConfirm}
         onCancel={handleCrossOrgCancel}
         loading={addingToOrg}
+      />
+
+      {/* OTP modal — for both repeat users and new user email verification */}
+      <EmailOTPModal
+        isOpen={showOTPModal}
+        email={otpEmail}
+        isSending={isSendingOTP}
+        isVerifying={isVerifyingOTP}
+        error={otpError}
+        onVerify={handleVerifyOTP}
+        onResend={handleResendOTP}
+        onUpdateEmail={handleUpdateEmail}
+        onClose={() => {
+          setShowOTPModal(false);
+          setOtpError(null);
+          if (pendingRepeatPatientId) {
+            setPendingRepeatPatientId(null);
+            setPendingSessionType(null);
+            setIsPhoneVerified(false);
+            setFormData(prev => ({ ...prev, phone: '' }));
+          }
+        }}
       />
 
       <NewUserServiceModal

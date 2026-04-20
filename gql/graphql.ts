@@ -831,14 +831,14 @@ export type ClinicalRecord = {
   bodyChart?: Maybe<Scalars['URL']['output']>;
   chiefComplaints?: Maybe<Scalars['String']['output']>;
   clientHistory?: Maybe<Scalars['String']['output']>;
-  duration?: Maybe<Scalars['String']['output']>;
+  nprs?: Maybe<Scalars['Int']['output']>;
 };
 
 export type ClinicalRecordInput = {
   bodyChart?: InputMaybe<Scalars['URL']['input']>;
   chiefComplaints?: InputMaybe<Scalars['String']['input']>;
   clientHistory?: InputMaybe<Scalars['String']['input']>;
-  duration?: InputMaybe<Scalars['String']['input']>;
+  nprs?: InputMaybe<Scalars['Int']['input']>;
 };
 
 /** Consultant type definition */
@@ -927,6 +927,7 @@ export type CreateAppointmentInput = {
   meetingLink?: InputMaybe<Scalars['String']['input']>;
   notes?: InputMaybe<Scalars['String']['input']>;
   patient: Scalars['ObjectID']['input'];
+  rescheduledFrom?: InputMaybe<Array<Scalars['ObjectID']['input']>>;
   status?: InputMaybe<AppointmentStatus>;
   treatment?: InputMaybe<Scalars['ObjectID']['input']>;
   visitType?: InputMaybe<AppointmentVisitType>;
@@ -1112,6 +1113,12 @@ export type CreatePackageInput = {
   validity: Scalars['Int']['input'];
 };
 
+export type CreatePatientFormInput = {
+  content: ReferralFormSncContentInput;
+  formType: FormType;
+  patientId: Scalars['ObjectID']['input'];
+};
+
 export type CreatePatientInput = {
   bio?: InputMaybe<Scalars['String']['input']>;
   category?: InputMaybe<PatientCategory>;
@@ -1260,6 +1267,13 @@ export enum DataType {
   Unilateral = 'UNILATERAL'
 }
 
+export type DecisionChangingMissingData = {
+  __typename?: 'DecisionChangingMissingData';
+  category: Scalars['String']['output'];
+  impact_if_positive?: Maybe<Scalars['String']['output']>;
+  missing_tests?: Maybe<Array<Scalars['String']['output']>>;
+};
+
 export enum DeliveryMode {
   Both = 'BOTH',
   Offline = 'OFFLINE',
@@ -1272,6 +1286,24 @@ export enum Designation {
   SncCoach = 'SNC_Coach',
   SportsMassageTherapist = 'Sports_Massage_Therapist'
 }
+
+export type DiagnosticSufficiency = {
+  __typename?: 'DiagnosticSufficiency';
+  driver_systems?: Maybe<Array<DriverSystem>>;
+  is_sufficient: Scalars['Boolean']['output'];
+  sufficiency_answer?: Maybe<Scalars['String']['output']>;
+  why_not_sufficient?: Maybe<Scalars['String']['output']>;
+};
+
+export type DifferentialDiagnosis = {
+  __typename?: 'DifferentialDiagnosis';
+  diagnosis: Scalars['String']['output'];
+  directional_impact?: Maybe<Scalars['String']['output']>;
+  fits_because?: Maybe<Array<Scalars['String']['output']>>;
+  included_reason?: Maybe<Scalars['String']['output']>;
+  tier: Scalars['Int']['output'];
+  tier_label: Scalars['String']['output'];
+};
 
 export enum DifficultyLevel {
   Easy = 'EASY',
@@ -1301,6 +1333,13 @@ export enum DocumentType {
   PatientUpload = 'PATIENT_UPLOAD',
   ProfilePic = 'PROFILE_PIC'
 }
+
+export type DriverSystem = {
+  __typename?: 'DriverSystem';
+  driver: Scalars['String']['output'];
+  evidence_present: Scalars['String']['output'];
+  rehab_direction_impact?: Maybe<Scalars['String']['output']>;
+};
 
 export type DuplicateGoalModificationInput = {
   maxTarget?: InputMaybe<Scalars['Float']['input']>;
@@ -1514,6 +1553,10 @@ export enum FlagStatus {
   Resolved = 'RESOLVED'
 }
 
+export enum FormType {
+  ReferralFormSnc = 'REFERRAL_FORM_SNC'
+}
+
 export enum Gender {
   Female = 'FEMALE',
   Male = 'MALE'
@@ -1542,6 +1585,11 @@ export type GetAvailableSlotsInput = {
   duration: Scalars['Int']['input'];
   host: Scalars['ObjectID']['input'];
   hostType: EventHostType;
+};
+
+export type GetPatientStatsInput = {
+  month?: InputMaybe<Scalars['String']['input']>;
+  patientId: Scalars['ObjectID']['input'];
 };
 
 export type GetStatsInput = {
@@ -1941,6 +1989,7 @@ export type MessageTemplateFilter = {
 export enum MessageTemplateType {
   AdvanceReceipt = 'ADVANCE_RECEIPT',
   AppointmentConfirmation = 'APPOINTMENT_CONFIRMATION',
+  AppointmentReminder = 'APPOINTMENT_REMINDER',
   Invoice = 'INVOICE',
   Waitlist = 'WAITLIST'
 }
@@ -2032,6 +2081,8 @@ export type Mutation = {
   createPackage: Package;
   /** Create a new patient */
   createPatient: User;
+  /** Create a new patient form */
+  createPatientForm: PatientForm;
   createPayment: Payment;
   /**
    * Create a new preferred timing slot
@@ -2055,6 +2106,10 @@ export type Mutation = {
   deleteCenter: Center;
   /** Delete an event (soft delete or remove permanently). */
   deleteEvent: Scalars['Boolean']['output'];
+  /** Delete a goal from a goal set */
+  deleteGoal: GoalSet;
+  /** Delete a goal set permanently */
+  deleteGoalSet: GoalSet;
   deleteInvoice: Invoice;
   /** Delete a match record */
   deleteMatch: Scalars['Boolean']['output'];
@@ -2067,6 +2122,8 @@ export type Mutation = {
   deleteOrganization: Organization;
   /** Delete a package */
   deletePackage: Package;
+  /** Delete a patient form */
+  deletePatientForm: PatientForm;
   /** Delete a preferred timing slot (soft delete) */
   deletePreferredTiming: Scalars['Boolean']['output'];
   /** Delete a role */
@@ -2139,10 +2196,14 @@ export type Mutation = {
   updatePassword: Scalars['Boolean']['output'];
   /** Update an existing patient */
   updatePatient: User;
+  /** Update an existing patient form */
+  updatePatientForm: PatientForm;
   /** Update an existing preferred timing slot */
   updatePreferredTiming: PreferredTimingSlot;
   /** Update records of a report */
   updateRecords: Report;
+  /** Update isAssessment flag on a report */
+  updateReportIsAssessment: Report;
   /** Update a role */
   updateRole: Role;
   updateRule: Rule;
@@ -2314,6 +2375,11 @@ export type MutationCreatePatientArgs = {
 };
 
 
+export type MutationCreatePatientFormArgs = {
+  input: CreatePatientFormInput;
+};
+
+
 export type MutationCreatePaymentArgs = {
   input: CreatePaymentInput;
 };
@@ -2376,6 +2442,17 @@ export type MutationDeleteEventArgs = {
 };
 
 
+export type MutationDeleteGoalArgs = {
+  goalId: Scalars['ObjectID']['input'];
+  goalSetId: Scalars['ObjectID']['input'];
+};
+
+
+export type MutationDeleteGoalSetArgs = {
+  goalSetId: Scalars['ObjectID']['input'];
+};
+
+
 export type MutationDeleteInvoiceArgs = {
   id: Scalars['ObjectID']['input'];
 };
@@ -2407,6 +2484,11 @@ export type MutationDeleteOrganizationArgs = {
 
 
 export type MutationDeletePackageArgs = {
+  id: Scalars['ObjectID']['input'];
+};
+
+
+export type MutationDeletePatientFormArgs = {
   id: Scalars['ObjectID']['input'];
 };
 
@@ -2648,6 +2730,12 @@ export type MutationUpdatePatientArgs = {
 };
 
 
+export type MutationUpdatePatientFormArgs = {
+  id: Scalars['ObjectID']['input'];
+  input: UpdatePatientFormInput;
+};
+
+
 export type MutationUpdatePreferredTimingArgs = {
   id: Scalars['ObjectID']['input'];
   input: UpdatePreferredTimingInput;
@@ -2656,6 +2744,12 @@ export type MutationUpdatePreferredTimingArgs = {
 
 export type MutationUpdateRecordsArgs = {
   input: RecordsInput;
+  reportId: Scalars['ObjectID']['input'];
+};
+
+
+export type MutationUpdateReportIsAssessmentArgs = {
+  isAssessment: Scalars['Boolean']['input'];
   reportId: Scalars['ObjectID']['input'];
 };
 
@@ -2707,6 +2801,19 @@ export type MutationVerifyOtpArgs = {
 export type MutationVerifyPaymentArgs = {
   orderId: Scalars['ObjectID']['input'];
   razorpayPaymentId: Scalars['String']['input'];
+};
+
+export type NewSummary = {
+  __typename?: 'NewSummary';
+  _id: Scalars['ObjectID']['output'];
+  clinicalMetadata?: Maybe<ClinicalMetadata>;
+  createdAt?: Maybe<Scalars['Timestamp']['output']>;
+  criticality?: Maybe<Criticality>;
+  generatedDate?: Maybe<Scalars['String']['output']>;
+  patient: User;
+  patientName?: Maybe<Scalars['String']['output']>;
+  sections?: Maybe<Scalars['JSON']['output']>;
+  updatedAt?: Maybe<Scalars['Timestamp']['output']>;
 };
 
 export enum NotificationStatus {
@@ -2946,6 +3053,12 @@ export type PaginatedInvoices = PaginatedResponse & {
   pagination: CursorPaginationInfo;
 };
 
+export type PaginatedPatientAdvanceSummaries = {
+  __typename?: 'PaginatedPatientAdvanceSummaries';
+  data: Array<PatientAdvanceSummary>;
+  pagination: CursorPaginationInfo;
+};
+
 export type PaginatedResponse = {
   data: Array<DataRow>;
   pagination: CursorPaginationInfo;
@@ -2979,6 +3092,24 @@ export type Patient = {
   profilePicture?: Maybe<Scalars['String']['output']>;
   referral?: Maybe<Referral>;
   status?: Maybe<PatientStatus>;
+};
+
+export type PatientAdvancePackageItem = {
+  __typename?: 'PatientAdvancePackageItem';
+  amount: Scalars['Float']['output'];
+  currentBalance: Scalars['Float']['output'];
+  packageId?: Maybe<Scalars['ObjectID']['output']>;
+  packageName?: Maybe<Scalars['String']['output']>;
+};
+
+export type PatientAdvanceSummary = {
+  __typename?: 'PatientAdvanceSummary';
+  _id: Scalars['ObjectID']['output'];
+  createdAt: Scalars['Timestamp']['output'];
+  currentBalance: Scalars['Float']['output'];
+  packageItems: Array<PatientAdvancePackageItem>;
+  pdfUrl?: Maybe<Scalars['String']['output']>;
+  total: Scalars['Float']['output'];
 };
 
 export type PatientAlert = {
@@ -3026,6 +3157,45 @@ export type PatientExistsResult = {
   patient?: Maybe<User>;
 };
 
+/** Patient Form — polymorphic form document */
+export type PatientForm = DataRow & {
+  __typename?: 'PatientForm';
+  _id: Scalars['ObjectID']['output'];
+  center?: Maybe<Center>;
+  consultant?: Maybe<User>;
+  content: ReferralFormSncContent;
+  createdAt: Scalars['Timestamp']['output'];
+  formType: FormType;
+  isActive: Scalars['Boolean']['output'];
+  organization: Organization;
+  patient: User;
+  seqNo: Scalars['String']['output'];
+  updatedAt: Scalars['Timestamp']['output'];
+  version: Scalars['Int']['output'];
+};
+
+export type PatientGoalEntry = {
+  __typename?: 'PatientGoalEntry';
+  goal?: Maybe<Scalars['String']['output']>;
+  targetDate?: Maybe<Scalars['Timestamp']['output']>;
+};
+
+export type PatientGoalEntryInput = {
+  goal?: InputMaybe<Scalars['String']['input']>;
+  targetDate?: InputMaybe<Scalars['Timestamp']['input']>;
+};
+
+export type PatientGoals = {
+  __typename?: 'PatientGoals';
+  longTermGoals?: Maybe<Array<Maybe<PatientGoalEntry>>>;
+  shortTermGoals?: Maybe<Array<Maybe<PatientGoalEntry>>>;
+};
+
+export type PatientGoalsInput = {
+  longTermGoals?: InputMaybe<Array<InputMaybe<PatientGoalEntryInput>>>;
+  shortTermGoals?: InputMaybe<Array<InputMaybe<PatientGoalEntryInput>>>;
+};
+
 export type PatientPhaseAnalysis = {
   __typename?: 'PatientPhaseAnalysis';
   _id: Scalars['ObjectID']['output'];
@@ -3038,6 +3208,27 @@ export type PatientPhaseAnalysis = {
   phases?: Maybe<Scalars['JSON']['output']>;
   protocolAndGoalShifts?: Maybe<Array<Scalars['String']['output']>>;
   updatedAt?: Maybe<Scalars['Timestamp']['output']>;
+};
+
+export type PatientStats = {
+  __typename?: 'PatientStats';
+  bookedReportIds: Array<Scalars['String']['output']>;
+  cancelledReportIds: Array<Scalars['String']['output']>;
+  invoiceGeneratedReportIds: Array<Scalars['String']['output']>;
+  paidReportIds: Array<Scalars['String']['output']>;
+  rescheduledReportIds: Array<Scalars['String']['output']>;
+  totalAllowedCancellations: Scalars['Int']['output'];
+  totalAllowedReschedules: Scalars['Int']['output'];
+  totalAppointments: Scalars['Int']['output'];
+  totalBooked: Scalars['Int']['output'];
+  totalCancelledSessions: Scalars['Int']['output'];
+  totalInvoiceGenerated: Scalars['Int']['output'];
+  totalNotAllowedCancellations: Scalars['Int']['output'];
+  totalNotAllowedReschedules: Scalars['Int']['output'];
+  totalPaidSessions: Scalars['Int']['output'];
+  totalRescheduled: Scalars['Int']['output'];
+  totalVisitedSessions: Scalars['Int']['output'];
+  visitedReportIds: Array<Scalars['String']['output']>;
 };
 
 export enum PatientStatus {
@@ -3139,6 +3330,15 @@ export type PermissionInput = {
   resource: Resource;
 };
 
+export type PhysicalDelta = {
+  __typename?: 'PhysicalDelta';
+  difference?: Maybe<Scalars['Float']['output']>;
+  involved_limb_value?: Maybe<Scalars['Float']['output']>;
+  measurement_type?: Maybe<Scalars['String']['output']>;
+  percentage_deficit?: Maybe<Scalars['Float']['output']>;
+  uninvolved_limb_value?: Maybe<Scalars['Float']['output']>;
+};
+
 export type Ping = {
   __typename?: 'Ping';
   environment: Scalars['String']['output'];
@@ -3188,6 +3388,15 @@ export type PongInput = {
   message: Scalars['String']['input'];
 };
 
+export type PositioningSummary = {
+  __typename?: 'PositioningSummary';
+  additional_data_required?: Maybe<Scalars['String']['output']>;
+  competing_drivers?: Maybe<Scalars['String']['output']>;
+  probability?: Maybe<Scalars['String']['output']>;
+  provisional_bucket?: Maybe<Scalars['String']['output']>;
+  sufficiency?: Maybe<Scalars['String']['output']>;
+};
+
 export enum PositiveNegativeValue {
   Negative = 'NEGATIVE',
   Positive = 'POSITIVE'
@@ -3234,7 +3443,45 @@ export type PreferredTimingSlot = DataRow & {
   version: Scalars['Int']['output'];
 };
 
+export type ProbabilityTier = {
+  __typename?: 'ProbabilityTier';
+  label: Scalars['String']['output'];
+  rationale?: Maybe<Scalars['String']['output']>;
+  tier: Scalars['Int']['output'];
+};
+
 export type ProfileData = Consultant | Patient | Staff;
+
+export type Prognosis = {
+  __typename?: 'Prognosis';
+  _id: Scalars['ObjectID']['output'];
+  baseline_diagnosis?: Maybe<Scalars['String']['output']>;
+  clinical_priority?: Maybe<Scalars['String']['output']>;
+  created_at?: Maybe<Scalars['Timestamp']['output']>;
+  data_gaps?: Maybe<Array<Scalars['String']['output']>>;
+  decision_changing_missing_data?: Maybe<Array<DecisionChangingMissingData>>;
+  diagnosis_consistency_reasoning?: Maybe<Scalars['String']['output']>;
+  diagnostic_sufficiency?: Maybe<DiagnosticSufficiency>;
+  differential_complications?: Maybe<Array<Scalars['String']['output']>>;
+  differential_diagnoses?: Maybe<Array<DifferentialDiagnosis>>;
+  findings_summary?: Maybe<Scalars['String']['output']>;
+  first_assessment_date?: Maybe<Scalars['String']['output']>;
+  is_diagnosis_consistent?: Maybe<Scalars['Boolean']['output']>;
+  missing_data_points?: Maybe<Array<Scalars['String']['output']>>;
+  patient_id: User;
+  patient_name?: Maybe<Scalars['String']['output']>;
+  physical_deltas?: Maybe<Array<PhysicalDelta>>;
+  positioning_summary?: Maybe<PositioningSummary>;
+  probability_tier?: Maybe<ProbabilityTier>;
+  provisional_diagnosis?: Maybe<Scalars['String']['output']>;
+  schema_version?: Maybe<Scalars['String']['output']>;
+  strength_asymmetries?: Maybe<Array<StrengthAsymmetry>>;
+  surgery_date?: Maybe<Scalars['String']['output']>;
+  surgery_details?: Maybe<Scalars['String']['output']>;
+  updated_at?: Maybe<Scalars['Timestamp']['output']>;
+  weeks_post_op?: Maybe<Scalars['Int']['output']>;
+  why_not_higher_tier?: Maybe<Scalars['String']['output']>;
+};
 
 export type ProvisionalInput = {
   diagnosis?: InputMaybe<Scalars['String']['input']>;
@@ -3305,6 +3552,8 @@ export type Query = {
   getObjectiveAssessmentRecordByReportId?: Maybe<ObjectiveAssessmentRecord>;
   /** Get organization-level availability for online consultants */
   getOrganizationAvailability: Array<ConsultantAvailability>;
+  /** Get hardcoded repeat-user slots filtered by breaks/bookings */
+  getRepeatUserSlots: Array<ConsultantAvailability>;
   getRule?: Maybe<Rule>;
   getRules: Array<Rule>;
   /** Get test by ID */
@@ -3336,16 +3585,25 @@ export type Query = {
   messageTemplateByType?: Maybe<MessageTemplate>;
   /** Get all message templates */
   messageTemplates: Array<MessageTemplate>;
+  newSummaries?: Maybe<Array<NewSummary>>;
   /** Get organization by id */
   organization: Organization;
   /** Get list of packages */
   packages: Array<Package>;
+  patientAdvanceSummaries: PaginatedPatientAdvanceSummaries;
   patientAlert?: Maybe<PatientAlert>;
   patientAlerts: Array<PatientAlert>;
   patientAppointmentCount: Scalars['Int']['output'];
   patientByPhone?: Maybe<User>;
   patientExists: Scalars['Boolean']['output'];
+  /** Get a single form by ID */
+  patientForm?: Maybe<PatientForm>;
+  /** Get all forms for a patient */
+  patientForms: Array<PatientForm>;
+  /** Get forms for a patient filtered by type */
+  patientFormsByType: Array<PatientForm>;
   patientPhaseAnalyses?: Maybe<Array<PatientPhaseAnalysis>>;
+  patientStats: PatientStats;
   patientSummaries?: Maybe<Array<PatientSummary>>;
   /** Get all permissions of the logged in user */
   permissions: Array<Maybe<UserPermissions>>;
@@ -3354,6 +3612,7 @@ export type Query = {
   preferredTiming: PreferredTimingSlot;
   /** Get all preferred timing slots for a user */
   preferredTimings: Array<PreferredTimingSlot>;
+  prognoses?: Maybe<Array<Prognosis>>;
   /** Get a report */
   report: Report;
   /** Get list of reports */
@@ -3542,6 +3801,11 @@ export type QueryGetOrganizationAvailabilityArgs = {
 };
 
 
+export type QueryGetRepeatUserSlotsArgs = {
+  input: RepeatUserSlotsInput;
+};
+
+
 export type QueryGetRuleArgs = {
   seqNo: Scalars['String']['input'];
 };
@@ -3627,6 +3891,11 @@ export type QueryMessageTemplatesArgs = {
 };
 
 
+export type QueryNewSummariesArgs = {
+  patientId: Scalars['ObjectID']['input'];
+};
+
+
 export type QueryOrganizationArgs = {
   id: Scalars['ObjectID']['input'];
 };
@@ -3634,6 +3903,12 @@ export type QueryOrganizationArgs = {
 
 export type QueryPackagesArgs = {
   centerId?: InputMaybe<Array<Scalars['ObjectID']['input']>>;
+};
+
+
+export type QueryPatientAdvanceSummariesArgs = {
+  filter: AdvanceFilter;
+  pagination?: InputMaybe<CursorPaginationInput>;
 };
 
 
@@ -3662,8 +3937,29 @@ export type QueryPatientExistsArgs = {
 };
 
 
+export type QueryPatientFormArgs = {
+  id: Scalars['ObjectID']['input'];
+};
+
+
+export type QueryPatientFormsArgs = {
+  patientId: Scalars['ObjectID']['input'];
+};
+
+
+export type QueryPatientFormsByTypeArgs = {
+  formType: FormType;
+  patientId: Scalars['ObjectID']['input'];
+};
+
+
 export type QueryPatientPhaseAnalysesArgs = {
   patientId: Scalars['ObjectID']['input'];
+};
+
+
+export type QueryPatientStatsArgs = {
+  input: GetPatientStatsInput;
 };
 
 
@@ -3680,6 +3976,11 @@ export type QueryPreferredTimingArgs = {
 export type QueryPreferredTimingsArgs = {
   organizationId: Scalars['ObjectID']['input'];
   userId: Scalars['ObjectID']['input'];
+};
+
+
+export type QueryPrognosesArgs = {
+  patientId: Scalars['ObjectID']['input'];
 };
 
 
@@ -3853,6 +4154,7 @@ export type Records = {
   document?: Maybe<Array<Maybe<DocumentRecord>>>;
   objectiveAssessment?: Maybe<ObjectiveAssessmentRecord>;
   objectiveGoals?: Maybe<Array<Maybe<ObjectiveGoalRecord>>>;
+  patientGoals?: Maybe<PatientGoals>;
   plan?: Maybe<PlanRecord>;
   provisionalDiagnosis?: Maybe<ProvisionalRecord>;
   recommendations?: Maybe<Array<Maybe<RecommendationRecord>>>;
@@ -3869,6 +4171,7 @@ export type RecordsInput = {
   isAccepted?: InputMaybe<Scalars['Boolean']['input']>;
   objectiveAssessment?: InputMaybe<ObjectiveAssessmentInput>;
   objectiveGoals?: InputMaybe<Array<InputMaybe<ObjectiveGoalRecordInput>>>;
+  patientGoals?: InputMaybe<PatientGoalsInput>;
   plan?: InputMaybe<PlanRecordInput>;
   provisionalDiagnosis?: InputMaybe<ProvisionalInput>;
   recommendations?: InputMaybe<Array<InputMaybe<RecommendationRecordInput>>>;
@@ -3898,6 +4201,32 @@ export type Referral = {
   user?: Maybe<Scalars['ObjectID']['output']>;
 };
 
+/** Referral Form S&C content */
+export type ReferralFormSncContent = {
+  __typename?: 'ReferralFormSNCContent';
+  clearedForImpact?: Maybe<Scalars['Boolean']['output']>;
+  injury?: Maybe<Scalars['String']['output']>;
+  milestones?: Maybe<Scalars['String']['output']>;
+  name?: Maybe<Scalars['String']['output']>;
+  otherComments?: Maybe<Scalars['String']['output']>;
+  planOfAction?: Maybe<Scalars['String']['output']>;
+  restrictions?: Maybe<Scalars['String']['output']>;
+  sessionsPerWeek?: Maybe<Scalars['Int']['output']>;
+  sport?: Maybe<Scalars['String']['output']>;
+};
+
+export type ReferralFormSncContentInput = {
+  clearedForImpact?: InputMaybe<Scalars['Boolean']['input']>;
+  injury?: InputMaybe<Scalars['String']['input']>;
+  milestones?: InputMaybe<Scalars['String']['input']>;
+  name?: InputMaybe<Scalars['String']['input']>;
+  otherComments?: InputMaybe<Scalars['String']['input']>;
+  planOfAction?: InputMaybe<Scalars['String']['input']>;
+  restrictions?: InputMaybe<Scalars['String']['input']>;
+  sessionsPerWeek?: InputMaybe<Scalars['Int']['input']>;
+  sport?: InputMaybe<Scalars['String']['input']>;
+};
+
 export type ReferralInput = {
   name?: InputMaybe<Scalars['String']['input']>;
   type: ReferralType;
@@ -3919,6 +4248,15 @@ export type RefreshResult = {
   patientsProcessed: Scalars['Int']['output'];
 };
 
+export type RepeatUserSlotsInput = {
+  centerId: Scalars['ObjectID']['input'];
+  consultantId?: InputMaybe<Scalars['ObjectID']['input']>;
+  deliveryMode?: InputMaybe<Scalars['String']['input']>;
+  designation?: InputMaybe<Scalars['String']['input']>;
+  endDate: Scalars['Timestamp']['input'];
+  startDate: Scalars['Timestamp']['input'];
+};
+
 export type Report = DataRow & {
   __typename?: 'Report';
   _id: Scalars['ObjectID']['output'];
@@ -3926,6 +4264,7 @@ export type Report = DataRow & {
   appointment?: Maybe<Appointment>;
   createdAt: Scalars['Timestamp']['output'];
   isActive: Scalars['Boolean']['output'];
+  isAssessment?: Maybe<Scalars['Boolean']['output']>;
   isFirstAssessment: Scalars['Boolean']['output'];
   patient: User;
   pdf?: Maybe<Scalars['String']['output']>;
@@ -4176,6 +4515,16 @@ export type Stats = {
   totalPatients: Scalars['Int']['output'];
 };
 
+export type StrengthAsymmetry = {
+  __typename?: 'StrengthAsymmetry';
+  deficit_percentage?: Maybe<Scalars['Float']['output']>;
+  left_value?: Maybe<Scalars['Float']['output']>;
+  lsi_percentage?: Maybe<Scalars['Float']['output']>;
+  muscle_group?: Maybe<Scalars['String']['output']>;
+  right_value?: Maybe<Scalars['Float']['output']>;
+  test_date?: Maybe<Scalars['String']['output']>;
+};
+
 export type SubSource = Package;
 
 export type SubjectiveGoalInput = {
@@ -4187,11 +4536,13 @@ export type SubjectiveGoalInput = {
 export type SubjectiveGoalRecord = {
   __typename?: 'SubjectiveGoalRecord';
   goal?: Maybe<Scalars['String']['output']>;
+  goalType?: Maybe<Scalars['String']['output']>;
   targetDate?: Maybe<Scalars['Timestamp']['output']>;
 };
 
 export type SubjectiveGoalRecordInput = {
   goal?: InputMaybe<Scalars['String']['input']>;
+  goalType?: InputMaybe<Scalars['String']['input']>;
   targetDate?: InputMaybe<Scalars['Timestamp']['input']>;
 };
 
@@ -4383,6 +4734,10 @@ export type UpdatePatient = {
   profilePicture?: InputMaybe<Scalars['String']['input']>;
   referral?: InputMaybe<ReferralInput>;
   status?: InputMaybe<PatientStatus>;
+};
+
+export type UpdatePatientFormInput = {
+  content: ReferralFormSncContentInput;
 };
 
 export type UpdatePreferredTimingInput = {

@@ -136,7 +136,7 @@ export default function NewUserOnlinePaymentConfirmation({
             treatment: bookingData.treatmentId,
             medium: bookingData.sessionType === 'online' ? 'ONLINE' : 'IN_PERSON',
             visitType: 'FIRST_VISIT',
-            status: 'BOOKED',
+            status: 'TOKEN_PENDING',
             category: 'WEBSITE',
             event: {
               startTime: new Date(bookingData.selectedTimeSlot.startTime).getTime(),

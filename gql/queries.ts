@@ -2585,4 +2585,33 @@ export const ADD_PATIENT_TO_ORGANIZATION = gql`
   }
 `;
 
+export const SEND_EMAIL_OTP = gql`
+  mutation SendEmailOTP($email: String!) {
+    sendEmailOTP(email: $email)
+  }
+`;
+
+export const VERIFY_EMAIL_OTP = gql`
+  mutation VerifyEmailOTP($input: VerifyEmailOTPInput!) {
+    verifyEmailOTP(input: $input) {
+      user {
+        _id
+        seqNo
+        phone
+        email
+        isActive
+        userType
+        profileData {
+          ... on Patient {
+            firstName
+            lastName
+          }
+        }
+      }
+      token
+      refreshToken
+    }
+  }
+`;
+
 

@@ -131,7 +131,7 @@ export default function RepeatUserOnlinePaymentConfirmation({
             treatment: bookingData.treatmentId,
             medium: 'ONLINE',
             visitType: 'FOLLOW_UP',
-            status: 'BOOKED',
+            status: 'TOKEN_PENDING',
             category: 'WEBSITE',
             event: {
               startTime: new Date(bookingData.selectedTimeSlot.startTime).getTime(),
