@@ -344,6 +344,7 @@ export const GET_SERVICES = gql`
       isNewUserService
       isPrePaid
       doneBy
+      tokenAmount
       centers {
         _id
         seqNo
@@ -2610,6 +2611,74 @@ export const VERIFY_EMAIL_OTP = gql`
       }
       token
       refreshToken
+    }
+  }
+`;
+
+export const GET_TOKENS = gql`
+  query Tokens($centerId: [ObjectID!]) {
+    tokens(centerId: $centerId) {
+      _id
+      seqNo
+      name
+      description
+      tokenAmount
+      validityDays
+      isActive
+      eligibleServices {
+        service {
+          _id
+          name
+          price
+        }
+        serviceAmount
+        balanceAmount
+      }
+      centers {
+        _id
+        name
+      }
+    }
+  }
+`;
+
+export const GET_TOKENS_FOR_SERVICE = gql`
+  query TokensForService($serviceId: ObjectID!) {
+    tokensForService(serviceId: $serviceId) {
+      _id
+      seqNo
+      name
+      description
+      tokenAmount
+      validityDays
+      isActive
+      eligibleServices {
+        service {
+          _id
+          name
+          price
+        }
+        serviceAmount
+        balanceAmount
+      }
+    }
+  }
+`;
+
+export const PURCHASE_TOKEN = gql`
+  mutation PurchaseToken($input: PurchaseTokenInput!) {
+    purchaseToken(input: $input) {
+      advance {
+        _id
+        total
+      }
+      appointment {
+        _id
+        seqNo
+        status
+      }
+      balanceAmount
+      tokenAmount
     }
   }
 `;

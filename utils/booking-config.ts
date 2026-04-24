@@ -101,10 +101,11 @@ export function getDefaultCenterId(orgSlug: string): string | null {
 
 /**
  * Get token package ID by center ID
- * Used for token payment (₹100) package creation
- * @deprecated Use getTokenPackageIdByServiceId instead
+ * @deprecated Token system now uses dynamic GraphQL queries (GET_TOKENS_FOR_SERVICE)
+ * This function is kept for backward compatibility only
  */
 export function getTokenPackageIdByCenterId(centerId: string): string | null {
+  console.warn('getTokenPackageIdByCenterId is deprecated. Use GET_TOKENS_FOR_SERVICE GraphQL query instead.');
   // All three centers are in Stance Health organization
   const centerPackageMap: Record<string, string | undefined> = {
     // Development center IDs
@@ -123,10 +124,11 @@ export function getTokenPackageIdByCenterId(centerId: string): string | null {
 
 /**
  * Get token package ID by service ID and center ID
- * Used for token payment package creation
- * Packages are specific to both service AND center
+ * @deprecated Token system now uses dynamic GraphQL queries (GET_TOKENS_FOR_SERVICE)
+ * This function is kept for backward compatibility only
  */
 export function getTokenPackageIdByServiceAndCenter(serviceId: string, centerId: string): string | null {
+  console.warn('getTokenPackageIdByServiceAndCenter is deprecated. Use GET_TOKENS_FOR_SERVICE GraphQL query instead.');
   // Map (service + center) to their corresponding token packages
   // Format: 'serviceId:centerId': 'packageId'
   const servicePackageMap: Record<string, string | undefined> = {
@@ -152,10 +154,11 @@ export function getTokenPackageIdByServiceAndCenter(serviceId: string, centerId:
 
 /**
  * Get token package ID by service ID
- * Used for token payment (₹100) package creation
- * @deprecated Use getTokenPackageIdByServiceAndCenter instead for better accuracy
+ * @deprecated Token system now uses dynamic GraphQL queries (GET_TOKENS_FOR_SERVICE)
+ * Use getTokenPackageIdByServiceAndCenter for better accuracy or migrate to GraphQL
  */
 export function getTokenPackageIdByServiceId(serviceId: string): string | null {
+  console.warn('getTokenPackageIdByServiceId is deprecated. Use GET_TOKENS_FOR_SERVICE GraphQL query instead.');
   // Map service IDs to their corresponding token packages
   // The package's "services" array in DB contains the service IDs it's valid for
   const servicePackageMap: Record<string, string | undefined> = {

@@ -17,6 +17,7 @@ interface NewUserOfflinePaymentProcessingProps {
   centerId: string;
   consultantId: string;
   treatmentId: string;
+  tokensData?: any;
   onPaymentSuccess: (paymentId: string, invoiceId?: string) => void;
   onPaymentFailure: (error: any) => void;
 }
@@ -84,6 +85,7 @@ export default function NewUserOfflinePaymentProcessing({
   centerId,
   consultantId,
   treatmentId,
+  tokensData,
   onPaymentSuccess,
   onPaymentFailure,
 }: NewUserOfflinePaymentProcessingProps) {
@@ -202,28 +204,22 @@ export default function NewUserOfflinePaymentProcessing({
         }
         orderInput.appointment = appointmentId;
       } else {
-        // Try service+center based package lookup first (most accurate)
-        let packageId = getTokenPackageIdByServiceAndCenter(treatmentId, centerId);
+        // For token payment, use the selected token amount
+        const storedTokenAmount = bookingStorage.getItem('selectedTokenAmount');
+        const storedServiceId = bookingStorage.getItem('selectedServiceId');
         
-        // Fallback to service-only lookup if service+center mapping doesn't exist
-        if (!packageId) {
-          console.warn('⚠️ No service+center specific package found, trying service-only lookup');
-          packageId = getTokenPackageIdByServiceId(treatmentId);
+        if (storedTokenAmount) {
+          console.log('✅ Using stored token amount:', storedTokenAmount);
+          orderInput.tokenAmount = parseFloat(storedTokenAmount);
+          
+          if (storedServiceId) {
+            console.log('✅ Using stored service ID:', storedServiceId);
+            orderInput.serviceId = storedServiceId;
+          }
+        } else {
+          console.error('❌ No token amount found');
+          throw new Error('Token amount not found');
         }
-        
-        // Final fallback to center-based lookup (old approach)
-        if (!packageId) {
-          console.warn('⚠️ No service-specific package found, falling back to center-based package');
-          packageId = getTokenPackageIdByCenterId(centerId);
-        }
-        
-        if (!packageId) {
-          console.error('❌ No package ID found for service:', treatmentId, 'center:', centerId);
-          throw new Error('Package configuration missing for selected service/center');
-        }
-        
-        console.log('✅ Using package:', packageId, 'for service:', treatmentId, 'center:', centerId);
-        orderInput.packageId = packageId;
       }
 
       const { data } = await createOrderMutation({ variables: { input: orderInput } });

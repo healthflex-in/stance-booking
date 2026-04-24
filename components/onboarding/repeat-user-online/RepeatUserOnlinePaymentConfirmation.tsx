@@ -72,6 +72,7 @@ export default function RepeatUserOnlinePaymentConfirmation({
 
   const handleProceedToPayment = async () => {
     if (!patient?.email) {
+      toast.error('Please add your email address to continue');
       setShowEmailModal(true);
       return;
     }
@@ -251,12 +252,33 @@ export default function RepeatUserOnlinePaymentConfirmation({
                 <span className="text-sm text-gray-600 font-medium block">Phone</span>
                 <p className="text-sm font-medium text-gray-900">{patientDetails.phone}</p>
               </div>
-              {patientDetails.email && (
-                <div>
-                  <span className="text-sm text-gray-600 font-medium block">Email</span>
-                  <p className="text-sm font-medium text-gray-900">{patientDetails.email}</p>
-                </div>
-              )}
+              <div>
+                <span className="text-sm text-gray-600 font-medium block">Email</span>
+                {patientDetails.email ? (
+                  <button
+                    onClick={() => {
+                      console.log('📧 Email field clicked - opening modal');
+                      console.log('📧 Current email:', patientDetails.email);
+                      console.log('📧 Patient ID:', bookingData.patientId);
+                      setShowEmailModal(true);
+                    }}
+                    className="text-sm font-medium text-gray-900 hover:text-blue-600 transition-colors text-left underline decoration-dotted"
+                  >
+                    {patientDetails.email}
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => {
+                      console.log('📧 Add email clicked - opening modal');
+                      console.log('📧 Patient ID:', bookingData.patientId);
+                      setShowEmailModal(true);
+                    }}
+                    className="text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors"
+                  >
+                    + Add email address
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
@@ -344,11 +366,16 @@ export default function RepeatUserOnlinePaymentConfirmation({
         isOpen={showEmailModal}
         patientId={bookingData.patientId}
         patientName={patientDetails.name}
-        onEmailSaved={async () => {
+        currentEmail={patientDetails.email}
+        onEmailSaved={async (newEmail) => {
+          console.log('📧 Email saved callback:', newEmail);
           await refetchUser();
           setShowEmailModal(false);
         }}
-        onClose={() => setShowEmailModal(false)}
+        onClose={() => {
+          console.log('📧 Modal closed');
+          setShowEmailModal(false);
+        }}
       />
     </div>
   );

@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { useQuery, useMutation } from '@apollo/client';
 import { useRouter } from 'next/navigation';
 import { AlertCircle } from 'lucide-react';
-import { GET_CENTERS, GET_SERVICES, GET_USER, CREATE_APPOINTMENT } from '@/gql/queries';
+import { GET_CENTERS, GET_SERVICES, GET_USER, CREATE_APPOINTMENT, GET_TOKENS_FOR_SERVICE, PURCHASE_TOKEN } from '@/gql/queries';
 import NewUserOfflinePaymentProcessing from './NewUserOfflinePaymentProcessing';
 import { useContainerDetection } from '@/hooks/useContainerDetection';
 import { Button } from '@/components/ui-atoms';
@@ -39,29 +39,11 @@ export default function NewUserOfflinePaymentConfirmation({
   const router = useRouter();
   const { isInDesktopContainer } = useContainerDetection();
   const [paymentAmount, setPaymentAmount] = useState<number | null>(null);
+  const [selectedTokenAmount, setSelectedTokenAmount] = useState<number>(100);
   const [amountError, setAmountError] = useState('');
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [isPaymentTypeFromParams, setIsPaymentTypeFromParams] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(true);
-
-  // Auto-select payment option from tab storage (set by URL params)
-  React.useEffect(() => {
-    try {
-      const storedPaymentType = bookingStorage.getItem('paymentType');
-      if (storedPaymentType === 'token') {
-        setPaymentAmount(100);
-        // Only lock if it came from URL params
-        setIsPaymentTypeFromParams(isParamFromUrl('paymentType'));
-      } else if (storedPaymentType === 'full') {
-        // Will be set properly once actualPrice is available
-        setPaymentAmount(null); // set below once price loads
-        // Only lock if it came from URL params
-        setIsPaymentTypeFromParams(isParamFromUrl('paymentType'));
-      }
-    } catch {
-      // storage unavailable
-    }
-  }, []);
 
   const { data: centersData, loading: centersLoading } = useQuery(GET_CENTERS);
   const { data: servicesData, loading: servicesLoading } = useQuery(GET_SERVICES, {
@@ -69,19 +51,35 @@ export default function NewUserOfflinePaymentConfirmation({
   });
   const { data: userData, loading: userLoading } = useQuery(GET_USER, {
     variables: { userId: bookingData.patientId },
-    fetchPolicy: 'network-only', // Force fresh fetch for newly created patients
+    fetchPolicy: 'network-only',
   });
-
-  const [createAppointment] = useMutation(CREATE_APPOINTMENT);
 
   const currentCenter = centersData?.centers.find((c: any) => c._id === bookingData.centerId);
   const currentService = servicesData?.services.find((s: any) => s._id === bookingData.treatmentId);
   const patient = userData?.user;
 
-  // Use actual service price if bookingData price is 0
   const actualPrice = bookingData.treatmentPrice || currentService?.price || 0;
 
-  // Auto-select full payment once price is known
+  // Get token amount from service, fallback to 100
+  const serviceTokenAmount = currentService?.tokenAmount || 100;
+  const tokenAmounts = [serviceTokenAmount];
+
+  React.useEffect(() => {
+    try {
+      const storedPaymentType = bookingStorage.getItem('paymentType');
+      if (storedPaymentType === 'token') {
+        setPaymentAmount(serviceTokenAmount);
+        setSelectedTokenAmount(serviceTokenAmount);
+        setIsPaymentTypeFromParams(isParamFromUrl('paymentType'));
+      } else if (storedPaymentType === 'full') {
+        setPaymentAmount(null);
+        setIsPaymentTypeFromParams(isParamFromUrl('paymentType'));
+      }
+    } catch {
+      // storage unavailable
+    }
+  }, [serviceTokenAmount]);
+
   React.useEffect(() => {
     try {
       const storedPaymentType = bookingStorage.getItem('paymentType');
@@ -140,13 +138,15 @@ export default function NewUserOfflinePaymentConfirmation({
     }
   };
 
-  const handleTokenPayClick = () => {
+  const handleTokenPayClick = (amount: number) => {
     if (!isPaymentTypeFromParams) {
-      setPaymentAmount(100);
+      setSelectedTokenAmount(amount);
+      setPaymentAmount(amount);
       setAmountError('');
     }
   };
 
+  const [createAppointment] = useMutation(CREATE_APPOINTMENT);
   const [isCreatingAppointment, setIsCreatingAppointment] = useState(false);
 
   const handleProceedToPayment = async () => {
@@ -156,11 +156,20 @@ export default function NewUserOfflinePaymentConfirmation({
     }
 
     const isFullPayment = paymentAmount === actualPrice;
+    const isTokenPayment = paymentAmount === serviceTokenAmount;
 
     analytics?.trackProceedToPaymentClicked(paymentAmount, bookingData.treatmentId, bookingData.consultantId);
     setIsCreatingAppointment(true);
+    
     try {
-      // Create appointment FIRST with appropriate status
+      // Store the token amount if token payment is selected
+      if (isTokenPayment) {
+        bookingStorage.setItem('selectedTokenAmount', paymentAmount.toString());
+        bookingStorage.setItem('selectedServiceId', bookingData.treatmentId);
+        console.log('✅ Stored token amount and service ID for payment:', paymentAmount, bookingData.treatmentId);
+      }
+      
+      // Create appointment with appropriate status
       const appointmentResult = await createAppointment({
         variables: {
           input: {
@@ -170,7 +179,7 @@ export default function NewUserOfflinePaymentConfirmation({
             treatment: bookingData.treatmentId,
             medium: 'IN_PERSON',
             visitType: 'FIRST_VISIT',
-            status: isFullPayment ? 'BOOKED' : 'TOKEN_PAID',
+            status: isFullPayment ? 'BOOKED' : 'TOKEN_PENDING',
             category: 'WEBSITE',
             event: {
               startTime: new Date(bookingData.selectedTimeSlot.startTime).getTime(),
@@ -186,12 +195,10 @@ export default function NewUserOfflinePaymentConfirmation({
       }
 
       analytics?.trackPaymentInitiated(paymentAmount, appointmentId);
-      // Store appointment ID and payment info
       bookingStorage.setItem('appointmentId', appointmentId);
-      bookingStorage.setItem('paymentType', isFullPayment ? 'invoice' : 'package');
+      bookingStorage.setItem('paymentType', isFullPayment ? 'invoice' : 'token');
       bookingStorage.setItem('paymentAmount', paymentAmount.toString());
       
-      // Set states in correct order
       setIsCreatingAppointment(false);
       setIsProcessingPayment(true);
     } catch (error) {
@@ -333,31 +340,36 @@ export default function NewUserOfflinePaymentConfirmation({
                 </div>
               </button>
 
-              <button
-                onClick={handleTokenPayClick}
-                disabled={isPaymentTypeFromParams}
-                className={`w-full p-4 rounded-xl border-2 transition-all text-left ${
-                  paymentAmount === 100
-                    ? 'border-blue-500 bg-blue-50'
-                    : 'border-gray-200 hover:border-gray-300'
-                } ${isPaymentTypeFromParams ? 'cursor-not-allowed' : ''}`}
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-semibold text-gray-900">Token Pay</p>
-                    <p className="text-sm text-gray-600">₹100</p>
-                  </div>
-                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                    paymentAmount === 100
-                      ? 'border-blue-500 bg-blue-500'
-                      : 'border-gray-300'
-                  }`}>
-                    {paymentAmount === 100 && (
-                      <div className="w-2 h-2 bg-white rounded-full" />
-                    )}
-                  </div>
+              <div className="border-2 border-gray-200 rounded-xl p-4">
+                <p className="font-semibold text-gray-900 mb-3">Token Payment</p>
+                <div className="space-y-2">
+                  <button
+                    onClick={() => handleTokenPayClick(serviceTokenAmount)}
+                    disabled={isPaymentTypeFromParams}
+                    className={`w-full p-3 rounded-lg border-2 transition-all text-left ${
+                      paymentAmount === serviceTokenAmount
+                        ? 'border-blue-500 bg-blue-50'
+                        : 'border-gray-200 hover:border-gray-300'
+                    } ${isPaymentTypeFromParams ? 'cursor-not-allowed' : ''}`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium text-gray-900">₹{serviceTokenAmount}</p>
+                        <p className="text-xs text-gray-500">Token Amount</p>
+                      </div>
+                      <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                        paymentAmount === serviceTokenAmount
+                          ? 'border-blue-500 bg-blue-500'
+                          : 'border-gray-300'
+                      }`}>
+                        {paymentAmount === serviceTokenAmount && (
+                          <div className="w-1.5 h-1.5 bg-white rounded-full" />
+                        )}
+                      </div>
+                    </div>
+                  </button>
                 </div>
-              </button>
+              </div>
             </div>
 
             {amountError && (
@@ -378,14 +390,14 @@ export default function NewUserOfflinePaymentConfirmation({
                     <p className={`text-sm font-semibold ${
                       isFullPayment ? 'text-green-900' : 'text-blue-900'
                     }`}>
-                      {isFullPayment ? 'Full Payment - Invoice' : 'Token Payment - Package'}
+                      {isFullPayment ? 'Full Payment - Invoice' : `Token Payment - ₹${paymentAmount}`}
                     </p>
                     <p className={`text-xs mt-1 ${
                       isFullPayment ? 'text-green-700' : 'text-blue-700'
                     }`}>
                       {isFullPayment
                         ? 'Paying full service amount. An invoice will be generated.'
-                        : 'Paying token amount of ₹100. A package will be created for future use.'}
+                        : `A token of ₹${paymentAmount} will be created. Balance: ₹${actualPrice - paymentAmount}`}
                     </p>
                   </div>
                 </div>

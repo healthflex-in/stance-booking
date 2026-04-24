@@ -3025,6 +3025,7 @@ export type PatientAlertFilter = {
 
 export enum PatientCategory {
   Advocate = 'ADVOCATE',
+  App = 'APP',
   Advertisement = 'Advertisement',
   Doctor = 'DOCTOR',
   Organic = 'ORGANIC',

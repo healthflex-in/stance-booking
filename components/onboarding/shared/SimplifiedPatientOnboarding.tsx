@@ -5,7 +5,7 @@ import { useMutation, useLazyQuery, useQuery } from '@apollo/client';
 import { toast } from 'sonner';
 import { User } from 'lucide-react';
 import { StanceHealthLoader } from '@/components/loader/StanceHealthLoader';
-import { CREATE_PATIENT, PATIENT_EXISTS, PATIENT_BY_PHONE, GET_CENTERS, CHECK_PATIENT_BY_PHONE, ADD_PATIENT_TO_ORGANIZATION, SEND_EMAIL_OTP, VERIFY_EMAIL_OTP } from '@/gql/queries';
+import { CREATE_PATIENT, PATIENT_EXISTS, PATIENT_BY_PHONE, GET_CENTERS, CHECK_PATIENT_BY_PHONE, ADD_PATIENT_TO_ORGANIZATION, SEND_EMAIL_OTP, VERIFY_EMAIL_OTP, UPDATE_PATIENT } from '@/gql/queries';
 import { useContainerDetection } from '@/hooks/useContainerDetection';
 import { useMobileFlowAnalytics } from '@/services/mobile-analytics';
 import { getBookingCookies } from '@/utils/booking-cookies';
@@ -127,6 +127,7 @@ export default function SimplifiedPatientOnboarding({
 
   const [sendEmailOTPMutation] = useMutation(SEND_EMAIL_OTP);
   const [verifyEmailOTPMutation] = useMutation(VERIFY_EMAIL_OTP);
+  const [updatePatientMutation] = useMutation(UPDATE_PATIENT);
 
   useEffect(() => {
     try {
@@ -207,14 +208,20 @@ export default function SimplifiedPatientOnboarding({
   // ─── OTP modal handlers ──────────────────────────────────────────────────────
 
   const openOTPModal = async (email: string) => {
+    console.log('📧 openOTPModal called with email:', email);
     setOtpEmail(email);
     setOtpError(null);
     setShowOTPModal(true);
     setIsSendingOTP(true);
     try {
+      console.log('📧 Calling sendEmailOTPMutation...');
       const { data } = await sendEmailOTPMutation({ variables: { email } });
+      console.log('✅ OTP sent successfully:', data);
       setOtpToken(data.sendEmailOTP);
-    } catch (err) {
+    } catch (err: any) {
+      console.error('❌ Error sending OTP:', err);
+      console.error('❌ Error message:', err?.message);
+      console.error('❌ Error graphQLErrors:', err?.graphQLErrors);
       setOtpError('Failed to send OTP. Please try again.');
     } finally {
       setIsSendingOTP(false);
@@ -226,26 +233,34 @@ export default function SimplifiedPatientOnboarding({
     setIsVerifyingOTP(true);
     setOtpError(null);
     try {
+      console.log('📧 Verifying OTP for email:', otpEmail);
       const { data } = await verifyEmailOTPMutation({
         variables: { input: { email: otpEmail, otp: code, token: otpToken } },
       });
+      console.log('✅ OTP verified successfully:', data);
       const session = data.verifyEmailOTP;
 
       if (pendingRepeatPatientId) {
         localStorage.setItem('token', session.token);
         localStorage.setItem('refreshToken', session.refreshToken);
         localStorage.setItem('user', JSON.stringify(session.user));
+        
+        console.log('✅ Email verified and updated successfully');
+        toast.success('Email verified and updated successfully!');
+        
         const st = pendingSessionType!;
+        const patientId = pendingRepeatPatientId;
         setShowOTPModal(false);
         setPendingRepeatPatientId(null);
         setPendingSessionType(null);
-        onComplete(pendingRepeatPatientId, false, st);
+        onComplete(patientId, false, st);
       } else {
         setEmailVerified(true);
         setShowOTPModal(false);
         toast.success('Email verified!');
       }
     } catch (err) {
+      console.error('❌ Error verifying OTP:', err);
       setOtpError('Invalid OTP. Please try again.');
     } finally {
       setIsVerifyingOTP(false);
@@ -253,27 +268,63 @@ export default function SimplifiedPatientOnboarding({
   };
 
   const handleResendOTP = async () => {
+    console.log('🔄 handleResendOTP called for email:', otpEmail);
     setIsSendingOTP(true);
     setOtpError(null);
     try {
+      console.log('📧 Resending OTP...');
       const { data } = await sendEmailOTPMutation({ variables: { email: otpEmail } });
+      console.log('✅ OTP resent successfully:', data);
       setOtpToken(data.sendEmailOTP);
-    } catch (err) {
+      toast.success('Verification code resent!');
+    } catch (err: any) {
+      console.error('❌ Error resending OTP:', err);
+      console.error('❌ Error message:', err?.message);
       setOtpError('Failed to resend OTP. Please try again.');
+      toast.error('Failed to resend OTP. Please try again.');
     } finally {
       setIsSendingOTP(false);
     }
   };
 
   const handleUpdateEmail = async (newEmail: string) => {
+    console.log('📧 handleUpdateEmail called with:', newEmail);
+    
+    if (!pendingRepeatPatientId) {
+      console.error('❌ No patient ID found');
+      setOtpError('Patient ID not found. Please try again.');
+      toast.error('Patient ID not found. Please try again.');
+      return;
+    }
+
     setIsSendingOTP(true);
     setOtpError(null);
+    
     try {
+      // Send OTP to new email for verification
+      console.log('📧 Sending OTP to new email:', newEmail);
+      
+      // First update email in database so OTP can be sent
+      await updatePatientMutation({
+        variables: {
+          patientId: pendingRepeatPatientId,
+          input: { email: newEmail }
+        }
+      });
+      console.log('✅ Email updated in database (temporarily)');
+      
+      // Now send OTP to verify
       const { data } = await sendEmailOTPMutation({ variables: { email: newEmail } });
+      console.log('✅ OTP sent to new email successfully:', data);
+      
       setOtpToken(data.sendEmailOTP);
       setOtpEmail(newEmail);
-    } catch (err) {
+      toast.success(`Verification code sent to ${newEmail}`);
+    } catch (err: any) {
+      console.error('❌ Error sending OTP:', err);
+      console.error('❌ Error message:', err?.message);
       setOtpError('Failed to send OTP. Please try again.');
+      toast.error('Failed to send OTP. Please try again.');
     } finally {
       setIsSendingOTP(false);
     }

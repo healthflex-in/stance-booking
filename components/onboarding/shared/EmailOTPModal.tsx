@@ -42,6 +42,9 @@ export default function EmailOTPModal({
   useEffect(() => {
     if (isOpen && !email) {
       setIsEditingEmail(true);
+    } else if (isOpen && email) {
+      // Reset to non-editing mode when modal opens with email
+      setIsEditingEmail(false);
     }
   }, [isOpen, email]);
 
@@ -92,8 +95,8 @@ export default function EmailOTPModal({
           <p className="text-center text-sm text-gray-500 mb-5">
             {isSending && !error
               ? 'Sending verification code...'
-              : email
-                ? 'Enter the 6-digit code sent to'
+              : email && !isEditingEmail
+                ? 'Verification code sent to your email'
                 : 'Enter your email to receive a code'
             }
           </p>
@@ -126,42 +129,46 @@ export default function EmailOTPModal({
               {emailError && <p className="text-red-500 text-xs">{emailError}</p>}
               <button
                 onClick={handleSaveEmail}
-                disabled={!editedEmail.trim()}
+                disabled={!editedEmail.trim() || isSending}
                 className="w-full py-3 rounded-xl font-semibold text-sm text-black transition-all disabled:bg-gray-300 disabled:cursor-not-allowed"
-                style={{ backgroundColor: !editedEmail.trim() ? '#D1D5DB' : '#DDFE71' }}
+                style={{ backgroundColor: !editedEmail.trim() || isSending ? '#D1D5DB' : '#DDFE71' }}
               >
-                Send OTP
+                {isSending ? 'Sending OTP...' : 'Send OTP'}
               </button>
             </div>
           ) : (
-            <div className="flex items-center justify-center gap-2 mb-5 px-3 py-2 bg-gray-50 rounded-xl">
-              <span className="text-sm font-medium text-gray-800 truncate">{email}</span>
-              <button
-                onClick={() => { setIsEditingEmail(true); setEditedEmail(email); setEmailError(''); }}
-                className="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-200 transition-colors"
-              >
-                <Pencil className="w-3.5 h-3.5 text-gray-500" />
-              </button>
-            </div>
-          )}
+            <>
+              {/* Show "Wrong email?" link instead of displaying email */}
+              {email && (
+                <div className="flex items-center justify-center mb-5">
+                  <button
+                    onClick={() => { setIsEditingEmail(true); setEditedEmail(email); setEmailError(''); }}
+                    className="text-sm text-blue-600 hover:text-blue-700 underline transition-colors"
+                  >
+                    Wrong email? Click here to update
+                  </button>
+                </div>
+              )}
 
-          {/* OTP input — only show when not editing email and email exists */}
-          {!isEditingEmail && email && (
-            <EmailOTPInput
-              isSending={isSending}
-              isVerifying={isVerifying}
-              error={error}
-              onVerify={onVerify}
-              onResend={onResend}
-            />
-          )}
+              {/* OTP input — only show when not editing email and email exists */}
+              {!isEditingEmail && email && (
+                <EmailOTPInput
+                  isSending={isSending}
+                  isVerifying={isVerifying}
+                  error={error}
+                  onVerify={onVerify}
+                  onResend={onResend}
+                />
+              )}
 
-          {/* Loading state while sending first OTP */}
-          {!isEditingEmail && email && isSending && !error && (
-            <div className="flex items-center justify-center gap-2 mt-3">
-              <div className="w-4 h-4 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin" />
-              <span className="text-xs text-gray-500">Sending OTP...</span>
-            </div>
+              {/* Loading state while sending first OTP */}
+              {!isEditingEmail && email && isSending && !error && (
+                <div className="flex items-center justify-center gap-2 mt-3">
+                  <div className="w-4 h-4 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin" />
+                  <span className="text-xs text-gray-500">Sending OTP...</span>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
