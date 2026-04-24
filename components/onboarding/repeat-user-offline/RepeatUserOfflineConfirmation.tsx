@@ -1,11 +1,12 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useQuery } from '@apollo/client';
-import { GET_CENTERS, GET_SERVICES, GET_USER } from '@/gql/queries';
+import { useQuery, useMutation } from '@apollo/client';
+import { GET_CENTERS, GET_SERVICES, GET_USER, UPDATE_PATIENT } from '@/gql/queries';
 import { useContainerDetection } from '@/hooks/useContainerDetection';
 import { Button } from '@/components/ui-atoms';
 import { StanceHealthLoader } from '@/components/loader/StanceHealthLoader';
+import { EmailCollectionModal } from '@/components/onboarding/shared';
 import { BookingAnalytics } from '@/services/booking-analytics';
 
 interface BookingData {
@@ -33,18 +34,21 @@ export default function RepeatUserOfflineConfirmation({
   analytics,
 }: RepeatUserOfflineConfirmationProps) {
   const { isInDesktopContainer } = useContainerDetection();
+  const [showEmailModal, setShowEmailModal] = useState(false);
 
   const { data: centersData, loading: centersLoading } = useQuery(GET_CENTERS);
   const { data: servicesData, loading: servicesLoading } = useQuery(GET_SERVICES, {
     variables: { centerId: [bookingData.centerId] },
   });
-  const { data: userData, loading: userLoading } = useQuery(GET_USER, {
+  const { data: userData, loading: userLoading, refetch: refetchUser } = useQuery(GET_USER, {
     variables: { userId: bookingData.patientId },
   });
   const { data: consultantData, loading: consultantLoading } = useQuery(GET_USER, {
     variables: { userId: bookingData.consultantId },
     skip: !bookingData.consultantId,
   });
+
+  const [updatePatient] = useMutation(UPDATE_PATIENT);
 
   const currentCenter = centersData?.centers.find((c: any) => c._id === bookingData.centerId);
   const currentService = servicesData?.services.find((s: any) => s._id === bookingData.treatmentId);
@@ -93,12 +97,33 @@ export default function RepeatUserOfflineConfirmation({
                 <span className="text-xs text-black font-bold block mb-1.5">Phone</span>
                 <p className="text-sm text-gray-900">{patientDetails.phone}</p>
               </div>
-              {patientDetails.email && (
-                <div>
-                  <span className="text-xs text-black font-bold block mb-1.5">Email</span>
-                  <p className="text-sm text-gray-900">{patientDetails.email}</p>
-                </div>
-              )}
+              <div>
+                <span className="text-xs text-black font-bold block mb-1.5">Email</span>
+                {patientDetails.email ? (
+                  <button
+                    onClick={() => {
+                      console.log('📧 Email field clicked (offline) - opening modal');
+                      console.log('📧 Current email:', patientDetails.email);
+                      console.log('📧 Patient ID:', bookingData.patientId);
+                      setShowEmailModal(true);
+                    }}
+                    className="text-sm text-gray-900 hover:text-blue-600 transition-colors text-left underline decoration-dotted"
+                  >
+                    {patientDetails.email}
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => {
+                      console.log('📧 Add email clicked (offline) - opening modal');
+                      console.log('📧 Patient ID:', bookingData.patientId);
+                      setShowEmailModal(true);
+                    }}
+                    className="text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors"
+                  >
+                    + Add email address
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
@@ -157,6 +182,22 @@ export default function RepeatUserOfflineConfirmation({
           Confirm Booking
         </Button>
       </div>
+
+      <EmailCollectionModal
+        isOpen={showEmailModal}
+        patientId={bookingData.patientId}
+        patientName={patientDetails.name}
+        currentEmail={patientDetails.email}
+        onEmailSaved={async (newEmail) => {
+          console.log('📧 Email saved callback (offline):', newEmail);
+          await refetchUser();
+          setShowEmailModal(false);
+        }}
+        onClose={() => {
+          console.log('📧 Modal closed (offline)');
+          setShowEmailModal(false);
+        }}
+      />
     </div>
   );
 }
