@@ -331,10 +331,8 @@ export default function SimplifiedPatientOnboarding({
   };
 
   const handleEmailBlur = () => {
-    if (!isNewUser || !isPhoneVerified) return;
-    if (!formData.email || !EMAIL_REGEX.test(formData.email)) return;
-    if (emailVerified) return;
-    openOTPModal(formData.email);
+    // Email verification is only for repeat users, not new users
+    return;
   };
 
   // ─── Phone verification ──────────────────────────────────────────────────────
@@ -493,9 +491,6 @@ export default function SimplifiedPatientOnboarding({
       errors.email = 'Invalid email address';
       mobileAnalytics.trackPatientFormValidationError('email', 'invalid_format', centerId);
     }
-    if (!emailVerified && formData.email) {
-      errors.email = 'Please verify your email first';
-    }
 
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
@@ -652,7 +647,6 @@ export default function SimplifiedPatientOnboarding({
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">
           Email Address
-          {emailVerified && <span className="ml-2 text-green-600 text-xs">✓ Verified</span>}
         </label>
         <div className="relative">
           <input
@@ -664,28 +658,13 @@ export default function SimplifiedPatientOnboarding({
                 mobileAnalytics.trackEmailEntered(centerId);
                 setTrackedFields(prev => ({ ...prev, email: true }));
               }
-              if (emailVerified) {
-                setEmailVerified(false);
-                setOtpToken(null);
-                setOtpError(null);
-              }
             }}
             disabled={!isPhoneVerified}
-            className={`w-full p-3 pr-20 border-2 rounded-xl ${
-              formErrors.email ? 'border-red-300' : emailVerified ? 'border-green-300 bg-green-50' : 'border-gray-200'
+            className={`w-full p-3 border-2 rounded-xl ${
+              formErrors.email ? 'border-red-300' : 'border-gray-200'
             } focus:border-blue-500 outline-none ${!isPhoneVerified ? 'bg-gray-100 cursor-not-allowed' : ''}`}
             placeholder="your.email@example.com"
           />
-          {isPhoneVerified && !emailVerified && formData.email && EMAIL_REGEX.test(formData.email) && (
-            <button
-              onClick={() => openOTPModal(formData.email)}
-              disabled={isSendingOTP}
-              className="absolute right-2 top-1/2 transform -translate-y-1/2 px-2 py-1 rounded text-xs font-medium text-black disabled:bg-gray-400 disabled:cursor-not-allowed"
-              style={{ backgroundColor: isSendingOTP ? '#9CA3AF' : '#DDFE71' }}
-            >
-              {isSendingOTP ? 'Sending...' : 'Verify'}
-            </button>
-          )}
         </div>
         {formErrors.email && (
           <p className="text-red-500 text-xs mt-1">{formErrors.email}</p>
@@ -918,11 +897,11 @@ export default function SimplifiedPatientOnboarding({
                   mobileAnalytics.trackContinueButtonClicked('patient_onboarding', centerId, formData.phone);
                   handleContinue();
                 }}
-                disabled={creating || (!!formData.email && !emailVerified)}
+                disabled={creating}
                 className="flex-1 py-4 rounded-2xl text-sm text-black transition-all disabled:bg-gray-400 disabled:cursor-not-allowed"
-                style={{ backgroundColor: creating || (!!formData.email && !emailVerified) ? '#9CA3AF' : '#DDFE71' }}
+                style={{ backgroundColor: creating ? '#9CA3AF' : '#DDFE71' }}
               >
-                {creating ? 'Creating Profile...' : formData.email && !emailVerified ? 'Verify email to continue' : 'Continue'}
+                {creating ? 'Creating Profile...' : 'Continue'}
               </button>
             ) : (
               <button
