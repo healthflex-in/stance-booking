@@ -79,7 +79,7 @@ export default function PrepaidOnboarding({ organizationId, onComplete, analytic
       return;
     }
 
-    analytics?.trackEvent('phone_verification_initiated', { phone: formData.phone });
+    analytics?.trackEvent('phone_verification_clicked', { phone_length: formData.phone.length, center_id: organizationId });
     setIsVerifying(true);
     try {
       const { data: checkData } = await checkPatientByPhone({
@@ -159,10 +159,10 @@ export default function PrepaidOnboarding({ organizationId, onComplete, analytic
   const handleSubmit = async () => {
     if (!validateForm()) return;
 
-    analytics?.trackEvent('prepaid_onboarding_form_submitted', { 
-      phone: formData.phone,
-      hasEmail: !!formData.email,
-      hasDob: !!formData.dob 
+    analytics?.trackEvent('continue_button_clicked', { 
+      current_step: 'patient_onboarding',
+      center_id: organizationId,
+      patient_id: formData.phone,
     });
 
     const dobDate = formData.dob ? new Date(formData.dob) : null;

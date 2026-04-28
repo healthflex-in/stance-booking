@@ -1,75 +1,58 @@
 /**
  * Booking Analytics Service
- * Tracks booking flow events with proper prefixes
+ * Tracks booking flow events matching stance-dashboard-frontend mobile-analytics
  * 
- * Prefixes:
- * - N-ON: New User Online
- * - N-OF: New User Offline
- * - R-ON: Repeat User Online
- * - R-OF: Repeat User Offline
- * - P-NEW: Prepaid New
- * - P-REP: Prepaid Repeat
+ * Event names match mobile-analytics.ts from stance-dashboard-frontend
+ * No prefixes - clean event names for GTM/GA4/Meta Pixel
  */
 
-import { analytics } from '@/lib/firebase';
-import { logEvent } from 'firebase/analytics';
 import { trackEvent as trackGtagEvent } from '@/lib/gtag';
 import { metaPixelEvents, trackMetaPixelCustomEvent } from '@/lib/meta-pixel';
 
 export type BookingFlowType = 'new-online' | 'new-offline' | 'repeat-online' | 'repeat-offline' | 'prepaid-new' | 'prepaid-repeat';
 export type BookingStep = 'session-details' | 'slot-selection' | 'payment-confirmation' | 'booking-confirmed' | 'confirmation';
 
-const FLOW_PREFIXES: Record<BookingFlowType, string> = {
-  'new-online': 'N-ON',
-  'new-offline': 'N-OF',
-  'repeat-online': 'R-ON',
-  'repeat-offline': 'R-OF',
-  'prepaid-new': 'P-NEW',
-  'prepaid-repeat': 'P-REP',
-};
-
 export class BookingAnalytics {
   private flowType: BookingFlowType;
-  private prefix: string;
   private sessionStartTime: number;
   private stepStartTime: number;
 
   constructor(flowType: BookingFlowType) {
     this.flowType = flowType;
-    this.prefix = FLOW_PREFIXES[flowType];
     this.sessionStartTime = Date.now();
     this.stepStartTime = Date.now();
   }
 
   public trackEvent(eventName: string, params: Record<string, any> = {}) {
-    const prefixedEventName = `${this.prefix}_${eventName}`;
     const eventData = {
       ...params,
       flow_type: this.flowType,
       timestamp: new Date().toISOString(),
     };
     
-    console.log('📊 Analytics Event:', prefixedEventName, eventData);
+    console.log('📊 Analytics Event:', eventName, eventData);
 
-    // 1. Firebase Analytics (GA4)
-    if (!analytics) {
-      console.log('⚠️ Firebase Analytics not initialized');
-    } else {
-      logEvent(analytics, prefixedEventName, eventData);
-      console.log('✅ Sent to Firebase Analytics (GA4)');
-    }
-
-    // 2. GTM dataLayer + GA4 gtag
+    // 1. Send to GA4 via gtag with ga4_ prefix
     if (typeof window !== 'undefined') {
-      trackGtagEvent(prefixedEventName, eventData);
-      console.log('✅ Sent to GTM dataLayer + GA4');
-    } else {
-      console.log('⚠️ GTM/GA4 not available (server-side)');
+      trackGtagEvent(`ga4_${eventName}`, {
+        ...eventData,
+        platform: 'ga4',
+      });
+      console.log('✅ Sent to GA4:', `ga4_${eventName}`);
     }
 
-    // 3. Meta Pixel - Custom events
+    // 2. Send to Meta Pixel via GTM with pixel_ prefix
+    if (typeof window !== 'undefined') {
+      trackGtagEvent(`pixel_${eventName}`, {
+        ...eventData,
+        platform: 'meta_pixel',
+      });
+      console.log('✅ Sent to GTM dataLayer:', `pixel_${eventName}`);
+    }
+
+    // 3. Send directly to Meta Pixel (bypass GTM)
     if (typeof window !== 'undefined' && (window as any).fbq) {
-      trackMetaPixelCustomEvent(prefixedEventName, eventData);
+      trackMetaPixelCustomEvent(eventName, eventData);
       console.log('✅ Sent to Meta Pixel (Custom)');
       
       // Map to standard Meta Pixel events
@@ -81,12 +64,13 @@ export class BookingAnalytics {
 
   private trackMetaPixelStandardEvent(eventName: string, params: Record<string, any>) {
     const eventMapping: Record<string, () => void> = {
-      'flow_start': () => metaPixelEvents.trackLead(params),
-      'slot_selected': () => metaPixelEvents.trackSchedule(params),
-      'profile_completion_clicked': () => metaPixelEvents.trackCompleteRegistration(params),
-      'proceed_to_payment_clicked': () => metaPixelEvents.trackInitiateCheckout({ value: params.amount, ...params }),
-      'payment_initiated': () => metaPixelEvents.trackAddPaymentInfo({ value: params.amount, ...params }),
-      'payment_success': () => metaPixelEvents.trackPurchase({ value: params.amount, transaction_id: params.payment_id, ...params }),
+      'mobile_flow_start': () => metaPixelEvents.trackLead(params),
+      'patient_created': () => metaPixelEvents.trackCompleteRegistration(params),
+      'center_selected': () => metaPixelEvents.trackFindLocation(params),
+      'time_slot_selected': () => metaPixelEvents.trackSchedule(params),
+      'begin_checkout': () => metaPixelEvents.trackInitiateCheckout({ value: params.value || params.amount, ...params }),
+      'add_payment_info': () => metaPixelEvents.trackAddPaymentInfo({ value: params.value || params.amount, ...params }),
+      'purchase': () => metaPixelEvents.trackPurchase({ value: params.value, transaction_id: params.transaction_id, ...params }),
     };
 
     if (eventMapping[eventName]) {
@@ -94,12 +78,13 @@ export class BookingAnalytics {
     }
   }
 
-  // Flow Start
+  // Flow Start - matches mobile_flow_start
   trackFlowStart(organizationId: string, centerId?: string) {
     this.sessionStartTime = Date.now();
-    this.trackEvent('flow_start', {
+    this.trackEvent('mobile_flow_start', {
       organization_id: organizationId,
       center_id: centerId,
+      source: 'direct',
     });
   }
 
@@ -109,11 +94,11 @@ export class BookingAnalytics {
     this.stepStartTime = Date.now();
 
     const stepEventNames: Record<string, string> = {
-      'session-details': 'session_details_step',
-      'slot-selection': 'slot_availability_step',
-      'payment-confirmation': 'payment_step',
-      'booking-confirmed': 'booking_confirmed_step',
-      'confirmation': 'confirm_booking_step',
+      'session-details': 'session_details_start',
+      'slot-selection': 'slot_search_start',
+      'payment-confirmation': 'booking_confirmation_start',
+      'booking-confirmed': 'booking_confirmation_viewed',
+      'confirmation': 'booking_details_reviewed',
     };
 
     const eventName = stepEventNames[step] || `${step}_step`;
@@ -126,14 +111,14 @@ export class BookingAnalytics {
   trackStepComplete(step: BookingStep, metadata?: Record<string, any>) {
     const timeOnStep = Date.now() - this.stepStartTime;
     
-    this.trackEvent('step_complete', {
-      step,
+    this.trackEvent('step_progression', {
+      current_step: step,
       time_on_step: timeOnStep,
       ...metadata,
     });
   }
 
-  // Session Details - Specific Events
+  // Session Details - matches session_details_start
   trackServiceSelected(serviceId: string, serviceName: string, price: number, duration: number) {
     this.trackEvent('service_selected', {
       service_id: serviceId,
@@ -144,33 +129,38 @@ export class BookingAnalytics {
   }
 
   trackDesignationSelected(designation: string) {
-    this.trackEvent('designation_selected', {
+    this.trackEvent('button_click', {
+      button_name: 'designation_selected',
+      context: 'session_details',
       designation,
     });
   }
 
   trackDesignationToggled(designation: string) {
-    this.trackEvent('designation_toggled', {
+    this.trackEvent('button_click', {
+      button_name: 'designation_toggled',
+      context: 'session_details',
       designation,
     });
   }
 
   trackServiceModalOpened() {
-    this.trackEvent('service_modal_opened');
+    this.trackEvent('button_click', { button_name: 'service_modal_open', context: 'session_details' });
   }
 
   trackServiceModalClosed() {
-    this.trackEvent('service_modal_closed');
+    this.trackEvent('button_click', { button_name: 'service_modal_close', context: 'session_details' });
   }
 
   trackSessionDetailsContinueClicked(serviceId: string, designation: string) {
-    this.trackEvent('session_details_continue_clicked', {
+    this.trackEvent('continue_button_clicked', {
+      current_step: 'session_details',
       service_id: serviceId,
       designation,
     });
   }
 
-  // Slot Selection - Specific Events
+  // Slot Selection - matches time_slot_selected
   trackDateSelected(date: string) {
     this.trackEvent('date_selected', {
       selected_date: date,
@@ -185,34 +175,40 @@ export class BookingAnalytics {
   }
 
   trackSlotSelected(consultantId: string, slotTime: string, centerId: string) {
-    this.trackEvent('slot_selected', {
+    this.trackEvent('time_slot_selected', {
       consultant_id: consultantId,
-      slot_time: slotTime,
+      time_slot: slotTime,
       center_id: centerId,
     });
   }
 
   trackConsultantModalOpened() {
-    this.trackEvent('consultant_modal_opened');
+    this.trackEvent('button_click', { button_name: 'consultant_modal_open', context: 'slot_selection' });
   }
 
   trackConsultantModalClosed() {
-    this.trackEvent('consultant_modal_closed');
+    this.trackEvent('button_click', { button_name: 'consultant_modal_close', context: 'slot_selection' });
   }
 
   trackConsultantFilterApplied(consultantId: string, consultantName: string) {
-    this.trackEvent('consultant_filter_applied', {
+    this.trackEvent('button_click', {
+      button_name: 'consultant_filter_applied',
+      context: 'slot_selection',
       consultant_id: consultantId,
       consultant_name: consultantName,
     });
   }
 
   trackConsultantFilterCleared() {
-    this.trackEvent('consultant_filter_cleared');
+    this.trackEvent('button_click', {
+      button_name: 'consultant_filter_cleared',
+      context: 'slot_selection',
+    });
   }
 
   trackSlotSelectionContinueClicked(consultantId: string, slotTime: string, centerId: string) {
-    this.trackEvent('slot_selection_continue_clicked', {
+    this.trackEvent('continue_button_clicked', {
+      current_step: 'slot_selection',
       consultant_id: consultantId,
       slot_time: slotTime,
       center_id: centerId,
@@ -220,17 +216,34 @@ export class BookingAnalytics {
   }
 
   trackNoSlotsAvailable(date: string, designation?: string) {
-    this.trackEvent('no_slots_available', {
+    this.trackEvent('mobile_flow_error', {
+      error_type: 'no_slots_available',
+      error_message: 'No slots available for selected date',
+      context: 'slot_selection',
       date,
       designation,
     });
   }
 
-  // Payment - Specific Events
+  // Payment - matches begin_checkout, payment_initiated, purchase
   trackProceedToPaymentClicked(amount: number, serviceId: string, consultantId: string) {
-    this.trackEvent('proceed_to_payment_clicked', {
+    this.trackEvent('proceed_to_pay_clicked', {
       amount,
       currency: 'INR',
+      service_id: serviceId,
+      consultant_id: consultantId,
+    });
+
+    this.trackEvent('begin_checkout', {
+      currency: 'INR',
+      value: amount,
+      items: [{
+        item_id: serviceId,
+        item_name: 'Physiotherapy Session',
+        category: 'physiotherapy_treatment',
+        quantity: 1,
+        price: amount
+      }],
       service_id: serviceId,
       consultant_id: consultantId,
     });
@@ -252,20 +265,19 @@ export class BookingAnalytics {
       currency: 'INR',
     });
 
-    // Standard e-commerce event
-    if (analytics) {
-      logEvent(analytics, 'purchase', {
-        transaction_id: paymentId,
-        value: amount,
-        currency: 'INR',
-        items: [{
-          item_id: appointmentId,
-          item_name: 'Appointment Booking',
-          price: amount,
-          quantity: 1,
-        }],
-      });
-    }
+    // Standard purchase event
+    this.trackEvent('purchase', {
+      transaction_id: paymentId,
+      value: amount,
+      currency: 'INR',
+      items: [{
+        item_id: appointmentId,
+        item_name: 'Physiotherapy Appointment',
+        category: 'healthcare_service',
+        quantity: 1,
+        price: amount,
+      }],
+    });
   }
 
   trackPaymentFailure(error: string, appointmentId?: string) {
@@ -276,30 +288,23 @@ export class BookingAnalytics {
   }
 
   trackPaymentSkipped(reason: string = 'razorpay_issue') {
-    this.trackEvent('payment_skipped', {
-      reason,
+    this.trackEvent('payment_failure', {
+      error_message: reason,
+      error_type: 'payment_skipped',
     });
   }
 
-  // Booking Completion - Specific Events
+  // Booking Completion - matches booking_completed
   trackBookingComplete(appointmentId: string, patientId: string, consultantId: string, centerId: string) {
     const totalTime = Date.now() - this.sessionStartTime;
     
-    this.trackEvent('booking_complete', {
+    this.trackEvent('booking_completed', {
       appointment_id: appointmentId,
       patient_id: patientId,
       consultant_id: consultantId,
       center_id: centerId,
       total_time: totalTime,
     });
-
-    // Track conversion
-    if (analytics) {
-      logEvent(analytics, 'conversion', {
-        conversion_type: 'booking_complete',
-        value: 1,
-      });
-    }
   }
 
   trackReturnHomeClicked(appointmentId: string) {
@@ -309,28 +314,41 @@ export class BookingAnalytics {
   }
 
   trackWhatsAppShareClicked(appointmentId: string) {
-    this.trackEvent('whatsapp_share_clicked', {
+    this.trackEvent('whatsapp_clicked', {
       appointment_id: appointmentId,
+      context: 'booking_confirmed',
     });
   }
 
   trackSmsShareClicked(appointmentId: string) {
-    this.trackEvent('sms_share_clicked', {
+    this.trackEvent('button_click', {
+      button_name: 'sms_share',
+      context: 'booking_confirmed',
       appointment_id: appointmentId,
     });
   }
 
-  // Profile Completion - Specific Events
+  // Profile Completion - matches patient_created
   trackProfileCompletionClicked(patientId: string, centerId: string, isNewUser: boolean) {
     if (!patientId || !centerId) {
       console.error('Missing required parameters for profile completion tracking');
       return;
     }
     
-    this.trackEvent('profile_completion_clicked', {
+    this.trackEvent('patient_created', {
       patient_id: patientId,
       center_id: centerId,
-      is_new_user: isNewUser,
+      is_returning_user: !isNewUser,
+      user_id: patientId,
+    });
+
+    // Track lead generation
+    this.trackEvent('generate_lead', {
+      currency: 'INR',
+      value: 0,
+      patient_id: patientId,
+      center_id: centerId,
+      user_id: patientId,
     });
   }
 
@@ -340,17 +358,18 @@ export class BookingAnalytics {
       return;
     }
     
-    this.trackEvent('payment_success_acknowledged', {
+    this.trackEvent('booking_success_complete', {
       appointment_id: appointmentId,
       patient_id: patientId,
       consultant_id: consultantId,
       center_id: centerId,
+      success_type: 'appointment_confirmed',
     });
   }
 
   // Confirmation - Specific Events
   trackConfirmBookingClicked(appointmentId: string, amount: number, serviceId: string, consultantId: string) {
-    this.trackEvent('confirm_booking_clicked', {
+    this.trackEvent('proceed_to_pay_clicked', {
       appointment_id: appointmentId,
       amount,
       currency: 'INR',
@@ -362,13 +381,13 @@ export class BookingAnalytics {
   // Navigation - Specific Events
   trackBackNavigation(fromStep: BookingStep) {
     this.trackEvent('back_button_clicked', {
-      from_step: fromStep,
+      current_step: fromStep,
     });
   }
 
   // Errors
   trackError(errorType: string, errorMessage: string, context?: string) {
-    this.trackEvent('error', {
+    this.trackEvent('mobile_flow_error', {
       error_type: errorType,
       error_message: errorMessage,
       context,
@@ -376,7 +395,8 @@ export class BookingAnalytics {
   }
 
   trackAPIError(operationName: string, errorMessage: string) {
-    this.trackEvent('api_error', {
+    this.trackEvent('mobile_flow_error', {
+      error_type: 'api_error',
       operation_name: operationName,
       error_message: errorMessage,
     });

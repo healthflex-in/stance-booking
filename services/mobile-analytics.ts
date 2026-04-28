@@ -40,19 +40,19 @@ export class MobileFlowAnalytics {
 
     console.log('📊 Analytics Event:', baseEventName, eventData);
     
-    // 1. Send to GA4 via gtag
+    // 1. Send to GA4 via gtag with ga4_ prefix
     trackEvent(`ga4_${baseEventName}`, {
       ...eventData,
       platform: 'ga4'
     });
-    console.log('✅ Sent to GA4');
+    console.log('✅ Sent to GA4:', `ga4_${baseEventName}`);
     
-    // 2. Send to GTM dataLayer
+    // 2. Send to GTM dataLayer with pixel_ prefix
     trackEvent(`pixel_${baseEventName}`, {
       ...eventData,
       platform: 'meta_pixel'
     });
-    console.log('✅ Sent to GTM dataLayer');
+    console.log('✅ Sent to GTM dataLayer:', `pixel_${baseEventName}`);
     
     // 3. Send directly to Meta Pixel
     if (typeof window !== 'undefined' && (window as any).fbq) {
