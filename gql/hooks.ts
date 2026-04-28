@@ -153,6 +153,7 @@ export type AdvanceItem = {
   associatedPatients?: Maybe<Array<AssociatedPatients>>;
   description?: Maybe<Scalars['String']['output']>;
   item?: Maybe<Package>;
+  tokenData?: Maybe<TokenData>;
   type: AdvanceType;
   validTill: Scalars['Timestamp']['output'];
 };
@@ -188,7 +189,8 @@ export type AdvanceSortInput = {
 export enum AdvanceType {
   Package = 'PACKAGE',
   Referral = 'REFERRAL',
-  Refund = 'REFUND'
+  Refund = 'REFUND',
+  Token = 'TOKEN'
 }
 
 export type AdvanceWithBalance = {
@@ -479,6 +481,7 @@ export type Appointment = DataRow & {
   rescheduledTo?: Maybe<Appointment>;
   seqNo: Scalars['String']['output'];
   status: AppointmentStatus;
+  tokenAdvance?: Maybe<Advance>;
   treatment?: Maybe<Service>;
   updatedAt: Scalars['Timestamp']['output'];
   version: Scalars['Int']['output'];
@@ -783,6 +786,7 @@ export type CreateAdvanceItemInput = {
   associatedPatients?: InputMaybe<Array<AssociatedPatientsInput>>;
   description?: InputMaybe<Scalars['String']['input']>;
   item?: InputMaybe<Scalars['ObjectID']['input']>;
+  tokenData?: InputMaybe<TokenDataInput>;
   type: AdvanceType;
   validTill: Scalars['Timestamp']['input'];
 };
@@ -936,6 +940,7 @@ export type CreateGoalsInput = {
 
 export type CreateInvoiceInput = {
   amount: Scalars['Float']['input'];
+  applyToken?: InputMaybe<Scalars['Boolean']['input']>;
   appointment?: InputMaybe<Scalars['ObjectID']['input']>;
   center: Scalars['ObjectID']['input'];
   createdAt?: InputMaybe<Scalars['Timestamp']['input']>;
@@ -947,6 +952,7 @@ export type CreateInvoiceInput = {
   payment?: InputMaybe<PaymentFieldInput>;
   staff?: InputMaybe<Scalars['ObjectID']['input']>;
   subheading?: InputMaybe<Scalars['String']['input']>;
+  tokenAdvanceId?: InputMaybe<Scalars['ObjectID']['input']>;
 };
 
 export type CreateInvoiceItemInput = {
@@ -982,6 +988,8 @@ export type CreateOrderInput = {
   currency: Scalars['String']['input'];
   packageId?: InputMaybe<Scalars['ObjectID']['input']>;
   patient: Scalars['ObjectID']['input'];
+  serviceId?: InputMaybe<Scalars['ObjectID']['input']>;
+  tokenAmount?: InputMaybe<Scalars['Float']['input']>;
   type: PaymentType;
 };
 
@@ -1098,6 +1106,7 @@ export type CreateServiceInput = {
   isPrePaid?: InputMaybe<Scalars['Boolean']['input']>;
   name: Scalars['String']['input'];
   price: Scalars['Float']['input'];
+  tokenAmount?: InputMaybe<Scalars['Float']['input']>;
 };
 
 export type CreateStaffInput = {
@@ -1108,6 +1117,21 @@ export type CreateStaffInput = {
   password: Scalars['String']['input'];
   phone: Scalars['String']['input'];
   profilePicture?: InputMaybe<Scalars['String']['input']>;
+};
+
+export type CreateTokenAdvanceInput = {
+  centerId: Scalars['ObjectID']['input'];
+  description?: InputMaybe<Scalars['String']['input']>;
+  patientId: Scalars['ObjectID']['input'];
+  payment: CreatePaymentInput;
+  tokenAmount: Scalars['Float']['input'];
+};
+
+export type CreateTokenInput = {
+  centers: Array<Scalars['ObjectID']['input']>;
+  description?: InputMaybe<Scalars['String']['input']>;
+  name: Scalars['String']['input'];
+  validityDays: Scalars['Int']['input'];
 };
 
 export type Criticality = {
@@ -1627,6 +1651,10 @@ export type Invoice = DataRow & {
   staff?: Maybe<User>;
   status: InvoiceStatus;
   subheading?: Maybe<Scalars['String']['output']>;
+  subtotal?: Maybe<Scalars['Float']['output']>;
+  tokenAdvance?: Maybe<Advance>;
+  tokenDiscount?: Maybe<Scalars['Float']['output']>;
+  total: Scalars['Float']['output'];
   updatedAt: Scalars['Timestamp']['output'];
   version: Scalars['Int']['output'];
 };
@@ -1991,6 +2019,10 @@ export type Mutation = {
   createService: Service;
   /** Create a new staff */
   createStaff: User;
+  /** Create token definition */
+  createToken: Token;
+  /** Create token advance for a patient (used when invoice is paid) */
+  createTokenAdvance: TokenAdvanceResult;
   deleteAdvance: Advance;
   /** Delete an appointment */
   deleteAppointment: Appointment;
@@ -2025,6 +2057,8 @@ export type Mutation = {
   deleteRule: Scalars['Boolean']['output'];
   /** Delete a service */
   deleteService: Service;
+  /** Delete token definition */
+  deleteToken: Token;
   /** delete a user by id */
   deleteUser: Scalars['Boolean']['output'];
   /** Duplicate entire goalset with all goals */
@@ -2105,6 +2139,8 @@ export type Mutation = {
   updateService: Service;
   /** Update staff */
   updateStaff: User;
+  /** Update token definition */
+  updateToken: Token;
   uploadFile: File;
   /** Create or update a match record */
   upsertMatch: Match;
@@ -2311,6 +2347,16 @@ export type MutationCreateStaffArgs = {
 };
 
 
+export type MutationCreateTokenArgs = {
+  input: CreateTokenInput;
+};
+
+
+export type MutationCreateTokenAdvanceArgs = {
+  input: CreateTokenAdvanceInput;
+};
+
+
 export type MutationDeleteAdvanceArgs = {
   id: Scalars['ObjectID']['input'];
 };
@@ -2403,6 +2449,11 @@ export type MutationDeleteRuleArgs = {
 
 
 export type MutationDeleteServiceArgs = {
+  id: Scalars['ObjectID']['input'];
+};
+
+
+export type MutationDeleteTokenArgs = {
   id: Scalars['ObjectID']['input'];
 };
 
@@ -2669,6 +2720,12 @@ export type MutationUpdateServiceArgs = {
 export type MutationUpdateStaffArgs = {
   id: Scalars['ObjectID']['input'];
   input: UpdateStaffInput;
+};
+
+
+export type MutationUpdateTokenArgs = {
+  id: Scalars['ObjectID']['input'];
+  input: UpdateTokenInput;
 };
 
 
@@ -3527,6 +3584,10 @@ export type Query = {
   /** Get list of services */
   services: Array<Service>;
   stats: Stats;
+  /** Get token by ID */
+  token: Token;
+  /** Get all tokens for centers */
+  tokens: Array<Token>;
   /** get user by id */
   user: User;
   /** Get permissions for a user in a specific scope */
@@ -3926,6 +3987,16 @@ export type QueryStatsArgs = {
 };
 
 
+export type QueryTokenArgs = {
+  id: Scalars['ObjectID']['input'];
+};
+
+
+export type QueryTokensArgs = {
+  centerId?: InputMaybe<Array<Scalars['ObjectID']['input']>>;
+};
+
+
 export type QueryUserArgs = {
   userId: Scalars['ObjectID']['input'];
 };
@@ -4305,6 +4376,7 @@ export type Service = DataRow & {
   organization: Organization;
   price: Scalars['Float']['output'];
   seqNo: Scalars['String']['output'];
+  tokenAmount?: Maybe<Scalars['Float']['output']>;
   updatedAt: Scalars['Timestamp']['output'];
   version: Scalars['Int']['output'];
 };
@@ -4459,6 +4531,41 @@ export type TimeSlot = {
   __typename?: 'TimeSlot';
   endTime: Scalars['Time']['output'];
   startTime: Scalars['Time']['output'];
+};
+
+export type Token = DataRow & {
+  __typename?: 'Token';
+  _id: Scalars['ObjectID']['output'];
+  centers: Array<Center>;
+  createdAt: Scalars['Timestamp']['output'];
+  description?: Maybe<Scalars['String']['output']>;
+  isActive: Scalars['Boolean']['output'];
+  name: Scalars['String']['output'];
+  organization: Organization;
+  seqNo: Scalars['String']['output'];
+  updatedAt: Scalars['Timestamp']['output'];
+  validityDays: Scalars['Int']['output'];
+  version: Scalars['Int']['output'];
+};
+
+export type TokenAdvanceResult = {
+  __typename?: 'TokenAdvanceResult';
+  advance: Advance;
+  receipt?: Maybe<Receipt>;
+  tokenAmount: Scalars['Float']['output'];
+};
+
+export type TokenData = {
+  __typename?: 'TokenData';
+  balanceAmount: Scalars['Float']['output'];
+  service: Service;
+  serviceAmount: Scalars['Float']['output'];
+};
+
+export type TokenDataInput = {
+  balanceAmount: Scalars['Float']['input'];
+  service: Scalars['ObjectID']['input'];
+  serviceAmount: Scalars['Float']['input'];
 };
 
 export enum TransactionType {
@@ -4687,6 +4794,7 @@ export type UpdateServiceInput = {
   isPrePaid?: InputMaybe<Scalars['Boolean']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;
   price?: InputMaybe<Scalars['Float']['input']>;
+  tokenAmount?: InputMaybe<Scalars['Float']['input']>;
 };
 
 export type UpdateStaffInput = {
@@ -4696,6 +4804,14 @@ export type UpdateStaffInput = {
   lastName?: InputMaybe<Scalars['String']['input']>;
   phone: Scalars['String']['input'];
   profilePicture?: InputMaybe<Scalars['String']['input']>;
+};
+
+export type UpdateTokenInput = {
+  centers?: InputMaybe<Array<Scalars['ObjectID']['input']>>;
+  description?: InputMaybe<Scalars['String']['input']>;
+  isActive?: InputMaybe<Scalars['Boolean']['input']>;
+  name?: InputMaybe<Scalars['String']['input']>;
+  validityDays?: InputMaybe<Scalars['Int']['input']>;
 };
 
 export type UpsertMatchInput = {

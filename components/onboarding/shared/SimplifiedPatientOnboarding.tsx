@@ -248,12 +248,20 @@ export default function SimplifiedPatientOnboarding({
         console.log('✅ Email verified and updated successfully');
         toast.success('Email verified and updated successfully!');
         
-        const st = pendingSessionType!;
-        const patientId = pendingRepeatPatientId;
         setShowOTPModal(false);
-        setPendingRepeatPatientId(null);
-        setPendingSessionType(null);
-        onComplete(patientId, false, st);
+        
+        // Check if session type was pre-stored from URL params
+        if (pendingSessionType) {
+          // Session type already determined, proceed directly
+          const st = pendingSessionType;
+          const patientId = pendingRepeatPatientId;
+          setPendingRepeatPatientId(null);
+          setPendingSessionType(null);
+          onComplete(patientId, false, st);
+        } else {
+          // No session type yet, show selection modal
+          setShowSessionTypeModal(true);
+        }
       } else {
         setEmailVerified(true);
         setShowOTPModal(false);
@@ -411,6 +419,17 @@ export default function SimplifiedPatientOnboarding({
   const handleRepeatUserContinueWithSessionType = async (selectedSessionType: 'in-person' | 'online') => {
     setIsNavigating(true);
     try {
+      // If we have a pending patient ID from OTP verification, use that
+      if (pendingRepeatPatientId) {
+        setSessionType(selectedSessionType);
+        const patientId = pendingRepeatPatientId;
+        setPendingRepeatPatientId(null);
+        setPendingSessionType(null);
+        onComplete(patientId, false, selectedSessionType);
+        return;
+      }
+      
+      // Otherwise, fetch patient by phone
       const { data: patientData } = await getPatientByPhone({
         variables: { phone: formData.phone },
       });
