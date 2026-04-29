@@ -68,7 +68,7 @@ export default function RepeatUserOfflineBookingConfirmed({ bookingData }: Repea
               <div>
                 <div className="text-gray-600 text-sm mb-1">Date & time</div>
                 <div className="font-medium text-gray-900">
-                  {bookingData.selectedDate}, {bookingData.selectedTimeSlot.displayTime} - {new Date(bookingData.selectedTimeSlot.endTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
+                  {bookingData.selectedDate}, {bookingData.selectedTimeSlot.displayTime}
                 </div>
               </div>
 
@@ -118,8 +118,7 @@ export default function RepeatUserOfflineBookingConfirmed({ bookingData }: Repea
                 const googleMapsLink = currentCenter?.location 
                   ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(centerAddress)}`
                   : '';
-                const endTime = new Date(bookingData.selectedTimeSlot.endTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-                const message = `Your appointment with Stance Health is confirmed!\n\nDate: ${bookingData.selectedDate}\nTime: ${bookingData.selectedTimeSlot.displayTime} - ${endTime}\nLocation: ${currentCenter?.name || 'Center'}\nAddress: ${centerAddress}${googleMapsLink ? `\n\nView on map: ${googleMapsLink}` : ''}`;
+                const message = `Your appointment with Stance Health is confirmed!\n\nDate: ${bookingData.selectedDate}\nTime: ${bookingData.selectedTimeSlot.displayTime}\nLocation: ${currentCenter?.name || 'Center'}\nAddress: ${centerAddress}${googleMapsLink ? `\n\nView on map: ${googleMapsLink}` : ''}`;
                 window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
               }}
               className="w-14 h-14 bg-green-500 text-white rounded-xl flex items-center justify-center"
@@ -135,8 +134,7 @@ export default function RepeatUserOfflineBookingConfirmed({ bookingData }: Repea
                 const googleMapsLink = currentCenter?.location 
                   ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(centerAddress)}`
                   : '';
-                const endTime = new Date(bookingData.selectedTimeSlot.endTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-                const message = `Your appointment with Stance Health is confirmed!\n\nDate: ${bookingData.selectedDate}\nTime: ${bookingData.selectedTimeSlot.displayTime} - ${endTime}\nLocation: ${currentCenter?.name || 'Center'}\nAddress: ${centerAddress}${googleMapsLink ? `\n\nView on map: ${googleMapsLink}` : ''}`;
+                const message = `Your appointment with Stance Health is confirmed!\n\nDate: ${bookingData.selectedDate}\nTime: ${bookingData.selectedTimeSlot.displayTime}\nLocation: ${currentCenter?.name || 'Center'}\nAddress: ${centerAddress}${googleMapsLink ? `\n\nView on map: ${googleMapsLink}` : ''}`;
                 window.open(`sms:?&body=${encodeURIComponent(message)}`, '_blank');
               }}
               className="w-14 h-14 bg-blue-500 text-white rounded-xl flex items-center justify-center"
