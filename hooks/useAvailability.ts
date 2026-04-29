@@ -6,6 +6,7 @@ const GET_ORGANIZATION_AVAILABILITY = gql`
     getOrganizationAvailability(input: $input) {
       consultantId
       consultantName
+      consultantDesignation
       availableSlots {
         startTime
         endTime
@@ -21,6 +22,7 @@ const GET_REPEAT_USER_SLOTS = gql`
     getRepeatUserSlots(input: $input) {
       consultantId
       consultantName
+      consultantDesignation
       availableSlots {
         startTime
         endTime
