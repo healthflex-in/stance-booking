@@ -80,7 +80,7 @@ export default function RepeatUserOnlineSlotSelection({
 
   const { consultants: availabilityConsultants, loading: slotsLoading } = useAvailability({
     organizationId,
-    centerId: getBookingCookies().centerId || undefined,
+    centerId: undefined, // Don't pass centerId for online bookings - use organization-wide availability
     startDate: startOfDay,
     endDate: endOfDay,
     serviceDuration,
