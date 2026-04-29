@@ -216,7 +216,7 @@ export default function PrepaidBookingConfirmed({ bookingData, analytics }: Prep
             <div>
               <div className="text-gray-600 text-sm mb-1">Date & time</div>
               <div className="font-medium text-gray-900">
-                {bookingData.selectedDate}, {typeof bookingData.selectedTimeSlot === 'string' ? bookingData.selectedTimeSlot : `${bookingData.selectedTimeSlot.displayTime} - ${new Date(bookingData.selectedTimeSlot.endTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}`}
+                {bookingData.selectedDate}, {typeof bookingData.selectedTimeSlot === 'string' ? bookingData.selectedTimeSlot : bookingData.selectedTimeSlot.displayTime}
               </div>
             </div>
 

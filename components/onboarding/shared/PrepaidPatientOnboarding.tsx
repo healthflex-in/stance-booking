@@ -142,6 +142,11 @@ export default function PrepaidPatientOnboarding({
 
     if (!formData.firstName || !formData.firstName.trim()) {
       errors.firstName = 'First name is required';
+    } else if (!/^[a-zA-Z\s]+$/.test(formData.firstName)) {
+      errors.firstName = 'First name can only contain letters';
+    }
+    if (formData.lastName && !/^[a-zA-Z\s]+$/.test(formData.lastName)) {
+      errors.lastName = 'Last name can only contain letters';
     }
     if (!formData.phone || formData.phone.length !== 10) {
       errors.phone = 'Phone number must be 10 digits';
@@ -337,9 +342,14 @@ export default function PrepaidPatientOnboarding({
                     value={formData.lastName}
                     onChange={(e) => updateFormData('lastName', e.target.value)}
                     disabled={!isPhoneVerified}
-                    className={`w-full p-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 outline-none ${!isPhoneVerified ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                    className={`w-full p-3 border-2 rounded-xl ${
+                      formErrors.lastName ? 'border-red-300' : 'border-gray-200'
+                    } focus:border-blue-500 outline-none ${!isPhoneVerified ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                     placeholder="Last name"
                   />
+                  {formErrors.lastName && (
+                    <p className="text-red-500 text-xs mt-1">{formErrors.lastName}</p>
+                  )}
                 </div>
               </div>
 
@@ -366,11 +376,10 @@ export default function PrepaidPatientOnboarding({
                 <label className="block text-sm font-medium text-gray-700 mb-3">
                   Gender
                 </label>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 gap-2">
                   {[
                     { value: 'MALE', label: 'Male' },
                     { value: 'FEMALE', label: 'Female' },
-                    { value: 'OTHER', label: 'Other' },
                   ].map((option) => (
                     <button
                       key={option.value}
