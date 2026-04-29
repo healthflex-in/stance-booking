@@ -90,19 +90,25 @@ export default function RepeatUserOnlineSlotSelection({
     isRepeatUser: true,
   });
 
+  // Debug logging
+  React.useEffect(() => {
+    console.log('🔍 RepeatUserOnlineSlotSelection - designation prop:', designation);
+    console.log('🔍 RepeatUserOnlineSlotSelection - availabilityConsultants:', availabilityConsultants);
+  }, [designation, availabilityConsultants]);
+
   const consultants = React.useMemo(() => {
     const mapped = availabilityConsultants.map((ac: any) => ({
       _id: ac.consultantId,
       profileData: {
         firstName: ac.consultantName.split(' ')[0] || '',
         lastName: ac.consultantName.split(' ').slice(1).join(' ') || '',
-        designation: designation || 'Consultant',
+        designation: ac.consultantDesignation || 'Consultant',
       }
     }));
     console.log('📋 Total consultants from API:', availabilityConsultants.length);
     console.log('📋 Mapped consultants:', mapped.length, mapped);
     return mapped;
-  }, [availabilityConsultants, designation]);
+  }, [availabilityConsultants]);
 
   const availableSlots = React.useMemo(() => {
     let filteredConsultants = availabilityConsultants;
@@ -199,11 +205,15 @@ export default function RepeatUserOnlineSlotSelection({
         });
       } else {
         const existing = slotMap.get(timeKey);
+        // Only add if this consultant is not already in the slot
         if (!existing.consultantIds.includes(slot.consultantId)) {
           existing.consultantIds.push(slot.consultantId);
           if (consultantName) existing.consultantNames.push(consultantName);
-          existing.centerIds.push(slot.centerId);
-          existing.centerNames.push(slot.centerName);
+          // Always add center info even if consultant exists, to maintain proper mapping
+          if (!existing.centerIds.includes(slot.centerId)) {
+            existing.centerIds.push(slot.centerId);
+            existing.centerNames.push(slot.centerName);
+          }
         }
       }
     });
@@ -241,17 +251,45 @@ export default function RepeatUserOnlineSlotSelection({
 
   const handleContinue = () => {
     if (selectedTimeSlot) {
-      const randomIndex = Math.floor(Math.random() * selectedTimeSlot.consultantIds.length);
-      const consultantId = selectedConsultant?._id || selectedTimeSlot.consultantIds[randomIndex];
+      // If a specific consultant is selected, find their slot data
+      let consultantId: string;
+      let centerId: string;
+      let centerName: string;
+      
+      if (selectedConsultant) {
+        // Use the selected consultant's ID
+        consultantId = selectedConsultant._id;
+        
+        // Find the index of this consultant in the slot's consultant arrays
+        const consultantIndex = selectedTimeSlot.consultantIds.indexOf(consultantId);
+        
+        if (consultantIndex !== -1) {
+          // Use the matching center for this consultant
+          centerId = selectedTimeSlot.centerIds[consultantIndex];
+          centerName = selectedTimeSlot.centerNames[consultantIndex];
+        } else {
+          // Fallback: use first available
+          centerId = selectedTimeSlot.centerIds[0];
+          centerName = selectedTimeSlot.centerNames[0];
+        }
+      } else {
+        // No specific consultant selected, pick randomly
+        const randomIndex = Math.floor(Math.random() * selectedTimeSlot.consultantIds.length);
+        consultantId = selectedTimeSlot.consultantIds[randomIndex];
+        centerId = selectedTimeSlot.centerIds[randomIndex];
+        centerName = selectedTimeSlot.centerNames[randomIndex];
+      }
+      
       const slotWithCenter = {
         ...selectedTimeSlot,
-        centerId: selectedTimeSlot.centerIds[randomIndex],
-        centerName: selectedTimeSlot.centerNames[randomIndex],
+        centerId,
+        centerName,
       };
+      
       analytics.trackSlotSelectionContinueClicked(
         consultantId,
         selectedTimeSlot.displayTime,
-        slotWithCenter.centerId
+        centerId
       );
       onSlotSelect(consultantId, slotWithCenter);
     }
@@ -411,7 +449,7 @@ export default function RepeatUserOnlineSlotSelection({
                           {process.env.NEXT_PUBLIC_ENVIRONMENT === 'development' && (
                             <div className="text-xs text-gray-400 mt-1">
                               {slot.centerNames && slot.centerNames.length > 0
-                                ? slot.centerNames.filter(n => n).join(', ')
+                                ? [...new Set(slot.centerNames.filter(n => n))].join(', ')
                                 : 'No center'}
                             </div>
                           )}
