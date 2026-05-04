@@ -103,28 +103,30 @@ export const useCenterAvailability = ({
     setLoading(true);
     setError(null);
 
+    const queryInput = isRepeatUser
+      ? {
+          centerId,
+          startDate: Math.floor(startDate.getTime() / 1000),
+          endDate: Math.floor(endDate.getTime() / 1000),
+          consultantId: consultantId || null,
+          designation: designation || null,
+          deliveryMode: deliveryMode || null,
+        }
+      : {
+          centerId,
+          startDate: Math.floor(startDate.getTime() / 1000),
+          endDate: Math.floor(endDate.getTime() / 1000),
+          serviceDuration,
+          consultantId: consultantId || null,
+          designation: designation || null,
+          deliveryMode: deliveryMode || null,
+        };
+
     try {
       const { data } = await client.query({
         query: isRepeatUser ? GET_REPEAT_USER_SLOTS : GET_CENTER_AVAILABILITY,
         variables: {
-          input: isRepeatUser
-            ? {
-                centerId,
-                startDate: Math.floor(startDate.getTime() / 1000),
-                endDate: Math.floor(endDate.getTime() / 1000),
-                consultantId: consultantId || null,
-                designation: designation || null,
-                deliveryMode: deliveryMode || null,
-              }
-            : {
-                centerId,
-                startDate: Math.floor(startDate.getTime() / 1000),
-                endDate: Math.floor(endDate.getTime() / 1000),
-                serviceDuration,
-                consultantId: consultantId || null,
-                designation: designation || null,
-                deliveryMode: deliveryMode || null,
-              },
+          input: queryInput,
         },
         fetchPolicy: 'network-only',
         context: {
@@ -137,6 +139,7 @@ export const useCenterAvailability = ({
       const result = isRepeatUser
         ? (data?.getRepeatUserSlots || [])
         : (data?.getCenterAvailability || []);
+      
       setCache(prev => new Map(prev).set(dateKey, result));
       setConsultants(result);
     } catch (err: any) {
