@@ -785,13 +785,22 @@ export enum CalculationType {
 }
 
 export enum CancellationReason {
+  BookedByMistake = 'BOOKED_BY_MISTAKE',
+  ChoosingAnotherClinic = 'CHOOSING_ANOTHER_CLINIC',
   ConsultantUnavailable = 'CONSULTANT_UNAVAILABLE',
+  FeelingUnwell = 'FEELING_UNWELL',
+  Other = 'OTHER',
   PatientIllness = 'PATIENT_ILLNESS',
   PatientNoShow = 'PATIENT_NO_SHOW',
   PatientRequest = 'PATIENT_REQUEST',
   PaymentFailed = 'PAYMENT_FAILED',
+  PersonalCommitment = 'PERSONAL_COMMITMENT',
+  PreferredConsultantUnavailable = 'PREFERRED_CONSULTANT_UNAVAILABLE',
   ReferredElsewhere = 'REFERRED_ELSEWHERE',
   Rescheduled = 'RESCHEDULED',
+  SessionNoLongerNeeded = 'SESSION_NO_LONGER_NEEDED',
+  TooExpensive = 'TOO_EXPENSIVE',
+  Travelling = 'TRAVELLING',
   TreatmentNotNeeded = 'TREATMENT_NOT_NEEDED'
 }
 
@@ -866,6 +875,7 @@ export type Consultant = {
 export type ConsultantAvailability = {
   __typename?: 'ConsultantAvailability';
   availableSlots: Array<AvailabilitySlot>;
+  consultantDesignation?: Maybe<Scalars['String']['output']>;
   consultantId: Scalars['ObjectID']['output'];
   consultantName: Scalars['String']['output'];
 };
@@ -1112,7 +1122,7 @@ export type CreateOrganizationInput = {
 export type CreatePackageInput = {
   centers: Array<Scalars['ObjectID']['input']>;
   description?: InputMaybe<Scalars['String']['input']>;
-  internalName: Scalars['String']['input'];
+  externalName: Scalars['String']['input'];
   isMultiUser: Scalars['Boolean']['input'];
   maxUsers?: InputMaybe<Scalars['Int']['input']>;
   name: Scalars['String']['input'];
@@ -1207,7 +1217,7 @@ export type CreateServiceInput = {
   description?: InputMaybe<Scalars['String']['input']>;
   doneBy?: InputMaybe<Array<Designation>>;
   duration: Scalars['Int']['input'];
-  internalName: Scalars['String']['input'];
+  externalName: Scalars['String']['input'];
   isNewUserService?: InputMaybe<Scalars['Boolean']['input']>;
   isPrePaid?: InputMaybe<Scalars['Boolean']['input']>;
   name: Scalars['String']['input'];
@@ -2026,8 +2036,13 @@ export type MetricDetail = {
   __typename?: 'MetricDetail';
   description: Scalars['String']['output'];
   displayFormat: Scalars['String']['output'];
+  graphType?: Maybe<Scalars['String']['output']>;
+  hasLeftRight?: Maybe<Scalars['Boolean']['output']>;
+  hasPercentChange?: Maybe<Scalars['Boolean']['output']>;
   key: Scalars['String']['output'];
   name: Scalars['String']['output'];
+  showOnDesktop?: Maybe<Scalars['Boolean']['output']>;
+  showOnMobile?: Maybe<Scalars['Boolean']['output']>;
   unit: Scalars['String']['output'];
 };
 
@@ -3078,7 +3093,7 @@ export type Package = DataRow & {
   centers: Array<Center>;
   createdAt: Scalars['Timestamp']['output'];
   description?: Maybe<Scalars['String']['output']>;
-  internalName: Scalars['String']['output'];
+  externalName: Scalars['String']['output'];
   isActive: Scalars['Boolean']['output'];
   isMultiUser: Scalars['Boolean']['output'];
   maxUsers?: Maybe<Scalars['Int']['output']>;
@@ -4474,7 +4489,7 @@ export type Service = DataRow & {
   description?: Maybe<Scalars['String']['output']>;
   doneBy?: Maybe<Array<Designation>>;
   duration: Scalars['Int']['output'];
-  internalName: Scalars['String']['output'];
+  externalName: Scalars['String']['output'];
   isActive: Scalars['Boolean']['output'];
   isNewUserService: Scalars['Boolean']['output'];
   isPrePaid: Scalars['Boolean']['output'];
@@ -4809,7 +4824,7 @@ export type UpdateOrganizationInput = {
 export type UpdatePackageInput = {
   centers?: InputMaybe<Array<InputMaybe<Scalars['ObjectID']['input']>>>;
   description?: InputMaybe<Scalars['String']['input']>;
-  internalName?: InputMaybe<Scalars['String']['input']>;
+  externalName?: InputMaybe<Scalars['String']['input']>;
   isMultiUser?: InputMaybe<Scalars['Boolean']['input']>;
   maxUsers?: InputMaybe<Scalars['Int']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;
@@ -4895,7 +4910,7 @@ export type UpdateServiceInput = {
   description?: InputMaybe<Scalars['String']['input']>;
   doneBy?: InputMaybe<Array<Designation>>;
   duration?: InputMaybe<Scalars['Int']['input']>;
-  internalName?: InputMaybe<Scalars['String']['input']>;
+  externalName?: InputMaybe<Scalars['String']['input']>;
   isNewUserService?: InputMaybe<Scalars['Boolean']['input']>;
   isPrePaid?: InputMaybe<Scalars['Boolean']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;
