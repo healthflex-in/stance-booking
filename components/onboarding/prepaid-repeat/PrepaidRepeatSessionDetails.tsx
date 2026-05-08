@@ -96,13 +96,7 @@ export default function PrepaidRepeatSessionDetails({ patientId, organizationId,
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
-                        <h3 className="font-semibold text-gray-900">{service.name}</h3>
-                        <p className="text-sm text-gray-500 mt-1">
-                          {service.duration} minutes • ₹{service.bookingAmount || service.price || 0}
-                        </p>
-                        {service.description && (
-                          <p className="text-xs text-gray-400 mt-1">{service.description}</p>
-                        )}
+                        <h3 className="font-semibold text-gray-900">{service.externalName}</h3>
                       </div>
                       {selectedService?._id === service._id && (
                         <div className="w-6 h-6 rounded-full flex items-center justify-center ml-3" style={{ backgroundColor: '#DDFE71' }}>

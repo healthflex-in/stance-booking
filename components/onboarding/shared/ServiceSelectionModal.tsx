@@ -134,6 +134,7 @@ export default function ServiceSelectionModal({
       id: service._id,
       _id: service._id,
       name: service.name,
+      externalName: service.externalName,
       duration: service.duration,
       price: service.price,
       bookingAmount: service.bookingAmount || service.price,
@@ -236,10 +237,7 @@ export default function ServiceSelectionModal({
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-medium text-gray-900 mb-0.5">
-                        {service.name}
-                      </div>
-                      <div className="text-xs text-gray-500 line-clamp-1">
-                        {service.description}
+                        {service.externalName}
                       </div>
                     </div>
                   </div>

@@ -244,12 +244,7 @@ export default function RepeatUserOfflineSessionDetails({
                 <div className="flex items-center justify-between">
                   <div className="flex-1 text-left">
                     {selectedService ? (
-                      <>
-                        <h3 className="font-semibold text-gray-900">{selectedService.name}</h3>
-                        <p className="text-sm text-gray-500">
-                          {selectedService.duration} minutes • ₹{selectedService.bookingAmount || selectedService.price || 0}
-                        </p>
-                      </>
+                      <h3 className="font-semibold text-gray-900">{selectedService.externalName}</h3>
                     ) : (
                       <>
                         <h3 className="font-semibold text-gray-900">Select a service</h3>
