@@ -335,7 +335,7 @@ export const GET_SERVICES = gql`
       _id
       seqNo
       name
-      internalName
+      externalName
       price
       duration
       description
@@ -362,7 +362,7 @@ export const CREATE_SERVICE = gql`
       _id
       seqNo
       name
-      internalName
+      externalName
       price
       duration
       description
@@ -381,7 +381,7 @@ export const UPDATE_SERVICE = gql`
       _id
       seqNo
       name
-      internalName
+      externalName
       price
       duration
       description
@@ -400,7 +400,7 @@ export const DELETE_SERVICE = gql`
       _id
       seqNo
       name
-      internalName
+      externalName
       price
       duration
       description
@@ -426,7 +426,7 @@ export const GET_PACKAGES = gql`
       _id
       seqNo
       name
-      internalName
+      externalName
       price
       validity
       isMultiUser
@@ -440,7 +440,7 @@ export const GET_PACKAGES = gql`
         isActive
         seqNo
         name
-        internalName
+        externalName
         price
         duration
         description
@@ -466,7 +466,7 @@ export const CREATE_PACKAGE = gql`
       _id
       seqNo
       name
-      internalName
+      externalName
       price
       validity
       isMultiUser
@@ -482,7 +482,7 @@ export const UPDATE_PACKAGE = gql`
       _id
       seqNo
       name
-      internalName
+      externalName
       price
       validity
       isMultiUser
@@ -498,7 +498,7 @@ export const DELETE_PACKAGE = gql`
       _id
       seqNo
       name
-      internalName
+      externalName
       price
       validity
       isMultiUser
@@ -508,7 +508,7 @@ export const DELETE_PACKAGE = gql`
         _id
         seqNo
         name
-        internalName
+        externalName
         price
       }
     }
@@ -1000,7 +1000,7 @@ export const GET_APPOINTMENTS = gql`
               isActive
               seqNo
               name
-              internalName
+              externalName
               price
               duration
               description
@@ -1662,7 +1662,7 @@ export const GET_INVOICES = gql`
             _id
             seqNo
             name
-            internalName
+            externalName
             price
             duration
             description
@@ -1917,7 +1917,7 @@ export const UPDATE_APPOINTMENT = gql`
         _id
         seqNo
         name
-        internalName
+        externalName
         price
         duration
         description
@@ -2409,7 +2409,7 @@ export const GET_APPOINTMENT_BY_ID = gql`
 
       treatment {
         name
-        internalName
+        externalName
         description
         price
         duration
