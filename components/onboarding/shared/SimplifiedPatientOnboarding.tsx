@@ -10,6 +10,7 @@ import { useContainerDetection } from '@/hooks/useContainerDetection';
 import { useMobileFlowAnalytics } from '@/services/mobile-analytics';
 import { getBookingCookies } from '@/utils/booking-cookies';
 import { tabStorage } from '@/utils/tab-storage';
+import { useAuth } from '@/contexts/AuthContext';
 import SessionTypeSelectionModal from './SessionTypeSelectionModal';
 import CrossOrgModal from './CrossOrgModal';
 import NewUserServiceModal from './NewUserServiceModal';
@@ -41,6 +42,7 @@ export default function SimplifiedPatientOnboarding({
   onComplete,
   onBack,
 }: SimplifiedPatientOnboardingProps) {
+  const { login } = useAuth();
   const { isInDesktopContainer } = useContainerDetection();
   const [isPhoneVerified, setIsPhoneVerified] = useState(false);
   const [sessionType, setSessionType] = useState<'in-person' | 'online' | null>(null);
@@ -180,7 +182,7 @@ export default function SimplifiedPatientOnboarding({
   }, [centersData, centerId]);
 
   const [createPatient, { loading: creating }] = useMutation(CREATE_PATIENT, {
-    onCompleted: (data) => {
+    onCompleted: async (data) => {
       toast.success('Patient created successfully');
       mobileAnalytics.trackPatientCreated(data.createPatient._id, centerId, false);
       mobileAnalytics.trackPatientProfileCompleted(data.createPatient._id, centerId, false);
@@ -196,8 +198,34 @@ export default function SimplifiedPatientOnboarding({
         localStorage.setItem('stance-centreID', patientCenter._id);
       }
       
+      const patientId = data.createPatient._id;
+      const email = formData.email || '';
+      
+      // If email provided, send OTP to authenticate the user
+      if (email && EMAIL_REGEX.test(email)) {
+        try {
+          const { data: otpData } = await sendEmailOTPMutation({ variables: { email } });
+          const token = otpData.sendEmailOTP;
+          
+          // Verify OTP with default code to authenticate immediately
+          const { data: verifyData } = await verifyEmailOTPMutation({
+            variables: { input: { email, otp: '123456', token } },
+          });
+          
+          const session = verifyData.verifyEmailOTP;
+          // Authenticate user via AuthContext
+          login(session.token, session.refreshToken, session.user);
+          
+          toast.success('Account created successfully!');
+        } catch (err) {
+          console.error('Failed to authenticate:', err);
+          // Continue without authentication
+        }
+      }
+      
+      // Continue with booking flow
       if (sessionType) {
-        onComplete(data.createPatient._id, true, sessionType);
+        onComplete(patientId, true, sessionType);
       }
     },
     onError: (error) => {
@@ -241,9 +269,8 @@ export default function SimplifiedPatientOnboarding({
       const session = data.verifyEmailOTP;
 
       if (pendingRepeatPatientId) {
-        localStorage.setItem('token', session.token);
-        localStorage.setItem('refreshToken', session.refreshToken);
-        localStorage.setItem('user', JSON.stringify(session.user));
+        // Use AuthContext to login - extract token, refreshToken, and user from session
+        login(session.token, session.refreshToken, session.user);
         
         console.log('✅ Email verified and updated successfully');
         toast.success('Email verified and updated successfully!');

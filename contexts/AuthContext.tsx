@@ -205,10 +205,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const isProtectedRoute = protectedRoutes.some((route) =>
       pathname.startsWith(route)
     );
-    
-    // Check if current path is a public route
-    // All routes are public by default except protected routes (booking-first approach)
-    const isPublicRoute = !isProtectedRoute;
 
     // Only redirect if trying to access protected routes without auth
     if (!isAuthenticated && isProtectedRoute) {
@@ -224,12 +220,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (redirectPath) {
         sessionStorage.removeItem('redirectAfterLogin');
         router.push(redirectPath);
-      } else {
-        // Default to dashboard after login
+      } else if (user?.userType !== 'PATIENT') {
+        // Only redirect non-patient users to dashboard
+        // Patients stay on booking pages
         router.push('/dashboard');
       }
     }
-  }, [isAuthenticated, loading, pathname, router, mounted, logAnalyticsEvent]);
+  }, [isAuthenticated, loading, pathname, router, mounted, user, logAnalyticsEvent]);
 
   const login = (token: string, refreshToken: string, userData: User) => {
     if (typeof window !== 'undefined') {

@@ -186,13 +186,52 @@ export function createApolloClient(initialState = {}) {
       
       const mobileOrgId = cookies.organizationId;
       const mobileCenterId = cookies.centerId;
+      
+      // Check if user is authenticated
+      let token = null;
+      if (typeof window !== 'undefined') {
+        token = localStorage.getItem('token');
+      }
+
+      // Capture UTM parameters and booking URL
+      let utmParams = '';
+      let bookingUrl = '';
+      if (typeof window !== 'undefined') {
+        // Capture full URL
+        bookingUrl = window.location.href;
+        
+        // Try to get UTM from current URL first (primary method)
+        const searchParams = new URLSearchParams(window.location.search);
+        const utmKeys = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_id', 'utm_term', 'utm_content'];
+        const params = new URLSearchParams();
+        utmKeys.forEach(key => {
+          const value = searchParams.get(key);
+          if (value) params.append(key, value);
+        });
+        if (params.toString()) {
+          utmParams = params.toString();
+        }
+        
+        // Fallback to sessionStorage if URL doesn't have UTM params
+        if (!utmParams) {
+          const { getUTMParamsString } = await import('@/utils/utm-persistence');
+          utmParams = getUTMParamsString();
+        }
+      }
 
       return {
         headers: {
           ...headers,
           'x-api-key': getMobileApiKey(),
+          'x-client-source': 'WEBSITE',
           'x-organization-id': mobileOrgId,
           ...(mobileCenterId && { 'x-center-id': mobileCenterId }),
+          // Send authorization token if user is authenticated
+          authorization: token ? `Bearer ${token}` : '',
+          // Pass UTM parameters as header for backend tracking
+          ...(utmParams && { 'x-utm-params': utmParams }),
+          // Pass full booking URL for analytics
+          ...(bookingUrl && { 'x-booking-url': bookingUrl }),
         },
       };
     }
@@ -219,12 +258,43 @@ export function createApolloClient(initialState = {}) {
       token = localStorage.getItem('token');
     }
 
+    // Capture UTM parameters and booking URL
+    let utmParams = '';
+    let bookingUrl = '';
+    if (typeof window !== 'undefined') {
+      // Capture full URL
+      bookingUrl = window.location.href;
+      
+      // Try to get UTM from current URL first (primary method)
+      const searchParams = new URLSearchParams(window.location.search);
+      const utmKeys = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_id', 'utm_term', 'utm_content'];
+      const params = new URLSearchParams();
+      utmKeys.forEach(key => {
+        const value = searchParams.get(key);
+        if (value) params.append(key, value);
+      });
+      if (params.toString()) {
+        utmParams = params.toString();
+      }
+      
+      // Fallback to sessionStorage if URL doesn't have UTM params
+      if (!utmParams) {
+        const { getUTMParamsString } = await import('@/utils/utm-persistence');
+        utmParams = getUTMParamsString();
+      }
+    }
+
     return {
       headers: {
         ...headers,
         ...(centerId && { 'x-center-id': centerId }),
         'x-organization-id': organizationId,
+        'x-client-source': 'WEBSITE',
         authorization: token ? `Bearer ${token}` : '',
+        // Pass UTM parameters as header for backend tracking
+        ...(utmParams && { 'x-utm-params': utmParams }),
+        // Pass full booking URL for analytics
+        ...(bookingUrl && { 'x-booking-url': bookingUrl }),
       },
     };
   });
