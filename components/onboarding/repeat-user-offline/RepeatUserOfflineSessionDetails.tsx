@@ -44,7 +44,7 @@ export default function RepeatUserOfflineSessionDetails({
   });
 
   // Fetch patient data for welcome message
-  const { data: patientData } = useQuery(GET_USER, {
+  const { data: patientData, loading: patientLoading } = useQuery(GET_USER, {
     variables: {
       userId: patientId,
     },
@@ -128,6 +128,24 @@ export default function RepeatUserOfflineSessionDetails({
   };
 
   const canProceed = selectedService && selectedCenter;
+
+  // Wait for patient + centers before rendering so the welcome message and
+  // location card don't render empty and then flash with data.
+  const isInitialLoading =
+    (patientId && (patientLoading || !patientData?.user)) || centersLoading;
+
+  if (isInitialLoading) {
+    return (
+      <div
+        className={`${isInDesktopContainer ? 'h-full' : 'min-h-screen'} bg-gray-50 flex items-center justify-center`}
+      >
+        <div className="flex flex-col items-center gap-3">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-900" />
+          <p className="text-sm text-gray-500">Loading your details…</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`${isInDesktopContainer ? 'h-full' : 'min-h-screen'} bg-gray-50 flex flex-col`}>

@@ -26,8 +26,10 @@ export default function PrepaidRepeatSessionDetails({ patientId, centerId, onBac
   const [showLocationModal, setShowLocationModal] = useState(false);
   const [showServiceModal, setShowServiceModal] = useState(false);
 
-  const { data: centersData } = useQuery(GET_CENTERS, { fetchPolicy: 'cache-first' });
-  const { data: patientData } = useQuery(GET_USER, {
+  const { data: centersData, loading: centersLoading } = useQuery(GET_CENTERS, {
+    fetchPolicy: 'cache-first',
+  });
+  const { data: patientData, loading: patientLoading } = useQuery(GET_USER, {
     variables: { userId: patientId },
     skip: !patientId,
     fetchPolicy: 'cache-first',
@@ -64,6 +66,22 @@ export default function PrepaidRepeatSessionDetails({ patientId, centerId, onBac
   };
 
   const canProceed = selectedService && selectedCenter;
+
+  const isInitialLoading =
+    (patientId && (patientLoading || !patientData?.user)) || centersLoading;
+
+  if (isInitialLoading) {
+    return (
+      <div
+        className={`${isInDesktopContainer ? 'h-full' : 'min-h-screen'} bg-gray-50 flex items-center justify-center`}
+      >
+        <div className="flex flex-col items-center gap-3">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-900" />
+          <p className="text-sm text-gray-500">Loading your details…</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`${isInDesktopContainer ? 'h-full' : 'min-h-screen'} bg-gray-50 flex flex-col`}>
