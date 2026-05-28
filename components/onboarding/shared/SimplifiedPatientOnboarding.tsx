@@ -217,7 +217,7 @@ export default function SimplifiedPatientOnboarding({
       console.log('📧 Calling sendEmailOTPMutation...');
       const { data } = await sendEmailOTPMutation({ variables: { email } });
       console.log('✅ OTP sent successfully:', data);
-      setOtpToken(data.sendEmailOTP);
+      setOtpToken(data.sendEmailOTP.token);
     } catch (err: any) {
       console.error('❌ Error sending OTP:', err);
       console.error('❌ Error message:', err?.message);
@@ -283,7 +283,7 @@ export default function SimplifiedPatientOnboarding({
       console.log('📧 Resending OTP...');
       const { data } = await sendEmailOTPMutation({ variables: { email: otpEmail } });
       console.log('✅ OTP resent successfully:', data);
-      setOtpToken(data.sendEmailOTP);
+      setOtpToken(data.sendEmailOTP.token);
       toast.success('Verification code resent!');
     } catch (err: any) {
       console.error('❌ Error resending OTP:', err);
@@ -325,7 +325,7 @@ export default function SimplifiedPatientOnboarding({
       const { data } = await sendEmailOTPMutation({ variables: { email: newEmail } });
       console.log('✅ OTP sent to new email successfully:', data);
       
-      setOtpToken(data.sendEmailOTP);
+      setOtpToken(data.sendEmailOTP.token);
       setOtpEmail(newEmail);
       toast.success(`Verification code sent to ${newEmail}`);
     } catch (err: any) {

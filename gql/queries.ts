@@ -2588,7 +2588,11 @@ export const ADD_PATIENT_TO_ORGANIZATION = gql`
 
 export const SEND_EMAIL_OTP = gql`
   mutation SendEmailOTP($email: String!) {
-    sendEmailOTP(email: $email)
+    sendEmailOTP(email: $email) {
+      token
+      expiresAt
+      expiresIn
+    }
   }
 `;
 

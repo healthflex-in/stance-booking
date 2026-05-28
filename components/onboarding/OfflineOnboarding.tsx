@@ -100,7 +100,7 @@ export default function OfflineOnboarding({ centerId, onComplete }: OfflineOnboa
     setIsSendingOTP(true);
     try {
       const { data } = await sendEmailOTPMutation({ variables: { email } });
-      setOtpToken(data.sendEmailOTP);
+      setOtpToken(data.sendEmailOTP.token);
     } catch (err) {
       setOtpError('Failed to send OTP. Please try again.');
     } finally {
@@ -140,7 +140,7 @@ export default function OfflineOnboarding({ centerId, onComplete }: OfflineOnboa
     setOtpError(null);
     try {
       const { data } = await sendEmailOTPMutation({ variables: { email: otpEmail } });
-      setOtpToken(data.sendEmailOTP);
+      setOtpToken(data.sendEmailOTP.token);
     } catch (err) {
       setOtpError('Failed to resend OTP. Please try again.');
     } finally {
@@ -153,7 +153,7 @@ export default function OfflineOnboarding({ centerId, onComplete }: OfflineOnboa
     setOtpError(null);
     try {
       const { data } = await sendEmailOTPMutation({ variables: { email: newEmail } });
-      setOtpToken(data.sendEmailOTP);
+      setOtpToken(data.sendEmailOTP.token);
       setOtpEmail(newEmail);
     } catch (err) {
       setOtpError('Failed to send OTP. Please try again.');

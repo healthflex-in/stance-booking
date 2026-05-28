@@ -234,7 +234,6 @@ export type Advance = BaseAdvance & DataRow & {
   _id: Scalars['ObjectID']['output'];
   center: Center;
   createdAt: Scalars['Timestamp']['output'];
-  credit?: Maybe<Credit>;
   footer?: Maybe<Scalars['String']['output']>;
   isActive: Scalars['Boolean']['output'];
   items?: Maybe<Array<AdvanceItem>>;
@@ -311,7 +310,6 @@ export type AdvanceWithItemBalance = BaseAdvance & DataRow & {
   _id: Scalars['ObjectID']['output'];
   center: Center;
   createdAt: Scalars['Timestamp']['output'];
-  credit?: Maybe<Credit>;
   footer?: Maybe<Scalars['String']['output']>;
   isActive: Scalars['Boolean']['output'];
   itemsWithBalance?: Maybe<Array<AdvanceItemWithBalance>>;
@@ -748,7 +746,6 @@ export type BaseAdvance = {
   _id: Scalars['ObjectID']['output'];
   center: Center;
   createdAt: Scalars['Timestamp']['output'];
-  credit?: Maybe<Credit>;
   footer?: Maybe<Scalars['String']['output']>;
   isActive: Scalars['Boolean']['output'];
   notes?: Maybe<Scalars['String']['output']>;
@@ -937,7 +934,7 @@ export type CreateAdvanceInput = {
   items?: InputMaybe<Array<CreateAdvanceItemInput>>;
   notes?: InputMaybe<Scalars['String']['input']>;
   patient: Scalars['ObjectID']['input'];
-  payment: CreateAdvancePaymentInput;
+  payment: CreatePaymentInput;
   total: Scalars['Float']['input'];
 };
 
@@ -949,13 +946,6 @@ export type CreateAdvanceItemInput = {
   tokenData?: InputMaybe<TokenDataInput>;
   type: AdvanceType;
   validTill: Scalars['Timestamp']['input'];
-};
-
-export type CreateAdvancePaymentInput = {
-  /** For single payment (backward compatibility) */
-  payment?: InputMaybe<CreatePaymentInput>;
-  /** For multiple payments (e.g. credit + cash split) */
-  payments?: InputMaybe<Array<CreatePaymentInput>>;
 };
 
 /** Agent Report Input Types and Mutations */
@@ -1045,15 +1035,6 @@ export type CreateConsultantInput = {
   profilePicture?: InputMaybe<Scalars['String']['input']>;
   services: Array<Scalars['ObjectID']['input']>;
   specialization: Specialization;
-};
-
-export type CreateCreditInput = {
-  amount: Scalars['Float']['input'];
-  center: Scalars['ObjectID']['input'];
-  createdAt?: InputMaybe<Scalars['Timestamp']['input']>;
-  description?: InputMaybe<Scalars['String']['input']>;
-  patient: Scalars['ObjectID']['input'];
-  validTill: Scalars['Timestamp']['input'];
 };
 
 export type CreateEventInput = {
@@ -1308,29 +1289,6 @@ export type CreateTokenInput = {
   description?: InputMaybe<Scalars['String']['input']>;
   name: Scalars['String']['input'];
   validityDays: Scalars['Int']['input'];
-};
-
-export type Credit = {
-  __typename?: 'Credit';
-  _id: Scalars['ObjectID']['output'];
-  amount: Scalars['Float']['output'];
-  center?: Maybe<Center>;
-  createdAt: Scalars['Timestamp']['output'];
-  currentBalance?: Maybe<Scalars['Float']['output']>;
-  description?: Maybe<Scalars['String']['output']>;
-  isActive: Scalars['Boolean']['output'];
-  organization: Organization;
-  patient?: Maybe<User>;
-  seqNo: Scalars['String']['output'];
-  updatedAt: Scalars['Timestamp']['output'];
-  validTill: Scalars['Timestamp']['output'];
-  version: Scalars['Int']['output'];
-};
-
-export type CreditFilter = {
-  centers?: InputMaybe<Array<Scalars['ObjectID']['input']>>;
-  organization?: InputMaybe<Scalars['ObjectID']['input']>;
-  patient?: InputMaybe<Scalars['ObjectID']['input']>;
 };
 
 export type Criticality = {
@@ -2027,6 +1985,13 @@ export type Ledger = DataRow & {
   version: Scalars['Int']['output'];
 };
 
+export type LoginAfterRegistrationInput = {
+  /** postVerifyToken issued by verifyEmailOTPForRegistration */
+  token: Scalars['String']['input'];
+  /** ID of the freshly-created user record */
+  userId: Scalars['ObjectID']['input'];
+};
+
 export type LoginInput = {
   email: Scalars['String']['input'];
   password: Scalars['String']['input'];
@@ -2188,7 +2153,6 @@ export type Mutation = {
   /** Create a new center */
   createCenter: Center;
   createConsultant: User;
-  createCredit: Credit;
   /** create a goal-set */
   createGoalSet: GoalSet;
   /** Create goalset from assessment data with selected goals */
@@ -2279,6 +2243,12 @@ export type Mutation = {
   /** Lock a slot to prevent concurrent booking */
   lockSlot: SlotLock;
   login: AuthenticatedSession;
+  /**
+   * Exchange a post-verify token (issued by verifyEmailOTPForRegistration) plus the
+   * newly-created user's ID for an AuthenticatedSession. Lets the app sign a brand-new
+   * user in immediately after createPatient, without re-prompting them for an OTP.
+   */
+  loginAfterRegistration: AuthenticatedSession;
   logout: Session;
   pong: Ping;
   refreshAllAlerts: RefreshResult;
@@ -2293,14 +2263,14 @@ export type Mutation = {
   revokeSession: Scalars['Boolean']['output'];
   sendAppointmentEmail: EmailResponse;
   sendConsultantMeetInvite: EmailResponse;
-  /** Send OTP to the given Email and Returns a token as Response */
-  sendEmailOTP: Scalars['String']['output'];
+  /** Send OTP to the given Email and Returns an OtpChallenge as Response */
+  sendEmailOTP: OtpChallenge;
   /** Send OTP to new email for email change (doesn't require user to exist with that email) */
-  sendEmailOTPForEmailChange: Scalars['String']['output'];
+  sendEmailOTPForEmailChange: OtpChallenge;
   /** Send OTP to email for new user registration (doesn't require user to exist) */
-  sendEmailOTPForRegistration: Scalars['String']['output'];
-  /** Send OTP to the given Phone Number and Returns a token as Response */
-  sendOTP: Scalars['String']['output'];
+  sendEmailOTPForRegistration: OtpChallenge;
+  /** Send OTP to the given Phone Number and Returns an OtpChallenge as Response */
+  sendOTP: OtpChallenge;
   toggleRule: Rule;
   triggerPaymentReconciliation: ReconciliationResponse;
   /** Unlock a slot */
@@ -2356,7 +2326,11 @@ export type Mutation = {
   verifyEmailOTP: AuthenticatedSession;
   /** Verify OTP and update email (validates OTP and updates user's email in database) */
   verifyEmailOTPAndUpdateEmail: AuthenticatedSession;
-  /** Verify OTP for new user registration (doesn't require user to exist, just validates OTP) */
+  /**
+   * Verify OTP for new user registration (doesn't require user to exist, just validates OTP).
+   * Returns a short-lived postVerifyToken the client uses with loginAfterRegistration
+   * once the patient record has been created.
+   */
   verifyEmailOTPForRegistration: RegistrationOtpVerification;
   verifyOTP: AuthenticatedSession;
   verifyPayment: WebhookResponse;
@@ -2459,11 +2433,6 @@ export type MutationCreateCenterArgs = {
 
 export type MutationCreateConsultantArgs = {
   input: CreateConsultantInput;
-};
-
-
-export type MutationCreateCreditArgs = {
-  input: CreateCreditInput;
 };
 
 
@@ -2727,6 +2696,11 @@ export type MutationLockSlotArgs = {
 
 export type MutationLoginArgs = {
   input: LoginInput;
+};
+
+
+export type MutationLoginAfterRegistrationArgs = {
+  input: LoginAfterRegistrationInput;
 };
 
 
@@ -3178,6 +3152,21 @@ export type OrganizationAvailabilityInput = {
   startDate: Scalars['Timestamp']['input'];
 };
 
+/**
+ * Returned by every send* OTP mutation. Carries the verification token plus
+ * expiry metadata so the client can show a real countdown and disable input
+ * once the OTP is no longer accepted by the server.
+ */
+export type OtpChallenge = {
+  __typename?: 'OtpChallenge';
+  /** Unix epoch (ms) at which the OTP becomes invalid server-side. */
+  expiresAt: Scalars['Timestamp']['output'];
+  /** Seconds from now until the OTP expires (mirror of expiresAt for convenience). */
+  expiresIn: Scalars['Int']['output'];
+  /** Opaque token to be passed back to the matching verify* mutation. */
+  token: Scalars['String']['output'];
+};
+
 export type OverlapInfo = {
   __typename?: 'OverlapInfo';
   conflictingDays?: Maybe<Array<Scalars['Timestamp']['output']>>;
@@ -3479,7 +3468,6 @@ export enum PaymentMode {
   CardlessEmi = 'CARDLESS_EMI',
   Cash = 'CASH',
   Cod = 'COD',
-  Credit = 'CREDIT',
   Emi = 'EMI',
   Nach = 'NACH',
   Netbanking = 'NETBANKING',
@@ -3501,7 +3489,6 @@ export enum PaymentStatus {
 
 export enum PaymentType {
   Advance = 'ADVANCE',
-  Credit = 'CREDIT',
   Invoice = 'INVOICE'
 }
 
@@ -3733,14 +3720,10 @@ export type Query = {
   /** Get all files */
   files: Array<File>;
   generateInvoicePDFOnDemand: Scalars['String']['output'];
-  getActiveCreditsForPatient: Array<Credit>;
   /** Get all tests for dropdown */
   getAllTests: Array<ObjectiveCollectionEntry>;
   /** Get center-level availability for consultants */
   getCenterAvailability: Array<ConsultantAvailability>;
-  getCredit?: Maybe<Credit>;
-  getCreditBalance: Scalars['Float']['output'];
-  getCredits: Array<Credit>;
   getFilteredConsultants: Array<User>;
   /** Get an ObjectiveAssessmentRecord by ID */
   getObjectiveAssessmentRecord?: Maybe<ObjectiveAssessmentRecord>;
@@ -3976,29 +3959,8 @@ export type QueryGenerateInvoicePdfOnDemandArgs = {
 };
 
 
-export type QueryGetActiveCreditsForPatientArgs = {
-  patientId: Scalars['ObjectID']['input'];
-};
-
-
 export type QueryGetCenterAvailabilityArgs = {
   input: CenterAvailabilityInput;
-};
-
-
-export type QueryGetCreditArgs = {
-  id: Scalars['ObjectID']['input'];
-};
-
-
-export type QueryGetCreditBalanceArgs = {
-  creditId: Scalars['ObjectID']['input'];
-};
-
-
-export type QueryGetCreditsArgs = {
-  filter?: InputMaybe<CreditFilter>;
-  search?: InputMaybe<Scalars['String']['input']>;
 };
 
 
@@ -4336,7 +4298,7 @@ export type Receipt = DataRow & {
   createdAt: Scalars['Timestamp']['output'];
   isActive: Scalars['Boolean']['output'];
   patient: User;
-  payment?: Maybe<PaymentField>;
+  payment?: Maybe<Payment>;
   seqNo: Scalars['String']['output'];
   updatedAt: Scalars['Timestamp']['output'];
   version: Scalars['Int']['output'];
@@ -4482,6 +4444,13 @@ export type RefreshResult = {
 export type RegistrationOtpVerification = {
   __typename?: 'RegistrationOTPVerification';
   email: Scalars['String']['output'];
+  /** Unix epoch (ms) at which the postVerifyToken expires. */
+  postVerifyExpiresAt: Scalars['Timestamp']['output'];
+  /**
+   * Short-lived token to exchange for an AuthenticatedSession via
+   * loginAfterRegistration once the patient record has been created.
+   */
+  postVerifyToken: Scalars['String']['output'];
   verified: Scalars['Boolean']['output'];
 };
 
@@ -4713,7 +4682,7 @@ export enum SortOrder {
   Desc = 'DESC'
 }
 
-export type Source = Advance | Credit | Invoice | Payment;
+export type Source = Advance | Invoice | Payment;
 
 export enum Specialization {
   Acute = 'Acute',
@@ -4763,7 +4732,7 @@ export type StrengthAsymmetry = {
   test_date?: Maybe<Scalars['String']['output']>;
 };
 
-export type SubSource = Credit | Package;
+export type SubSource = Package;
 
 export type SubjectiveGoalInput = {
   goal: Scalars['String']['input'];
