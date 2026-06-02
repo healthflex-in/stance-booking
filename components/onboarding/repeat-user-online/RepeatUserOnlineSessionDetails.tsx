@@ -10,6 +10,7 @@ import { LocationSelectionModal, ServiceSelectionModal } from '@/components/onbo
 
 import { BookingAnalytics } from '@/services/booking-analytics';
 import { isParamFromUrl } from '@/utils/booking-params';
+import { getBookingCookies } from '@/utils/booking-cookies';
 
 interface RepeatUserOnlineSessionDetailsProps {
   patientId: string;
@@ -27,6 +28,7 @@ export default function RepeatUserOnlineSessionDetails({
   analytics,
 }: RepeatUserOnlineSessionDetailsProps) {
   const { isInDesktopContainer } = useContainerDetection();
+  const centerId = getBookingCookies().centerId;
   const [selectedService, setSelectedService] = useState<any>(null);
   const [selectedDesignation, setSelectedDesignation] = useState<string>('Physiotherapist');
   const [isConsultantTypeFromParams, setIsConsultantTypeFromParams] = useState(false);
@@ -206,6 +208,7 @@ export default function RepeatUserOnlineSessionDetails({
           setShowServiceModal(false);
         }}
         patientId={patientId}
+        centerId={centerId}
         organizationId={organizationId}
         isNewUser={false}
         sessionType="online"

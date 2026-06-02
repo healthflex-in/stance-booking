@@ -9,6 +9,7 @@ import { PrimaryButton } from '@/components/ui-atoms';
 import { StanceHealthLoader } from '@/components/loader/StanceHealthLoader';
 
 import { BookingAnalytics } from '@/services/booking-analytics';
+import { getBookingCookies } from '@/utils/booking-cookies';
 
 interface NewUserOnlineSessionDetailsProps {
   patientId: string;
@@ -24,10 +25,11 @@ export default function NewUserOnlineSessionDetails({
   analytics,
 }: NewUserOnlineSessionDetailsProps) {
   const { isInDesktopContainer } = useContainerDetection();
+  const centerId = getBookingCookies().centerId;
   const [selectedService, setSelectedService] = useState<any>(null);
 
   const { data: servicesData, loading: servicesLoading } = useQuery(GET_SERVICES, {
-    variables: { centerId: null },
+    variables: { centerId: centerId ? [centerId] : null },
     fetchPolicy: 'network-only',
   });
 
