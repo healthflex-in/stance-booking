@@ -14,6 +14,7 @@ interface NewUserOfflineSlotSelectionProps {
   centerId: string;
   serviceDuration: number;
   patientId: string;
+  designation?: string;
   preSelectedDate?: string;
   preSelectedSlot?: { startTime: string; endTime: string; displayTime: string };
   onSlotSelect: (consultantId: string, slot: any) => void;
@@ -47,6 +48,7 @@ export default function NewUserOfflineSlotSelection({
   centerId,
   serviceDuration,
   patientId,
+  designation,
   preSelectedDate,
   preSelectedSlot,
   onSlotSelect,
@@ -98,12 +100,20 @@ export default function NewUserOfflineSlotSelection({
     return end;
   }, [currentSelectedDate]);
 
+  const designationMap: Record<string, string> = {
+    'S&C Coach': 'SNC_Coach',
+    'Orthopaedic Doctor': 'Orthopaedic_Doctor',
+    'Sports Massage Therapist': 'Sports_Massage_Therapist',
+    'Physiotherapist': 'Physiotherapist',
+  };
+  const backendDesignation = designation ? (designationMap[designation] || designation) : undefined;
+
   const { consultants: availabilityConsultants, loading: slotsLoading } = useCenterAvailability({
     centerId,
     startDate: startOfDay,
     endDate: endOfDay,
     serviceDuration,
-    designation: 'Physiotherapist',
+    designation: backendDesignation,
     deliveryMode: 'OFFLINE',
     enabled: !!currentSelectedDate,
   });
@@ -423,15 +433,12 @@ export default function NewUserOfflineSlotSelection({
                           style={{ cursor: isSlotFromParams ? 'not-allowed' : undefined }}
                         >
                           <div className="text-sm font-semibold">{slot.displayTime}</div>
-                          {process.env.NEXT_PUBLIC_ENVIRONMENT === 'development' && (
+                          {slot.consultantNames && slot.consultantNames.length > 0 && (
                             <div className="text-xs text-gray-500 mt-1">
-                              {slot.consultantNames && slot.consultantNames.length > 0 
-                                ? slot.consultantNames.filter(n => n).join(', ') || `${slot.consultantNames.length} consultants`
-                                : 'No consultant'}
+                              {slot.consultantNames.length === 1
+                                ? slot.consultantNames[0]
+                                : `${slot.consultantNames.length} consultants`}
                             </div>
-                          )}
-                          {process.env.NEXT_PUBLIC_ENVIRONMENT === 'development' && (
-                            <div className="text-xs text-gray-400 mt-1">{slot.centerName || 'No center'}</div>
                           )}
                         </button>
                       );

@@ -439,18 +439,11 @@ export default function RepeatUserOnlineSlotSelection({
                           }}
                         >
                           <div className="text-sm font-semibold">{slot.displayTime}</div>
-                          {process.env.NEXT_PUBLIC_ENVIRONMENT === 'development' && (
+                          {slot.consultantNames && slot.consultantNames.length > 0 && (
                             <div className="text-xs text-gray-500 mt-1">
-                              {slot.consultantNames && slot.consultantNames.length > 0 
-                                ? slot.consultantNames.filter(n => n).join(', ') || `${slot.consultantNames.length} consultants`
-                                : 'No consultant'}
-                            </div>
-                          )}
-                          {process.env.NEXT_PUBLIC_ENVIRONMENT === 'development' && (
-                            <div className="text-xs text-gray-400 mt-1">
-                              {slot.centerNames && slot.centerNames.length > 0
-                                ? [...new Set(slot.centerNames.filter(n => n))].join(', ')
-                                : 'No center'}
+                              {slot.consultantNames.length === 1
+                                ? slot.consultantNames[0]
+                                : `${slot.consultantNames.length} consultants`}
                             </div>
                           )}
                         </button>

@@ -342,6 +342,7 @@ export default function NewOfflinePage() {
               centerId={bookingData.centerId}
               serviceDuration={bookingData.treatmentDuration}
               patientId={bookingData.patientId}
+              designation={bookingData.designation}
               preSelectedDate={bookingStorage.getItem('slotDate') || undefined}
               preSelectedSlot={bookingData.selectedTimeSlot.startTime ? bookingData.selectedTimeSlot : undefined}
               onSlotSelect={(consultantId, slot) => {
