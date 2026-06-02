@@ -28,7 +28,7 @@ export default function RepeatUserOnlineSessionDetails({
   analytics,
 }: RepeatUserOnlineSessionDetailsProps) {
   const { isInDesktopContainer } = useContainerDetection();
-  const centerId = getBookingCookies().centerId;
+  const centerId = getBookingCookies().centerId ?? undefined;
   const [selectedService, setSelectedService] = useState<any>(null);
   const [selectedDesignation, setSelectedDesignation] = useState<string>('Physiotherapist');
   const [isConsultantTypeFromParams, setIsConsultantTypeFromParams] = useState(false);
