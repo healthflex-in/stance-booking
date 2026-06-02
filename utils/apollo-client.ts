@@ -273,6 +273,12 @@ export function createApolloClient(initialState = {}) {
       // Original auth error handling
       if (!graphQLErrors || typeof window === 'undefined') return;
 
+      // Skip auth redirect/refresh if user has no active session (e.g. public booking pages).
+      // Without this guard, OTP errors from the server (which the production backend
+      // returns as GraphQLAuthError) incorrectly trigger handleTokenExpiration() on
+      // unauthenticated users, causing an unexpected full-page redirect to /login.
+      if (!localStorage.getItem('token')) return;
+
       for (const err of graphQLErrors) {
         // Cast to our custom error type
         const authErr = err as unknown as GraphQLAuthErrorType;
