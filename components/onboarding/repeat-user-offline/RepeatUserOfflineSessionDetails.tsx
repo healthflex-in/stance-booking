@@ -111,6 +111,11 @@ export default function RepeatUserOfflineSessionDetails({
     setSelectedService(null);
   }, [selectedCenter]);
 
+  // Reset service when designation changes — a Physio service is not valid for S&C Coach and vice versa
+  useEffect(() => {
+    setSelectedService(null);
+  }, [selectedDesignation]);
+
   const handleContinue = () => {
     if (!selectedService || !selectedCenter) return;
 
