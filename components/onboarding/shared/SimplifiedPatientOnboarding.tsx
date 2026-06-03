@@ -267,9 +267,27 @@ export default function SimplifiedPatientOnboarding({
         setShowOTPModal(false);
         toast.success('Email verified!');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('❌ Error verifying OTP:', err);
-      setOtpError('Invalid OTP. Please try again.');
+      const gqlErrors = err?.graphQLErrors ?? [];
+      const gqlError = gqlErrors[0] ?? {};
+      const extensions = gqlError.extensions ?? {};
+      const meta = extensions.metadata ?? extensions ?? {};
+      const errorType = meta.errorType;
+      if (errorType === 'OTP_EXPIRED') {
+        setOtpError('OTP expired. Please request a new one.');
+      } else if (errorType === 'OTP_TOO_MANY_ATTEMPTS') {
+        setOtpError('Too many incorrect attempts. Please request a new OTP.');
+      } else if (errorType === 'OTP_INCORRECT') {
+        const remaining = meta.attemptsRemaining;
+        setOtpError(
+          typeof remaining === 'number'
+            ? `Incorrect OTP. ${remaining} attempt${remaining === 1 ? '' : 's'} remaining.`
+            : 'Incorrect OTP. Please try again.'
+        );
+      } else {
+        setOtpError('Invalid OTP. Please try again.');
+      }
     } finally {
       setIsVerifyingOTP(false);
     }
