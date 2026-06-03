@@ -60,7 +60,8 @@ export default function LocationSelectionModal({
     fetchPolicy: 'cache-first',
   });
 
-  const displayCenters = centers.length > 0 ? centers : (centersData?.centers || []);
+  const allCenters = centers.length > 0 ? centers : (centersData?.centers || []);
+  const displayCenters = allCenters.filter((center: any) => center.isOnline === true);
 
   useEffect(() => {
     if (isOpen) {

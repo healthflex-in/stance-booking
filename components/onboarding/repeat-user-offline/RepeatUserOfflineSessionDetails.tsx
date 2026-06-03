@@ -73,17 +73,16 @@ export default function RepeatUserOfflineSessionDetails({
     });
   }, [centersData]);
 
-  // Set center from prop if provided
+  // Set center from prop only if it passes the isOnline filter
   useEffect(() => {
-    if (centerId && centersData?.centers && !selectedCenter) {
-      const center = centersData.centers.find((c: any) => c._id === centerId);
+    if (centerId && filteredCenters.length > 0 && !selectedCenter) {
+      const center = filteredCenters.find((c: any) => c._id === centerId);
       if (center) {
         setSelectedCenter(center);
-        // Only lock if it came from URL params
         setIsFromParams(isParamFromUrl('centerId'));
       }
     }
-  }, [centerId, centersData, selectedCenter]);
+  }, [centerId, filteredCenters, selectedCenter]);
 
   useEffect(() => {
     if (serviceId && servicesData?.services && !selectedService) {
