@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { X, Mail, Pencil, Check } from 'lucide-react';
+import { X, Mail, Check } from 'lucide-react';
 import EmailOTPInput from './EmailOTPInput';
 
 interface EmailOTPModalProps {
@@ -151,15 +151,12 @@ export default function EmailOTPModal({
             <>
               {/* Wrong email link */}
               {displayEmail && (
-                <div className="flex items-center justify-center gap-1 mb-5">
-                  <span className="text-xs text-gray-400">Wrong email?</span>
-                  <button
-                    onClick={() => { setIsEditingEmail(true); setEditedEmail(displayEmail); setEmailError(''); }}
-                    className="text-xs text-blue-600 hover:text-blue-700 font-medium underline transition-colors flex items-center gap-1"
-                  >
-                    <Pencil className="w-3 h-3" /> Update
-                  </button>
-                </div>
+                <button
+                  onClick={() => { setIsEditingEmail(true); setEditedEmail(displayEmail); setEmailError(''); }}
+                  className="w-full mb-5 text-xs text-gray-400 hover:text-gray-600 transition-colors text-center"
+                >
+                  Not your email? <span className="text-blue-600 font-medium">Click here to change it</span>
+                </button>
               )}
 
               {/* OTP input — only show when not editing email and email exists */}

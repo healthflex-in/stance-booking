@@ -29,7 +29,7 @@ export default function NewUserOnlineCenterSelection({
   }, [patientId]);
 
   const onlineCenters = centersData?.centers?.filter(
-    (center: any) => center.allowOnlineBooking === true || center.isOnline === true
+    (center: any) => center.isOnline === true
   );
 
   const handleCenterSelect = (center: any) => {
