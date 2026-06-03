@@ -212,7 +212,7 @@ export default function PrepaidNewSlotSelection({ serviceDuration, designation, 
                       return (
                         <button key={`slot-${index}-${slot.startTimeRaw}`} onClick={() => setSelectedTimeSlot(slot)} disabled={!slot.isAvailable} className={`p-3 rounded-xl border-2 text-sm font-medium transition-all ${isSelected ? 'border-blue-500 bg-blue-50 text-blue-700' : slot.isAvailable ? 'border-gray-200 bg-white text-gray-900 hover:border-gray-300' : 'border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed'}`}>
                           <div className="text-sm font-semibold">{slot.displayTime}</div>
-                          {slot.consultantNames && slot.consultantNames.length > 0 && (
+                          {process.env.NODE_ENV !== 'production' && slot.consultantNames && slot.consultantNames.length > 0 && (
                             <div className="text-xs text-gray-500 mt-1">
                               {slot.consultantNames.length === 1
                                 ? slot.consultantNames[0]

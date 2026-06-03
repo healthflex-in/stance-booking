@@ -356,7 +356,7 @@ export default function PrepaidSlotSelection({
                           }`}
                         >
                           <div className="text-sm font-semibold">{slot.displayTime}</div>
-                          {slot.consultantNames && slot.consultantNames.length > 0 && (
+                          {process.env.NODE_ENV !== 'production' && slot.consultantNames && slot.consultantNames.length > 0 && (
                             <div className="text-xs text-gray-500 mt-1">
                               {slot.consultantNames.length === 1
                                 ? slot.consultantNames[0]
