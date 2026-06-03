@@ -1,4 +1,5 @@
 'use client';
+import { getServiceName } from '@/utils/service-utils';
 
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@apollo/client';
@@ -165,7 +166,7 @@ export default function PrepaidRepeatSessionDetails({ patientId, centerId, onBac
                   <div className="flex-1 text-left">
                     {selectedService ? (
                       <>
-                        <h3 className="font-semibold text-gray-900">{selectedService.name}</h3>
+                        <h3 className="font-semibold text-gray-900">{getServiceName(selectedService)}</h3>
                         <p className="text-sm text-gray-500">{selectedService.duration} minutes • ₹{selectedService.bookingAmount || selectedService.price || 0}</p>
                       </>
                     ) : (

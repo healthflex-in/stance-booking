@@ -1,4 +1,5 @@
 'use client';
+import { getServiceName } from '@/utils/service-utils';
 
 import React, { useState } from 'react';
 import { useQuery, useMutation } from '@apollo/client';
@@ -301,7 +302,7 @@ export default function NewUserOfflinePaymentConfirmation({
               </div>
               <div>
                 <span className="text-sm text-gray-600 font-medium block">Service</span>
-                <p className="text-sm font-medium text-gray-900">{currentService?.name}</p>
+                <p className="text-sm font-medium text-gray-900">{getServiceName(currentService)}</p>
                 <p className="text-sm text-gray-500">₹{actualPrice}</p>
               </div>
             </div>
@@ -314,6 +315,7 @@ export default function NewUserOfflinePaymentConfirmation({
             )}
             
             <div className="space-y-3" style={{ opacity: isPaymentTypeFromParams ? 0.7 : 1 }}>
+              {/* Pay Full — hidden for new users
               <button
                 onClick={handlePayFullClick}
                 disabled={isPaymentTypeFromParams}
@@ -339,69 +341,37 @@ export default function NewUserOfflinePaymentConfirmation({
                   </div>
                 </div>
               </button>
+              */}
 
-              <div className="border-2 border-gray-200 rounded-xl p-4">
-                <p className="font-semibold text-gray-900 mb-3">Token Payment</p>
-                <div className="space-y-2">
-                  <button
-                    onClick={() => handleTokenPayClick(serviceTokenAmount)}
-                    disabled={isPaymentTypeFromParams}
-                    className={`w-full p-3 rounded-lg border-2 transition-all text-left ${
-                      paymentAmount === serviceTokenAmount
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'border-gray-200 hover:border-gray-300'
-                    } ${isPaymentTypeFromParams ? 'cursor-not-allowed' : ''}`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-medium text-gray-900">₹{serviceTokenAmount}</p>
-                        <p className="text-xs text-gray-500">Token Amount</p>
-                      </div>
-                      <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
-                        paymentAmount === serviceTokenAmount
-                          ? 'border-blue-500 bg-blue-500'
-                          : 'border-gray-300'
-                      }`}>
-                        {paymentAmount === serviceTokenAmount && (
-                          <div className="w-1.5 h-1.5 bg-white rounded-full" />
-                        )}
-                      </div>
-                    </div>
-                  </button>
+              <button
+                onClick={() => handleTokenPayClick(serviceTokenAmount)}
+                disabled={isPaymentTypeFromParams}
+                className={`w-full p-4 rounded-xl border-2 transition-all text-left ${
+                  paymentAmount === serviceTokenAmount
+                    ? 'border-blue-500 bg-blue-50'
+                    : 'border-gray-200 hover:border-gray-300'
+                } ${isPaymentTypeFromParams ? 'cursor-not-allowed' : ''}`}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-semibold text-gray-900">Pay ₹{serviceTokenAmount}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">Booking token to confirm your appointment</p>
+                  </div>
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                    paymentAmount === serviceTokenAmount
+                      ? 'border-blue-500 bg-blue-500'
+                      : 'border-gray-300'
+                  }`}>
+                    {paymentAmount === serviceTokenAmount && (
+                      <div className="w-2 h-2 bg-white rounded-full" />
+                    )}
+                  </div>
                 </div>
-              </div>
+              </button>
             </div>
 
             {amountError && (
               <p className="text-red-600 text-sm mt-3">{amountError}</p>
-            )}
-
-            {paymentAmount && (
-              <div className={`mt-4 p-3 rounded-xl ${
-                isFullPayment
-                  ? 'bg-green-50 border border-green-200'
-                  : 'bg-blue-50 border border-blue-200'
-              }`}>
-                <div className="flex items-start space-x-2">
-                  <AlertCircle className={`w-5 h-5 flex-shrink-0 mt-0.5 ${
-                    isFullPayment ? 'text-green-600' : 'text-blue-600'
-                  }`} />
-                  <div>
-                    <p className={`text-sm font-semibold ${
-                      isFullPayment ? 'text-green-900' : 'text-blue-900'
-                    }`}>
-                      {isFullPayment ? 'Full Payment - Invoice' : `Token Payment - ₹${paymentAmount}`}
-                    </p>
-                    <p className={`text-xs mt-1 ${
-                      isFullPayment ? 'text-green-700' : 'text-blue-700'
-                    }`}>
-                      {isFullPayment
-                        ? 'Paying full service amount. An invoice will be generated.'
-                        : `A token of ₹${paymentAmount} will be created. Balance: ₹${actualPrice - paymentAmount}`}
-                    </p>
-                  </div>
-                </div>
-              </div>
             )}
           </div>
 

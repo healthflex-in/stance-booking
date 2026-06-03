@@ -208,21 +208,16 @@ export default function SimplifiedPatientOnboarding({
   // ─── OTP modal handlers ──────────────────────────────────────────────────────
 
   const openOTPModal = async (email: string) => {
-    console.log('📧 openOTPModal called with email:', email);
     setOtpEmail(email);
     setOtpError(null);
     setShowOTPModal(true);
     setIsSendingOTP(true);
     try {
-      console.log('📧 Calling sendEmailOTPMutation...');
       const { data } = await sendEmailOTPMutation({ variables: { email } });
-      console.log('✅ OTP sent successfully:', data);
       setOtpToken(data.sendEmailOTP.token);
     } catch (err: any) {
-      console.error('❌ Error sending OTP:', err);
-      console.error('❌ Error message:', err?.message);
-      console.error('❌ Error graphQLErrors:', err?.graphQLErrors);
       setOtpError('Failed to send OTP. Please try again.');
+      toast.error('Failed to send OTP. Please try again.');
     } finally {
       setIsSendingOTP(false);
     }
@@ -233,7 +228,6 @@ export default function SimplifiedPatientOnboarding({
     setIsVerifyingOTP(true);
     setOtpError(null);
     try {
-      console.log('📧 Verifying OTP for email:', otpEmail);
       const { data } = await verifyEmailOTPMutation({
         variables: { input: { email: otpEmail, otp: code, token: otpToken } },
       });
@@ -245,7 +239,6 @@ export default function SimplifiedPatientOnboarding({
         localStorage.setItem('refreshToken', session.refreshToken);
         localStorage.setItem('user', JSON.stringify(session.user));
         
-        console.log('✅ Email verified and updated successfully');
         toast.success('Email verified and updated successfully!');
         
         setShowOTPModal(false);
@@ -268,8 +261,8 @@ export default function SimplifiedPatientOnboarding({
         toast.success('Email verified!');
       }
     } catch (err) {
-      console.error('❌ Error verifying OTP:', err);
-      setOtpError('Invalid OTP. Please try again.');
+      setOtpError('Invalid OTP. Please try again.')
+      toast.error('Incorrect OTP. Please check and try again.');
     } finally {
       setIsVerifyingOTP(false);
     }

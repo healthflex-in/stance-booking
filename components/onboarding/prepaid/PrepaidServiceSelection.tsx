@@ -1,4 +1,5 @@
 'use client';
+import { getServiceName } from '@/utils/service-utils';
 
 import React, { useState } from 'react';
 import { useQuery, useMutation } from '@apollo/client';
@@ -136,7 +137,7 @@ export default function PrepaidServiceSelection({
                 : 'border-2 border-[#DDFE71] bg-transparent hover:bg-[#DDFE71]/10'
             }`}
           >
-            <div className="text-xl font-bold mb-1">{service.name}</div>
+            <div className="text-xl font-bold mb-1">{getServiceName(service)}</div>
             <div className="text-sm text-gray-700 mb-2">{service.duration} minutes</div>
             {service.description && (
               <div className="text-xs text-gray-600">{service.description}</div>
