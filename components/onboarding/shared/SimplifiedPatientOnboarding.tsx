@@ -373,11 +373,21 @@ export default function SimplifiedPatientOnboarding({
 
       const { exists, patient, isInDifferentOrg } = checkData?.checkPatientByPhone || {};
 
+      // A patient with LEAD status never completed their first booking (abandoned payment)
+      // — treat them as a new user so they go through the new user flow again
+      const isAbandonedNewUser = exists && !isInDifferentOrg &&
+        patient?.profileData?.status === 'LEAD';
+
       if (exists && isInDifferentOrg) {
         // Patient exists in different organization - show cross-org modal
         setCrossOrgPatient(patient);
         setShowCrossOrgModal(true);
         setIsPhoneVerified(true);
+      } else if (isAbandonedNewUser) {
+        // Patient created but never completed payment — restart as new user
+        setIsNewUser(true);
+        setIsPhoneVerified(true);
+        toast.success('Phone number verified! Please fill in your details.');
       } else if (exists && !isInDifferentOrg) {
         // Patient exists in current organization - gate with email OTP
         setIsNewUser(false);

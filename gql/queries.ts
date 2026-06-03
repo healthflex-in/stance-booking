@@ -2552,6 +2552,7 @@ export const CHECK_PATIENT_BY_PHONE = gql`
             lastName
             gender
             dob
+            status
           }
         }
       }
