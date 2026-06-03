@@ -565,8 +565,8 @@ export type ApiKeyResponse = {
 export type Appointment = DataRow & {
   __typename?: 'Appointment';
   _id: Scalars['ObjectID']['output'];
-  appointmentEndTime?: Maybe<Scalars['String']['output']>;
-  appointmentStartTime?: Maybe<Scalars['String']['output']>;
+  appointmentEndTime?: Maybe<Scalars['DateTime']['output']>;
+  appointmentStartTime?: Maybe<Scalars['DateTime']['output']>;
   bookingMeta?: Maybe<BookingMeta>;
   cancellationNote?: Maybe<Scalars['String']['output']>;
   cancellationReason?: Maybe<CancellationReason>;
@@ -1361,6 +1361,19 @@ export enum Designation {
   SncCoach = 'SNC_Coach',
   SportsMassageTherapist = 'Sports_Massage_Therapist'
 }
+
+export type DeviceToken = {
+  __typename?: 'DeviceToken';
+  _id: Scalars['ObjectID']['output'];
+  center: Center;
+  createdAt: Scalars['Timestamp']['output'];
+  deviceId: Scalars['String']['output'];
+  isActive: Scalars['Boolean']['output'];
+  patient: User;
+  platform: PushPlatform;
+  token: Scalars['String']['output'];
+  updatedAt: Scalars['Timestamp']['output'];
+};
 
 export type DiagnosticSufficiency = {
   __typename?: 'DiagnosticSufficiency';
@@ -2230,6 +2243,8 @@ export type Mutation = {
   deleteToken: Token;
   /** delete a user by id */
   deleteUser: Scalars['Boolean']['output'];
+  /** Deregister a device token on logout. */
+  deregisterDeviceToken: Scalars['Boolean']['output'];
   /** Duplicate entire goalset with all goals */
   duplicateGoalSet: GoalSet;
   exportAdvancesAsPDF: ExportAdvancesAsPdfResponse;
@@ -2254,6 +2269,8 @@ export type Mutation = {
   refreshAllAlerts: RefreshResult;
   refreshPatientAlerts?: Maybe<PatientAlert>;
   refreshToken: Scalars['String']['output'];
+  /** Register or update a device FCM token for the authenticated patient. */
+  registerDeviceToken: DeviceToken;
   /** Reset a user's password (sends OTP and resets password) */
   resetPassword: Scalars['Boolean']['output'];
   resolveAlert?: Maybe<PatientAlert>;
@@ -2650,6 +2667,11 @@ export type MutationDeleteUserArgs = {
 };
 
 
+export type MutationDeregisterDeviceTokenArgs = {
+  deviceId: Scalars['String']['input'];
+};
+
+
 export type MutationDuplicateGoalSetArgs = {
   input: DuplicateGoalSetInput;
 };
@@ -2716,6 +2738,11 @@ export type MutationRefreshPatientAlertsArgs = {
 
 export type MutationRefreshTokenArgs = {
   token: Scalars['String']['input'];
+};
+
+
+export type MutationRegisterDeviceTokenArgs = {
+  input: RegisterDeviceTokenInput;
 };
 
 
@@ -3671,6 +3698,11 @@ export type ProvisionalRecord = {
   diagnosis?: Maybe<Scalars['String']['output']>;
 };
 
+export enum PushPlatform {
+  Android = 'ANDROID',
+  Ios = 'IOS'
+}
+
 export type Query = {
   __typename?: 'Query';
   _empty?: Maybe<Scalars['String']['output']>;
@@ -4439,6 +4471,13 @@ export type RefreshResult = {
   alertsRemoved: Scalars['Int']['output'];
   errors: Scalars['Int']['output'];
   patientsProcessed: Scalars['Int']['output'];
+};
+
+export type RegisterDeviceTokenInput = {
+  centerId: Scalars['ObjectID']['input'];
+  deviceId: Scalars['String']['input'];
+  platform: PushPlatform;
+  token: Scalars['String']['input'];
 };
 
 export type RegistrationOtpVerification = {

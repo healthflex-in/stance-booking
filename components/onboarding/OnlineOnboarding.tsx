@@ -139,7 +139,8 @@ export default function OnlineOnboarding({ organizationId, onComplete }: OnlineO
         toast.success('Email verified!');
       }
     } catch (err) {
-      setOtpError('Invalid OTP. Please try again.');
+      setOtpError('Invalid OTP. Please try again.')
+      toast.error('Incorrect OTP. Please check and try again.');
     } finally {
       setIsVerifyingOTP(false);
     }

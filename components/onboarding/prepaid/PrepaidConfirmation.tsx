@@ -1,4 +1,5 @@
 'use client';
+import { getServiceName } from '@/utils/service-utils';
 
 import React, { useState } from 'react';
 import { useQuery } from '@apollo/client';
@@ -114,7 +115,7 @@ export default function PrepaidConfirmation({
               </div>
               <div>
                 <span className="text-sm text-gray-600 font-medium block">Service</span>
-                <p className="text-sm font-medium text-gray-900">{currentService?.name}</p>
+                <p className="text-sm font-medium text-gray-900">{getServiceName(currentService)}</p>
               </div>
             </div>
           </div>

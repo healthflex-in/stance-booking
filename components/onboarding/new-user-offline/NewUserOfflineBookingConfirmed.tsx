@@ -1,4 +1,5 @@
 'use client';
+import { getServiceName } from '@/utils/service-utils';
 
 import React from 'react';
 import { useQuery } from '@apollo/client';
@@ -92,7 +93,7 @@ export default function NewUserOfflineBookingConfirmed({ bookingData, analytics 
 
               <div>
                 <div className="text-gray-600 text-sm mb-1">Service</div>
-                <div className="font-medium text-gray-900">{currentService?.name}</div>
+                <div className="font-medium text-gray-900">{getServiceName(currentService)}</div>
               </div>
 
               <div>
