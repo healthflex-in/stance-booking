@@ -193,6 +193,7 @@ export function createApolloClient(initialState = {}) {
           'x-api-key': getMobileApiKey(),
           'x-organization-id': mobileOrgId,
           ...(mobileCenterId && { 'x-center-id': mobileCenterId }),
+          'x-client-source': 'BOOKING',
         },
       };
     }
@@ -225,6 +226,7 @@ export function createApolloClient(initialState = {}) {
         ...(centerId && { 'x-center-id': centerId }),
         'x-organization-id': organizationId,
         authorization: token ? `Bearer ${token}` : '',
+        'x-client-source': 'BOOKING',
       },
     };
   });
