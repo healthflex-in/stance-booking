@@ -87,6 +87,7 @@ export default function SimplifiedPatientOnboarding({
   const [emailVerified, setEmailVerified] = useState(false);
   const [pendingRepeatPatientId, setPendingRepeatPatientId] = useState<string | null>(null);
   const [pendingSessionType, setPendingSessionType] = useState<'in-person' | 'online' | null>(null);
+  const [pendingIsNewUser, setPendingIsNewUser] = useState(false);
   const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
   const { data: centersData } = useQuery(GET_CENTERS, {
@@ -377,10 +378,15 @@ export default function SimplifiedPatientOnboarding({
         setShowCrossOrgModal(true);
         setIsPhoneVerified(true);
       } else if (isAbandonedNewUser) {
-        // Patient created but never completed payment — restart as new user
-        setIsNewUser(true);
+        // LEAD patient — profile already exists, skip form and go to new user session details
         setIsPhoneVerified(true);
-        toast.success('Phone number verified! Please fill in your details.');
+        if (preStoredAssessmentType) {
+          onComplete(patient._id, true, preStoredAssessmentType);
+        } else {
+          setPendingRepeatPatientId(patient._id);
+          setPendingIsNewUser(true);
+          setShowSessionTypeModal(true);
+        }
       } else if (exists && !isInDifferentOrg) {
         // Patient exists in current organization - gate with email OTP
         setIsNewUser(false);
@@ -426,9 +432,11 @@ export default function SimplifiedPatientOnboarding({
       if (pendingRepeatPatientId) {
         setSessionType(selectedSessionType);
         const patientId = pendingRepeatPatientId;
+        const isNew = pendingIsNewUser;
         setPendingRepeatPatientId(null);
         setPendingSessionType(null);
-        onComplete(patientId, false, selectedSessionType);
+        setPendingIsNewUser(false);
+        onComplete(patientId, isNew, selectedSessionType);
         return;
       }
       
