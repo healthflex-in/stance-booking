@@ -227,6 +227,22 @@ export default function NewUserOnlineBookingConfirmed({ bookingData, analytics }
                   {bookingData.selectedDate}, {bookingData.selectedTimeSlot.displayTime}
                 </div>
               </div>
+
+              {consultant && (
+                <div className="space-y-2">
+                  <span className="text-sm text-gray-600 font-medium block">Consultant</span>
+                  <p className="text-sm font-bold text-gray-900">
+                    {(() => {
+                      const firstName = consultant.profileData?.firstName?.trim();
+                      const lastName = consultant.profileData?.lastName?.trim();
+                      if (firstName || lastName) {
+                        return `${firstName || ''} ${lastName || ''}`.trim();
+                      }
+                      return consultant.name?.trim() || 'Your Consultant';
+                    })()}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </div>

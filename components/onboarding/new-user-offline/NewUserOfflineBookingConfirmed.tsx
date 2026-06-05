@@ -38,6 +38,10 @@ export default function NewUserOfflineBookingConfirmed({ bookingData, analytics 
   const { data: userData } = useQuery(GET_USER, {
     variables: { userId: bookingData.patientId },
   });
+  const { data: consultantData } = useQuery(GET_USER, {
+    variables: { userId: bookingData.consultantId },
+    skip: !bookingData.consultantId,
+  });
   const { data: servicesData } = useQuery(GET_SERVICES, {
     variables: { centerId: [bookingData.centerId] },
   });
@@ -101,6 +105,22 @@ export default function NewUserOfflineBookingConfirmed({ bookingData, analytics 
                   {bookingData.selectedDate}, {bookingData.selectedTimeSlot.displayTime}
                 </div>
               </div>
+
+              {consultantData?.user && (
+                <div>
+                  <div className="text-gray-600 text-sm mb-1">Consultant</div>
+                  <div className="font-medium text-gray-900">
+                    {(() => {
+                      const firstName = consultantData.user.profileData?.firstName?.trim();
+                      const lastName = consultantData.user.profileData?.lastName?.trim();
+                      if (firstName || lastName) {
+                        return `${firstName || ''} ${lastName || ''}`.trim();
+                      }
+                      return consultantData.user.name?.trim() || 'Your Consultant';
+                    })()}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
