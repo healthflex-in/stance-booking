@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery } from '@apollo/client';
 import { ChevronRight } from 'lucide-react';
 import { GET_SERVICES } from '@/gql/queries';
@@ -13,6 +13,7 @@ import { getBookingCookies } from '@/utils/booking-cookies';
 
 interface NewUserOnlineSessionDetailsProps {
   patientId: string;
+  serviceId?: string;
   onBack: () => void;
   onContinue: (data: { serviceId: string; serviceDuration: number; servicePrice: number }) => void;
   analytics: BookingAnalytics;
@@ -20,6 +21,7 @@ interface NewUserOnlineSessionDetailsProps {
 
 export default function NewUserOnlineSessionDetails({
   patientId,
+  serviceId,
   onBack,
   onContinue,
   analytics,
@@ -43,6 +45,16 @@ export default function NewUserOnlineSessionDetails({
       (!service.doneBy || service.doneBy.length === 0 || service.doneBy.includes('Physiotherapist'))
     );
   }, [servicesData]);
+
+  // Restore previously selected service when returning to this step
+  useEffect(() => {
+    if (serviceId && onlineServices.length > 0 && !selectedService) {
+      const service = onlineServices.find((s: any) => s._id === serviceId);
+      if (service) {
+        setSelectedService(service);
+      }
+    }
+  }, [serviceId, onlineServices, selectedService]);
 
   const handleContinue = () => {
     if (!selectedService) return;

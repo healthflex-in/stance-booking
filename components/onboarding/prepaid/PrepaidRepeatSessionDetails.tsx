@@ -210,6 +210,7 @@ export default function PrepaidRepeatSessionDetails({ patientId, centerId, onBac
         isNewUser={false}
         sessionType="online"
         isPrePaid={true}
+        selectedServiceId={selectedService?._id}
         onSelect={(service) => {
           setSelectedService(service);
           setShowServiceModal(false);

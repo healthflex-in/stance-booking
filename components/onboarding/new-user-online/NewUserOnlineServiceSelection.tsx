@@ -8,12 +8,14 @@ import { GET_SERVICES, GET_USER, UPDATE_PATIENT } from '@/gql/queries';
 interface NewUserOnlineServiceSelectionProps {
   centerId: string;
   patientId: string;
+  selectedServiceId?: string;
   onServiceSelect: (serviceId: string, serviceDuration: number, servicePrice: number) => void;
 }
 
 export default function NewUserOnlineServiceSelection({
   centerId,
   patientId,
+  selectedServiceId,
   onServiceSelect,
 }: NewUserOnlineServiceSelectionProps) {
   const [showEmailModal, setShowEmailModal] = useState(false);
@@ -107,19 +109,26 @@ export default function NewUserOnlineServiceSelection({
     <div className="h-full overflow-y-auto p-6">
       <div className="max-w-md mx-auto space-y-4">
         <h2 className="text-xl font-bold text-gray-900 mb-6">Select Service</h2>
-        {newUserOnlineServices.map((service: any, index: number) => (
-          <button
-            key={service._id}
-            onClick={() => handleServiceClick(service)}
-            className={`w-full py-6 text-black font-semibold rounded-xl transition-all text-left px-6 ${
-              index === 0
-                ? 'bg-[#DDFE71]'
-                : 'border-2 border-[#DDFE71] bg-transparent hover:bg-[#DDFE71]/10'
-            }`}
-          >
-            <div className="text-xl font-bold">{service.externalName}</div>
-          </button>
-        ))}
+        {newUserOnlineServices.map((service: any, index: number) => {
+          // Highlight the user's actual selection when returning to this step;
+          // before any selection is made, keep the first option emphasized.
+          const isHighlighted = selectedServiceId
+            ? selectedServiceId === service._id
+            : index === 0;
+          return (
+            <button
+              key={service._id}
+              onClick={() => handleServiceClick(service)}
+              className={`w-full py-6 text-black font-semibold rounded-xl transition-all text-left px-6 ${
+                isHighlighted
+                  ? 'bg-[#DDFE71]'
+                  : 'border-2 border-[#DDFE71] bg-transparent hover:bg-[#DDFE71]/10'
+              }`}
+            >
+              <div className="text-xl font-bold">{service.externalName}</div>
+            </button>
+          );
+        })}
       </div>
 
       {showEmailModal && (

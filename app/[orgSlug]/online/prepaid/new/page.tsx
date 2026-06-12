@@ -219,6 +219,7 @@ export default function PrepaidNewPage() {
           <NewUserOnlineServiceSelection
             centerId={bookingData.centerId || process.env.NEXT_PUBLIC_DEFAULT_CENTER_ID || ''}
             patientId={bookingData.patientId}
+            selectedServiceId={bookingData.treatmentId || undefined}
             onServiceSelect={(serviceId, serviceDuration, servicePrice) => {
               updateBookingData({
                 treatmentId: serviceId,

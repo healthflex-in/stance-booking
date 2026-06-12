@@ -319,6 +319,7 @@ export default function RepeatUserOfflineSessionDetails({
         sessionType="in-person"
         designation={selectedDesignation}
         preSelectedServiceId={sessionStorage.getItem('serviceId') || undefined}
+        selectedServiceId={selectedService?._id}
         onSelect={(service) => {
           analytics?.trackServiceSelected(service._id, service.name, service.bookingAmount || service.price || 0, service.duration);
           setSelectedService(service);

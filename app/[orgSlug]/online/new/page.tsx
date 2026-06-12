@@ -301,6 +301,7 @@ export default function NewOnlinePage() {
           {currentStep === 'session-details' && (
             <NewUserOnlineSessionDetails
               patientId={bookingData.patientId}
+              serviceId={bookingData.treatmentId || undefined}
               analytics={analytics}
               onBack={goToPreviousStep}
               onContinue={(data: { serviceId: string; serviceDuration: number; servicePrice: number }) => {

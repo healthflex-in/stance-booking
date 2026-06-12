@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@apollo/client';
 import { MapPin, ChevronRight } from 'lucide-react';
-import { GET_CENTERS, GET_USER } from '@/gql/queries';
+import { GET_CENTERS, GET_USER, GET_SERVICES } from '@/gql/queries';
 import { useContainerDetection } from '@/hooks/useContainerDetection';
 import { PrimaryButton } from '@/components/ui-atoms';
 import { LocationSelectionModal, ServiceSelectionModal } from '@/components/onboarding/shared';
@@ -15,6 +15,7 @@ import { getBookingCookies } from '@/utils/booking-cookies';
 interface RepeatUserOnlineSessionDetailsProps {
   patientId: string;
   organizationId: string;
+  serviceId?: string;
   onBack: () => void;
   onContinue: (data: { organizationId: string; serviceId: string; serviceDuration: number; servicePrice: number; designation: string }) => void;
   analytics: BookingAnalytics;
@@ -23,6 +24,7 @@ interface RepeatUserOnlineSessionDetailsProps {
 export default function RepeatUserOnlineSessionDetails({
   patientId,
   organizationId,
+  serviceId,
   onBack,
   onContinue,
   analytics,
@@ -56,6 +58,23 @@ export default function RepeatUserOnlineSessionDetails({
     skip: !patientId,
     fetchPolicy: 'cache-first',
   });
+
+  // Fetch services only to restore a previously selected service when
+  // returning to this step (same variables shape as ServiceSelectionModal)
+  const { data: restoreServicesData } = useQuery(GET_SERVICES, {
+    variables: centerId ? { centerId: [centerId] } : { centerId: null },
+    skip: !serviceId,
+    fetchPolicy: 'cache-first',
+  });
+
+  useEffect(() => {
+    if (serviceId && restoreServicesData?.services && !selectedService) {
+      const service = restoreServicesData.services.find((s: any) => s._id === serviceId);
+      if (service) {
+        setSelectedService(service);
+      }
+    }
+  }, [serviceId, restoreServicesData, selectedService]);
 
   const patient = patientData?.user;
   const patientFirstName = patient?.profileData?.firstName || '';
@@ -213,6 +232,7 @@ export default function RepeatUserOnlineSessionDetails({
         isNewUser={false}
         sessionType="online"
         designation={selectedDesignation}
+        selectedServiceId={selectedService?._id}
         onSelect={(service) => {
           setSelectedService(service);
           analytics.trackServiceModalClosed();

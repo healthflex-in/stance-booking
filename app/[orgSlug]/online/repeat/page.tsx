@@ -273,6 +273,7 @@ export default function RepeatOnlinePage() {
           <RepeatUserOnlineSessionDetails
             patientId={bookingData.patientId}
             organizationId={bookingData.organizationId}
+            serviceId={bookingData.treatmentId || undefined}
             analytics={analytics}
             onBack={goToPreviousStep}
             onContinue={(data) => {

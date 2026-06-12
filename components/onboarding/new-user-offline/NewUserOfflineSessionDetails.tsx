@@ -198,6 +198,7 @@ export default function NewUserOfflineSessionDetails({
         isNewUser={true}
         sessionType="in-person"
         designation="Physiotherapist"
+        selectedServiceId={selectedService?._id}
         onSelect={(service) => {
           analytics?.trackEvent('service_selected', { serviceId: service._id });
           setSelectedService(service);

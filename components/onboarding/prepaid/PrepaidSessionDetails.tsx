@@ -250,6 +250,7 @@ export default function PrepaidSessionDetails({
         isNewUser={isNewUser}
         sessionType="online"
         isPrePaid={true}
+        selectedServiceId={selectedService?._id}
         onSelect={(service) => {
           setSelectedService(service);
           setShowServiceModal(false);

@@ -17,6 +17,8 @@ interface ServiceSelectionModalProps {
   isPrePaid?: boolean;
   designation?: string;
   preSelectedServiceId?: string;
+  /** Currently selected service — highlighted in the list when the modal reopens */
+  selectedServiceId?: string;
   onSelect: (service: { id: string; _id: string; name: string; duration: number; price: number; bookingAmount: number }) => void;
 }
 
@@ -31,6 +33,7 @@ export default function ServiceSelectionModal({
   isPrePaid = false,
   designation,
   preSelectedServiceId,
+  selectedServiceId,
   onSelect,
 }: ServiceSelectionModalProps) {
   const [services, setServices] = useState<any[]>([]);
@@ -224,25 +227,39 @@ export default function ServiceSelectionModal({
             </div>
           ) : services.length > 0 ? (
             <div className="space-y-2">
-              {services.map((service: any) => (
-                <button
-                  key={service.id}
-                  onClick={() => onSelect(service)}
-                  className="w-full bg-white rounded-xl border-2 border-gray-200 p-3 text-left hover:border-gray-300 transition-all"
-                  type="button"
-                >
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <Flame className="w-5 h-5 text-gray-600" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium text-gray-900 mb-0.5">
-                        {service.externalName}
+              {services.map((service: any) => {
+                const isSelected = selectedServiceId === service._id;
+                return (
+                  <button
+                    key={service.id}
+                    onClick={() => onSelect(service)}
+                    className={`w-full rounded-xl border-2 p-3 text-left transition-all ${
+                      isSelected
+                        ? 'border-[#DDFE71] bg-[#DDFE71]/10'
+                        : 'bg-white border-gray-200 hover:border-gray-300'
+                    }`}
+                    type="button"
+                  >
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <Flame className="w-5 h-5 text-gray-600" />
                       </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-gray-900 mb-0.5">
+                          {service.externalName}
+                        </div>
+                      </div>
+                      {isSelected && (
+                        <div className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#DDFE71' }}>
+                          <svg className="w-3.5 h-3.5 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                </button>
-              ))}
+                  </button>
+                );
+              })}
             </div>
           ) : (
             <div className="text-center py-12 text-gray-500">
