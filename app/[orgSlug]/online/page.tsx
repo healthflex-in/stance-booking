@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import OnlineOnboarding from '@/components/onboarding/OnlineOnboarding';
 import { StanceHealthLoader } from '@/components/loader/StanceHealthLoader';
 import { getBookingCookies } from '@/utils/booking-cookies';
-import { parseBookingParams, storeBookingParamsInSession } from '@/utils/booking-params';
+import { parseBookingParams, storeBookingParamsInSession, captureUTMParams } from '@/utils/booking-params';
 import { bookingStorage } from '@/utils/booking-storage';
 
 export default function OnlinePage() {
@@ -19,6 +19,9 @@ export default function OnlinePage() {
   useEffect(() => {
     setMounted(true);
     const cookies = getBookingCookies();
+
+    // Capture UTM params immediately before anything cleans up the URL
+    captureUTMParams();
 
     // Block HyFit from accessing online routes
     const isHyfit = cookies.orgSlug === 'hyfit' || cookies.orgSlug === 'devhyfit';

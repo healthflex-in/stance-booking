@@ -150,6 +150,23 @@ export function storeBookingParamsInSession(params: URLBookingParams): void {
   if (treatmentPrice) sessionStorage.setItem('treatmentPrice', treatmentPrice);
   if (treatmentDuration) sessionStorage.setItem('treatmentDuration', treatmentDuration);
   if (linkToken) sessionStorage.setItem('linkToken', linkToken);
+
+  // Persist UTM params and original landing URL before they get stripped from the URL
+  const urlParams = new URLSearchParams(window.location.search);
+  const utmKeys = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_id', 'utm_term', 'utm_content'];
+  const utmParts: string[] = [];
+  for (const key of utmKeys) {
+    const val = urlParams.get(key);
+    if (val) utmParts.push(`${key}=${encodeURIComponent(val)}`);
+  }
+  if (utmParts.length > 0) {
+    // Only overwrite if we have fresh UTM data (don't wipe a previously captured value)
+    sessionStorage.setItem('utm_params', utmParts.join('&'));
+  }
+  // Always capture the original full landing URL once (first write wins)
+  if (!sessionStorage.getItem('booking_landing_url')) {
+    sessionStorage.setItem('booking_landing_url', window.location.href);
+  }
 }
 
 

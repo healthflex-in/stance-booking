@@ -10,6 +10,7 @@ import { useContainerDetection } from '@/hooks/useContainerDetection';
 import { useMobileFlowAnalytics } from '@/services/mobile-analytics';
 import { getBookingCookies } from '@/utils/booking-cookies';
 import { tabStorage } from '@/utils/tab-storage';
+import { captureUTMParams } from '@/utils/booking-params';
 import SessionTypeSelectionModal from './SessionTypeSelectionModal';
 import CrossOrgModal from './CrossOrgModal';
 import NewUserServiceModal from './NewUserServiceModal';
@@ -146,6 +147,9 @@ export default function SimplifiedPatientOnboarding({
     mobileAnalytics.trackPatientOnboardingStart(centerId);
     mobileAnalytics.trackPatientDetailsStart('', centerId);
     
+    // Persist UTM params to tab storage before any navigation cleans up the URL
+    captureUTMParams();
+
     const urlParams = new URLSearchParams(window.location.search);
     const source = urlParams.get('utm_source') || urlParams.get('source') || 'direct';
     const campaign = urlParams.get('utm_campaign');
