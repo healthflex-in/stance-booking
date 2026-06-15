@@ -128,6 +128,7 @@ export type Advance = BaseAdvance & DataRow & {
   _id: Scalars['ObjectID']['output'];
   center: Center;
   createdAt: Scalars['Timestamp']['output'];
+  credit?: Maybe<Credit>;
   footer?: Maybe<Scalars['String']['output']>;
   isActive: Scalars['Boolean']['output'];
   items?: Maybe<Array<AdvanceItem>>;
@@ -204,6 +205,7 @@ export type AdvanceWithItemBalance = BaseAdvance & DataRow & {
   _id: Scalars['ObjectID']['output'];
   center: Center;
   createdAt: Scalars['Timestamp']['output'];
+  credit?: Maybe<Credit>;
   footer?: Maybe<Scalars['String']['output']>;
   isActive: Scalars['Boolean']['output'];
   itemsWithBalance?: Maybe<Array<AdvanceItemWithBalance>>;
@@ -589,6 +591,7 @@ export type AssociatedPatientsInput = {
 
 export type AuthenticatedSession = {
   __typename?: 'AuthenticatedSession';
+  permissions: Array<Permission>;
   refreshToken: Scalars['String']['output'];
   token: Scalars['String']['output'];
   user: User;
@@ -640,6 +643,7 @@ export type BaseAdvance = {
   _id: Scalars['ObjectID']['output'];
   center: Center;
   createdAt: Scalars['Timestamp']['output'];
+  credit?: Maybe<Credit>;
   footer?: Maybe<Scalars['String']['output']>;
   isActive: Scalars['Boolean']['output'];
   notes?: Maybe<Scalars['String']['output']>;
@@ -788,6 +792,34 @@ export type ClinicalRecordInput = {
   nprs?: InputMaybe<Scalars['Int']['input']>;
 };
 
+export type ConsentOtpChallenge = {
+  __typename?: 'ConsentOTPChallenge';
+  expiresIn: Scalars['Int']['output'];
+  maskedEmail: Scalars['String']['output'];
+  noEmail: Scalars['Boolean']['output'];
+  otpToken: Scalars['String']['output'];
+};
+
+/** Snapshot of a single policy clause captured at time of consent */
+export type ConsentPolicySnapshot = {
+  __typename?: 'ConsentPolicySnapshot';
+  key: PolicyKey;
+  policyId: Scalars['ObjectID']['output'];
+  policyVersion: Scalars['String']['output'];
+};
+
+/** Immutable record that a user accepted all active policies at a point in time. */
+export type ConsentRecord = {
+  __typename?: 'ConsentRecord';
+  _id: Scalars['ObjectID']['output'];
+  acceptedAt: Scalars['String']['output'];
+  ipAddress?: Maybe<Scalars['String']['output']>;
+  isActive: Scalars['Boolean']['output'];
+  platform?: Maybe<Scalars['String']['output']>;
+  policies: Array<ConsentPolicySnapshot>;
+  userId: Scalars['ObjectID']['output'];
+};
+
 /** Consultant type definition */
 export type Consultant = {
   __typename?: 'Consultant';
@@ -828,7 +860,7 @@ export type CreateAdvanceInput = {
   items?: InputMaybe<Array<CreateAdvanceItemInput>>;
   notes?: InputMaybe<Scalars['String']['input']>;
   patient: Scalars['ObjectID']['input'];
-  payment: CreatePaymentInput;
+  payment: CreateAdvancePaymentInput;
   total: Scalars['Float']['input'];
 };
 
@@ -840,6 +872,13 @@ export type CreateAdvanceItemInput = {
   tokenData?: InputMaybe<TokenDataInput>;
   type: AdvanceType;
   validTill: Scalars['Timestamp']['input'];
+};
+
+export type CreateAdvancePaymentInput = {
+  /** For single payment (backward compatibility) */
+  payment?: InputMaybe<CreatePaymentInput>;
+  /** For multiple payments (e.g. credit + cash split) */
+  payments?: InputMaybe<Array<CreatePaymentInput>>;
 };
 
 /** Agent Report Input Types and Mutations */
@@ -929,6 +968,15 @@ export type CreateConsultantInput = {
   profilePicture?: InputMaybe<Scalars['String']['input']>;
   services: Array<Scalars['ObjectID']['input']>;
   specialization: Specialization;
+};
+
+export type CreateCreditInput = {
+  amount: Scalars['Float']['input'];
+  center: Scalars['ObjectID']['input'];
+  createdAt?: InputMaybe<Scalars['Timestamp']['input']>;
+  description?: InputMaybe<Scalars['String']['input']>;
+  patient: Scalars['ObjectID']['input'];
+  validTill: Scalars['Timestamp']['input'];
 };
 
 export type CreateEventInput = {
@@ -1183,6 +1231,29 @@ export type CreateTokenInput = {
   description?: InputMaybe<Scalars['String']['input']>;
   name: Scalars['String']['input'];
   validityDays: Scalars['Int']['input'];
+};
+
+export type Credit = {
+  __typename?: 'Credit';
+  _id: Scalars['ObjectID']['output'];
+  amount: Scalars['Float']['output'];
+  center?: Maybe<Center>;
+  createdAt: Scalars['Timestamp']['output'];
+  currentBalance?: Maybe<Scalars['Float']['output']>;
+  description?: Maybe<Scalars['String']['output']>;
+  isActive: Scalars['Boolean']['output'];
+  organization: Organization;
+  patient?: Maybe<User>;
+  seqNo: Scalars['String']['output'];
+  updatedAt: Scalars['Timestamp']['output'];
+  validTill: Scalars['Timestamp']['output'];
+  version: Scalars['Int']['output'];
+};
+
+export type CreditFilter = {
+  centers?: InputMaybe<Array<Scalars['ObjectID']['input']>>;
+  organization?: InputMaybe<Scalars['ObjectID']['input']>;
+  patient?: InputMaybe<Scalars['ObjectID']['input']>;
 };
 
 export type Criticality = {
@@ -2031,6 +2102,8 @@ export enum MuscleGroup {
 export type Mutation = {
   __typename?: 'Mutation';
   _empty?: Maybe<Scalars['String']['output']>;
+  /** For patients with no email on file: save the email then send OTP. */
+  addConsentEmail: ConsentOtpChallenge;
   addDocumentRecord?: Maybe<Array<DocumentRecord>>;
   addObjectiveAssessmentRecord: ObjectiveAssessmentRecord;
   /** Add patient to additional organization */
@@ -2060,6 +2133,7 @@ export type Mutation = {
   /** Create a new center */
   createCenter: Center;
   createConsultant: User;
+  createCredit: Credit;
   /** create a goal-set */
   createGoalSet: GoalSet;
   /** Create goalset from assessment data with selected goals */
@@ -2145,10 +2219,20 @@ export type Mutation = {
   exportInvoicesAsPDF: ExportInvoicesAsPdfResponse;
   /** Export VALD data as PDF */
   exportValdDataAsPDF: ExportValdDataAsPdfResponse;
+  /**
+   * Generate a shareable consent link for a patient (staff use only).
+   * Returns a URL: consent.stance.health/[patientId]
+   */
+  generateConsentLink: Scalars['String']['output'];
   generateOnboardingLink: OnboardingLink;
   /** Get a list of available slots for a given host. */
   getAvailableSlots: Array<Maybe<TimeSlot>>;
   handleRazorpayWebhook: WebhookResponse;
+  /**
+   * Auto-send OTP to the patient's email on page load. Returns masked email + token.
+   * Public — no auth needed.
+   */
+  initiateConsentOTP: ConsentOtpChallenge;
   /** Lock a slot to prevent concurrent booking */
   lockSlot: SlotLock;
   login: AuthenticatedSession;
@@ -2160,6 +2244,13 @@ export type Mutation = {
   loginAfterRegistration: AuthenticatedSession;
   logout: Session;
   pong: Ping;
+  /** Admin: publish a new or updated policy clause. */
+  publishPolicy: Policy;
+  /**
+   * Record that a patient has accepted all currently active policies.
+   * Called at the end of the onboarding consent screen.
+   */
+  recordConsent: ConsentRecord;
   refreshAllAlerts: RefreshResult;
   refreshPatientAlerts?: Maybe<PatientAlert>;
   refreshToken: Scalars['String']['output'];
@@ -2224,6 +2315,8 @@ export type Mutation = {
   updateReportIsAssessment: Report;
   /** Update a role */
   updateRole: Role;
+  /** Update actions for a specific role+resource */
+  updateRolePermission: RolePermission;
   updateRule: Rule;
   /** Update a service */
   updateService: Service;
@@ -2234,6 +2327,8 @@ export type Mutation = {
   uploadFile: File;
   /** Create or update a match record */
   upsertMatch: Match;
+  /** Verify the consent OTP without requiring the frontend to know the real email. */
+  verifyConsentOTP: Scalars['Boolean']['output'];
   verifyEmailOTP: AuthenticatedSession;
   /** Verify OTP and update email (validates OTP and updates user's email in database) */
   verifyEmailOTPAndUpdateEmail: AuthenticatedSession;
@@ -2245,6 +2340,12 @@ export type Mutation = {
   verifyEmailOTPForRegistration: RegistrationOtpVerification;
   verifyOTP: AuthenticatedSession;
   verifyPayment: WebhookResponse;
+};
+
+
+export type MutationAddConsentEmailArgs = {
+  email: Scalars['String']['input'];
+  patientId: Scalars['ObjectID']['input'];
 };
 
 
@@ -2344,6 +2445,11 @@ export type MutationCreateCenterArgs = {
 
 export type MutationCreateConsultantArgs = {
   input: CreateConsultantInput;
+};
+
+
+export type MutationCreateCreditArgs = {
+  input: CreateCreditInput;
 };
 
 
@@ -2587,6 +2693,11 @@ export type MutationExportValdDataAsPdfArgs = {
 };
 
 
+export type MutationGenerateConsentLinkArgs = {
+  patientId: Scalars['ObjectID']['input'];
+};
+
+
 export type MutationGenerateOnboardingLinkArgs = {
   input: GenerateOnboardingLinkInput;
 };
@@ -2600,6 +2711,11 @@ export type MutationGetAvailableSlotsArgs = {
 export type MutationHandleRazorpayWebhookArgs = {
   payload: Scalars['JSON']['input'];
   signature: Scalars['String']['input'];
+};
+
+
+export type MutationInitiateConsentOtpArgs = {
+  patientId: Scalars['ObjectID']['input'];
 };
 
 
@@ -2622,6 +2738,16 @@ export type MutationLoginAfterRegistrationArgs = {
 
 export type MutationPongArgs = {
   input: PongInput;
+};
+
+
+export type MutationPublishPolicyArgs = {
+  input: PublishPolicyInput;
+};
+
+
+export type MutationRecordConsentArgs = {
+  input: RecordConsentInput;
 };
 
 
@@ -2828,6 +2954,13 @@ export type MutationUpdateRoleArgs = {
 };
 
 
+export type MutationUpdateRolePermissionArgs = {
+  input: UpdateRolePermissionInput;
+  resource: Resource;
+  role: Scalars['String']['input'];
+};
+
+
 export type MutationUpdateRuleArgs = {
   input: UpdateRuleInput;
   seqNo: Scalars['String']['input'];
@@ -2859,6 +2992,12 @@ export type MutationUploadFileArgs = {
 
 export type MutationUpsertMatchArgs = {
   input: UpsertMatchInput;
+};
+
+
+export type MutationVerifyConsentOtpArgs = {
+  otp: Scalars['String']['input'];
+  otpToken: Scalars['String']['input'];
 };
 
 
@@ -2914,7 +3053,7 @@ export type ObjectiveAssessmentInput = {
 
 export type ObjectiveAssessmentRecord = {
   __typename?: 'ObjectiveAssessmentRecord';
-  tests: Array<Maybe<ObjectiveTest>>;
+  tests?: Maybe<Array<Maybe<ObjectiveTest>>>;
 };
 
 export type ObjectiveCollectionEntry = {
@@ -3181,6 +3320,12 @@ export type Patient = {
   category?: Maybe<PatientCategory>;
   centers: Array<Center>;
   cohort?: Maybe<PatientCohort>;
+  /** Whether the patient has accepted the current Stance consent policy */
+  consentAccepted?: Maybe<Scalars['Boolean']['output']>;
+  /** Epoch ms timestamp of when consent was last accepted */
+  consentAcceptedAt?: Maybe<Scalars['Timestamp']['output']>;
+  /** Semver policy version they last accepted e.g. '1.0.0' */
+  consentPolicyVersion?: Maybe<Scalars['String']['output']>;
   consultant?: Maybe<User>;
   dob?: Maybe<Scalars['Timestamp']['output']>;
   firstName: Scalars['String']['output'];
@@ -3389,6 +3534,7 @@ export enum PaymentMode {
   CardlessEmi = 'CARDLESS_EMI',
   Cash = 'CASH',
   Cod = 'COD',
+  Credit = 'CREDIT',
   Emi = 'EMI',
   Nach = 'NACH',
   Netbanking = 'NETBANKING',
@@ -3410,6 +3556,7 @@ export enum PaymentStatus {
 
 export enum PaymentType {
   Advance = 'ADVANCE',
+  Credit = 'CREDIT',
   Invoice = 'INVOICE'
 }
 
@@ -3482,6 +3629,39 @@ export type PlanRecord = {
 export type PlanRecordInput = {
   advice?: InputMaybe<Scalars['String']['input']>;
   plans?: InputMaybe<Array<InputMaybe<PlanInput>>>;
+};
+
+/** A single consent clause. There are 6 of these (one per PolicyKey). */
+export type Policy = {
+  __typename?: 'Policy';
+  _id: Scalars['ObjectID']['output'];
+  isActive: Scalars['Boolean']['output'];
+  key: PolicyKey;
+  links: Array<PolicyLink>;
+  policyVersion: Scalars['String']['output'];
+  publishedAt: Scalars['String']['output'];
+  text: Scalars['String']['output'];
+};
+
+export enum PolicyKey {
+  DataCollection = 'data_collection',
+  DataSharing = 'data_sharing',
+  DoctorDisclaimer = 'doctor_disclaimer',
+  MedicalHistoryAccuracy = 'medical_history_accuracy',
+  ServiceConsent = 'service_consent',
+  TermsAndRefund = 'terms_and_refund'
+}
+
+/** A "read more" link attached to a consent clause */
+export type PolicyLink = {
+  __typename?: 'PolicyLink';
+  label: Scalars['String']['output'];
+  url: Scalars['String']['output'];
+};
+
+export type PolicyLinkInput = {
+  label: Scalars['String']['input'];
+  url: Scalars['String']['input'];
 };
 
 export type PongInput = {
@@ -3592,6 +3772,13 @@ export type ProvisionalRecord = {
   diagnosis?: Maybe<Scalars['String']['output']>;
 };
 
+export type PublishPolicyInput = {
+  key: PolicyKey;
+  links?: InputMaybe<Array<PolicyLinkInput>>;
+  policyVersion: Scalars['String']['input'];
+  text: Scalars['String']['input'];
+};
+
 export enum PushPlatform {
   Android = 'ANDROID',
   Ios = 'IOS'
@@ -3600,6 +3787,8 @@ export enum PushPlatform {
 export type Query = {
   __typename?: 'Query';
   _empty?: Maybe<Scalars['String']['output']>;
+  /** Get all 6 active policy clauses — used to render the onboarding consent form */
+  activePolicies: Array<Policy>;
   /** Get all active sessions for the current user */
   activeSessions: Array<Session>;
   advance: Advance;
@@ -3626,6 +3815,8 @@ export type Query = {
   checkPatientByPhone: PatientExistsResult;
   /** Check if report data is filled */
   checkReportDataFilled: ReportDataStatus;
+  /** Get full consent history for a user (audit trail) */
+  consentHistory: Array<ConsentRecord>;
   /** get current session */
   currentSession: AuthenticatedSession;
   /** Get the latest customer info form for a patient */
@@ -3646,10 +3837,14 @@ export type Query = {
   /** Get all files */
   files: Array<File>;
   generateInvoicePDFOnDemand: Scalars['String']['output'];
+  getActiveCreditsForPatient: Array<Credit>;
   /** Get all tests for dropdown */
   getAllTests: Array<ObjectiveCollectionEntry>;
   /** Get center-level availability for consultants */
   getCenterAvailability: Array<ConsultantAvailability>;
+  getCredit?: Maybe<Credit>;
+  getCreditBalance: Scalars['Float']['output'];
+  getCredits: Array<Credit>;
   getFilteredConsultants: Array<User>;
   /** Get an ObjectiveAssessmentRecord by ID */
   getObjectiveAssessmentRecord?: Maybe<ObjectiveAssessmentRecord>;
@@ -3676,8 +3871,12 @@ export type Query = {
   goalSets: Array<GoalSet>;
   /** Get goal with full achievement history (includes parent/child goals) */
   goalWithHistory: GoalWithHistory;
+  /** Check whether a user has accepted all currently active policy versions */
+  hasUserAcceptedPolicies: Scalars['Boolean']['output'];
   invoice: Invoice;
   invoices: PaginatedInvoices;
+  /** Get the most recent consent record for a user */
+  latestConsentRecord?: Maybe<ConsentRecord>;
   /** Get a specific match by ID */
   match: Match;
   /** Get matches by stance ID or by ID */
@@ -3713,6 +3912,10 @@ export type Query = {
   /** Get all permissions of the logged in user */
   permissions: Array<Maybe<UserPermissions>>;
   ping: Ping;
+  /** Get a specific active policy by its key */
+  policyByKey?: Maybe<Policy>;
+  /** Get version history for a specific policy key (admin / audit) */
+  policyHistory: Array<Policy>;
   /** Get a preferred timing slot by ID */
   preferredTiming: PreferredTimingSlot;
   /** Get all preferred timing slots for a user */
@@ -3724,6 +3927,10 @@ export type Query = {
   reports: Array<Report>;
   /** Get a role by id */
   role: Role;
+  /** Get all role permissions */
+  rolePermissions: Array<RolePermission>;
+  /** Get permissions for a specific role */
+  rolePermissionsByRole: Array<RolePermission>;
   /** Get all roles */
   roles: Array<Role>;
   /** Search user-timeline reports by service/treatment name, consultant name, or exercise name under plans */
@@ -3831,6 +4038,11 @@ export type QueryCheckReportDataFilledArgs = {
 };
 
 
+export type QueryConsentHistoryArgs = {
+  userId: Scalars['ObjectID']['input'];
+};
+
+
 export type QueryCustomerInfoArgs = {
   userId: Scalars['ObjectID']['input'];
 };
@@ -3885,8 +4097,29 @@ export type QueryGenerateInvoicePdfOnDemandArgs = {
 };
 
 
+export type QueryGetActiveCreditsForPatientArgs = {
+  patientId: Scalars['ObjectID']['input'];
+};
+
+
 export type QueryGetCenterAvailabilityArgs = {
   input: CenterAvailabilityInput;
+};
+
+
+export type QueryGetCreditArgs = {
+  id: Scalars['ObjectID']['input'];
+};
+
+
+export type QueryGetCreditBalanceArgs = {
+  creditId: Scalars['ObjectID']['input'];
+};
+
+
+export type QueryGetCreditsArgs = {
+  filter?: InputMaybe<CreditFilter>;
+  search?: InputMaybe<Scalars['String']['input']>;
 };
 
 
@@ -3961,6 +4194,11 @@ export type QueryGoalWithHistoryArgs = {
 };
 
 
+export type QueryHasUserAcceptedPoliciesArgs = {
+  userId: Scalars['ObjectID']['input'];
+};
+
+
 export type QueryInvoiceArgs = {
   id: Scalars['ObjectID']['input'];
 };
@@ -3971,6 +4209,11 @@ export type QueryInvoicesArgs = {
   pagination?: InputMaybe<CursorPaginationInput>;
   search?: InputMaybe<Scalars['String']['input']>;
   sort?: InputMaybe<InvoiceSortInput>;
+};
+
+
+export type QueryLatestConsentRecordArgs = {
+  userId: Scalars['ObjectID']['input'];
 };
 
 
@@ -4077,6 +4320,16 @@ export type QueryPatientSummariesArgs = {
 };
 
 
+export type QueryPolicyByKeyArgs = {
+  key: PolicyKey;
+};
+
+
+export type QueryPolicyHistoryArgs = {
+  key: PolicyKey;
+};
+
+
 export type QueryPreferredTimingArgs = {
   id: Scalars['ObjectID']['input'];
 };
@@ -4105,6 +4358,11 @@ export type QueryReportsArgs = {
 
 export type QueryRoleArgs = {
   id: Scalars['ObjectID']['input'];
+};
+
+
+export type QueryRolePermissionsByRoleArgs = {
+  role: Scalars['String']['input'];
 };
 
 
@@ -4224,7 +4482,7 @@ export type Receipt = DataRow & {
   createdAt: Scalars['Timestamp']['output'];
   isActive: Scalars['Boolean']['output'];
   patient: User;
-  payment?: Maybe<Payment>;
+  payment?: Maybe<PaymentField>;
   seqNo: Scalars['String']['output'];
   updatedAt: Scalars['Timestamp']['output'];
   version: Scalars['Int']['output'];
@@ -4232,10 +4490,10 @@ export type Receipt = DataRow & {
 
 export type RecommendationRecord = {
   __typename?: 'RecommendationRecord';
-  frequency: SessionFrequency;
+  frequency?: Maybe<SessionFrequency>;
   plans?: Maybe<Scalars['String']['output']>;
   sessionCount?: Maybe<Scalars['Int']['output']>;
-  sessionType: SessionType;
+  sessionType?: Maybe<SessionType>;
 };
 
 export type RecommendationRecordInput = {
@@ -4249,6 +4507,11 @@ export type ReconciliationResponse = {
   __typename?: 'ReconciliationResponse';
   message: Scalars['String']['output'];
   success: Scalars['Boolean']['output'];
+};
+
+export type RecordConsentInput = {
+  platform?: InputMaybe<Scalars['String']['input']>;
+  userId: Scalars['ObjectID']['input'];
 };
 
 export enum RecordType {
@@ -4434,15 +4697,27 @@ export enum ResistanceLevel {
 }
 
 export enum Resource {
+  Advance = 'ADVANCE',
   Appointment = 'APPOINTMENT',
+  Availability = 'AVAILABILITY',
+  Consultant = 'CONSULTANT',
   Dashboard = 'DASHBOARD',
   Inventory = 'INVENTORY',
+  Invoice = 'INVOICE',
   Patient = 'PATIENT',
+  PatientDocuments = 'PATIENT_DOCUMENTS',
+  PatientForms = 'PATIENT_FORMS',
+  PatientGoals = 'PATIENT_GOALS',
+  PatientProfile = 'PATIENT_PROFILE',
+  PatientReports = 'PATIENT_REPORTS',
+  PatientTimeline = 'PATIENT_TIMELINE',
+  PatientVald = 'PATIENT_VALD',
   Payment = 'PAYMENT',
   Prescription = 'PRESCRIPTION',
   Report = 'REPORT',
   Settings = 'SETTINGS',
-  Staff = 'STAFF'
+  Staff = 'STAFF',
+  StaffSchedule = 'STAFF_SCHEDULE'
 }
 
 /** Role based access control types */
@@ -4459,6 +4734,17 @@ export type Role = DataRow & {
   scopeType: ScopeType;
   updatedAt: Scalars['Timestamp']['output'];
   version: Scalars['Int']['output'];
+};
+
+export type RolePermission = {
+  __typename?: 'RolePermission';
+  _id: Scalars['ObjectID']['output'];
+  action: Array<Action>;
+  createdAt: Scalars['DateTime']['output'];
+  isActive: Scalars['Boolean']['output'];
+  resource: Resource;
+  role: Scalars['String']['output'];
+  updatedAt: Scalars['DateTime']['output'];
 };
 
 export type Rule = {
@@ -4615,7 +4901,7 @@ export enum SortOrder {
   Desc = 'DESC'
 }
 
-export type Source = Advance | Invoice | Payment;
+export type Source = Advance | Credit | Invoice | Payment;
 
 export enum Specialization {
   Acute = 'Acute',
@@ -4665,7 +4951,7 @@ export type StrengthAsymmetry = {
   test_date?: Maybe<Scalars['String']['output']>;
 };
 
-export type SubSource = Package;
+export type SubSource = Credit | Package;
 
 export type SubjectiveGoalInput = {
   goal: Scalars['String']['input'];
@@ -4942,6 +5228,10 @@ export type UpdateRoleInput = {
   permissions?: InputMaybe<Array<Scalars['ObjectID']['input']>>;
   scope: Scalars['ObjectID']['input'];
   scopeType: ScopeType;
+};
+
+export type UpdateRolePermissionInput = {
+  action: Array<Action>;
 };
 
 export type UpdateRuleInput = {

@@ -4,7 +4,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import OfflineOnboarding from '@/components/onboarding/OfflineOnboarding';
 import { getBookingCookies } from '@/utils/booking-cookies';
-import { parseBookingParams, storeBookingParamsInSession } from '@/utils/booking-params';
+import { parseBookingParams, storeBookingParamsInSession, captureUTMParams } from '@/utils/booking-params';
 import { bookingStorage } from '@/utils/booking-storage';
 
 export default function OfflinePage() {
@@ -17,6 +17,9 @@ export default function OfflinePage() {
 
   useEffect(() => {
     setMounted(true);
+
+    // Capture UTM params immediately before anything cleans up the URL
+    captureUTMParams();
 
     // Parse URL params using the shared utility
     const parsedParams = parseBookingParams(searchParams);

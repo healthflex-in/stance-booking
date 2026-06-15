@@ -69,6 +69,7 @@ export function parseBookingParams(searchParams: URLSearchParams): BookingParams
  * tab-isolated storage. Wrapped in try/catch so private-browsing or
  * storage-full scenarios don't crash the app.
  * Also sets a flag to indicate data came from URL params.
+ * Also captures UTM params and the original landing URL before the URL gets cleaned up.
  */
 export function storeBookingParamsInSession(params: BookingParams): void {
   if (typeof window === 'undefined') return;
@@ -85,6 +86,63 @@ export function storeBookingParamsInSession(params: BookingParams): void {
     }
   } catch {
     // storage may be unavailable in private browsing – silently ignore
+  }
+
+  // Capture UTM params from the current URL before it gets cleaned up
+  captureUTMParams();
+}
+
+const UTM_KEYS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_id', 'utm_term', 'utm_content'] as const;
+
+/**
+ * Reads UTM params from the current URL and persists them to tab storage.
+ * Should be called on every page entry before any router.replace() strips the query string.
+ * Existing values are NOT overwritten so the first-touch attribution is preserved.
+ */
+export function captureUTMParams(): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const urlParams = new URLSearchParams(window.location.search);
+    const parts: string[] = [];
+    for (const key of UTM_KEYS) {
+      const val = urlParams.get(key);
+      if (val) parts.push(`${key}=${encodeURIComponent(val)}`);
+    }
+    // Only write if we have fresh UTM data — don't wipe a previously captured value
+    if (parts.length > 0) {
+      tabStorage.setItem('utm_params', parts.join('&'));
+    }
+    // Capture original landing URL once (first-touch wins)
+    if (!tabStorage.getItem('booking_landing_url')) {
+      tabStorage.setItem('booking_landing_url', window.location.href);
+    }
+  } catch {
+    // storage unavailable – silently ignore
+  }
+}
+
+/**
+ * Returns a serialised UTM param string from tab storage (same format as query string).
+ * Returns null if no UTM params were captured.
+ */
+export function getStoredUTMParams(): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    return tabStorage.getItem('utm_params');
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Returns the original booking landing URL captured on first entry.
+ */
+export function getBookingLandingUrl(): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    return tabStorage.getItem('booking_landing_url');
+  } catch {
+    return null;
   }
 }
 

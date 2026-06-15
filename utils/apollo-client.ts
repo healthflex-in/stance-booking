@@ -187,13 +187,28 @@ export function createApolloClient(initialState = {}) {
       const mobileOrgId = cookies.organizationId;
       const mobileCenterId = cookies.centerId;
 
+      // Extract UTM params and current booking URL from the browser URL
+      const utmHeaders: Record<string, string> = {};
+      if (typeof window !== 'undefined') {
+        // Read from tab storage (persisted on page entry before URL cleanup)
+        const { getStoredUTMParams, getBookingLandingUrl } = await import('@/utils/booking-params');
+        const storedUtm = getStoredUTMParams();
+        const landingUrl = getBookingLandingUrl();
+        if (storedUtm) {
+          utmHeaders['x-utm-params'] = storedUtm;
+        }
+        // Send the landing URL (preserves UTMs) instead of the current cleaned-up URL
+        utmHeaders['x-booking-url'] = landingUrl || window.location.href;
+      }
+
       return {
         headers: {
           ...headers,
           'x-api-key': getMobileApiKey(),
           'x-organization-id': mobileOrgId,
           ...(mobileCenterId && { 'x-center-id': mobileCenterId }),
-          'x-client-source': 'BOOKING',
+          'x-client-source': 'WEBSITE',
+          ...utmHeaders,
         },
       };
     }
