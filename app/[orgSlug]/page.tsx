@@ -7,7 +7,7 @@ import RazorpayScriptLoader from '@/components/loader/RazorpayScriptLoader';
 import { SimplifiedPatientOnboarding } from '@/components/onboarding/shared';
 import { getOrganizationBySlug, getDefaultCenterId } from '@/utils/booking-config';
 import { setBookingCookies, getBookingCookies } from '@/utils/booking-cookies';
-import { parseBookingParams, storeBookingParamsInSession, BookingParams } from '@/utils/booking-params';
+import { parseBookingParams, storeBookingParamsInSession, captureUTMParams, BookingParams } from '@/utils/booking-params';
 import { bookingStorage } from '@/utils/booking-storage';
 
 type BookingStep =
@@ -63,6 +63,11 @@ function BookPageContent() {
     initializedRef.current = true;
     
     setMounted(true);
+    
+    // Capture UTM params immediately before anything cleans up the URL.
+    // Must run unconditionally — even when there are no booking params in
+    // the URL — so utm_source=facebook&utm_term=page landing URLs are tracked.
+    captureUTMParams();
     
     // Get organization config
     const org = getOrganizationBySlug(orgSlug);

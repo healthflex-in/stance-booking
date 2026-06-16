@@ -152,6 +152,7 @@ export type AdvanceItem = {
   __typename?: 'AdvanceItem';
   amount: Scalars['Float']['output'];
   associatedPatients?: Maybe<Array<AssociatedPatients>>;
+  creditType?: Maybe<CreditType>;
   description?: Maybe<Scalars['String']['output']>;
   item?: Maybe<Package>;
   tokenData?: Maybe<TokenData>;
@@ -163,6 +164,7 @@ export type AdvanceItemBalance = {
   __typename?: 'AdvanceItemBalance';
   amount: Scalars['Float']['output'];
   associatedPatients?: Maybe<Array<AssociatedPatientWithBalance>>;
+  creditType?: Maybe<CreditType>;
   description?: Maybe<Scalars['String']['output']>;
   item?: Maybe<Package>;
   type: AdvanceType;
@@ -867,6 +869,7 @@ export type CreateAdvanceInput = {
 export type CreateAdvanceItemInput = {
   amount: Scalars['Float']['input'];
   associatedPatients?: InputMaybe<Array<AssociatedPatientsInput>>;
+  creditType?: InputMaybe<CreditType>;
   description?: InputMaybe<Scalars['String']['input']>;
   item?: InputMaybe<Scalars['ObjectID']['input']>;
   tokenData?: InputMaybe<TokenDataInput>;
@@ -974,8 +977,8 @@ export type CreateCreditInput = {
   amount: Scalars['Float']['input'];
   center: Scalars['ObjectID']['input'];
   createdAt?: InputMaybe<Scalars['Timestamp']['input']>;
-  description?: InputMaybe<Scalars['String']['input']>;
   patient: Scalars['ObjectID']['input'];
+  type?: InputMaybe<CreditType>;
   validTill: Scalars['Timestamp']['input'];
 };
 
@@ -1240,11 +1243,11 @@ export type Credit = {
   center?: Maybe<Center>;
   createdAt: Scalars['Timestamp']['output'];
   currentBalance?: Maybe<Scalars['Float']['output']>;
-  description?: Maybe<Scalars['String']['output']>;
   isActive: Scalars['Boolean']['output'];
   organization: Organization;
   patient?: Maybe<User>;
   seqNo: Scalars['String']['output'];
+  type?: Maybe<CreditType>;
   updatedAt: Scalars['Timestamp']['output'];
   validTill: Scalars['Timestamp']['output'];
   version: Scalars['Int']['output'];
@@ -1255,6 +1258,11 @@ export type CreditFilter = {
   organization?: InputMaybe<Scalars['ObjectID']['input']>;
   patient?: InputMaybe<Scalars['ObjectID']['input']>;
 };
+
+export enum CreditType {
+  Referral = 'REFERRAL',
+  Refund = 'REFUND'
+}
 
 export type Criticality = {
   __typename?: 'Criticality';
@@ -2307,6 +2315,7 @@ export type Mutation = {
   updatePatient: User;
   /** Update an existing patient form */
   updatePatientForm: PatientForm;
+  updatePatientRecommendations: User;
   /** Update an existing preferred timing slot */
   updatePreferredTiming: PreferredTimingSlot;
   /** Update records of a report */
@@ -2930,6 +2939,12 @@ export type MutationUpdatePatientFormArgs = {
 };
 
 
+export type MutationUpdatePatientRecommendationsArgs = {
+  items: Array<RecommendationRecordInput2>;
+  patientId: Scalars['ObjectID']['input'];
+};
+
+
 export type MutationUpdatePreferredTimingArgs = {
   id: Scalars['ObjectID']['input'];
   input: UpdatePreferredTimingInput;
@@ -3334,6 +3349,8 @@ export type Patient = {
   organization: Organization;
   patientType?: Maybe<PatientType>;
   profilePicture?: Maybe<Scalars['String']['output']>;
+  /** Latest recommendations synced from the most recent report */
+  recommendations?: Maybe<Array<Maybe<RecommendationSnapshot>>>;
   referral?: Maybe<Referral>;
   status?: Maybe<PatientStatus>;
 };
@@ -4501,6 +4518,20 @@ export type RecommendationRecordInput = {
   plans?: InputMaybe<Scalars['String']['input']>;
   sessionCount?: InputMaybe<Scalars['Int']['input']>;
   sessionType?: InputMaybe<SessionType>;
+};
+
+export type RecommendationRecordInput2 = {
+  frequency: SessionFrequency;
+  plans?: InputMaybe<Scalars['String']['input']>;
+  sessionCount?: InputMaybe<Scalars['Int']['input']>;
+  sessionType: SessionType;
+};
+
+/** A snapshot of recommendations saved at a point in time */
+export type RecommendationSnapshot = {
+  __typename?: 'RecommendationSnapshot';
+  items: Array<RecommendationRecord>;
+  updatedAt?: Maybe<Scalars['Timestamp']['output']>;
 };
 
 export type ReconciliationResponse = {

@@ -13,7 +13,7 @@ import {
   RepeatUserOfflineConfirmation,
 } from '@/components/onboarding/repeat-user-offline';
 import { getBookingCookies } from '@/utils/booking-cookies';
-import { parseBookingParams, storeBookingParamsInSession } from '@/utils/booking-params';
+import { parseBookingParams, storeBookingParamsInSession, captureUTMParams } from '@/utils/booking-params';
 import { resolveInitialStep } from '@/utils/booking-step-navigation';
 import { bookingStorage } from '@/utils/booking-storage';
 
@@ -68,6 +68,7 @@ export default function RepeatOfflinePage() {
 
   useEffect(() => {
     setMounted(true);
+    captureUTMParams();
     const cookies = getBookingCookies();
     analytics.trackFlowStart(cookies.organizationId || '', cookies.centerId || undefined);
   }, [analytics]);
