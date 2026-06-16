@@ -85,7 +85,7 @@ export default function PrepaidBookingConfirmed({ bookingData, analytics }: Prep
           
           const consultantName = `${consultant?.profileData?.firstName || ''} ${consultant?.profileData?.lastName || ''}`.trim();
           const patientName = `${patient?.profileData?.firstName || ''} ${patient?.profileData?.lastName || ''}`.trim();
-          const treatmentName = service?.name || 'Online Consultation';
+          const treatmentName = service?.externalName || service?.name || 'Online Consultation';
           
           if (patient?.email && center) {
             try {
@@ -207,7 +207,7 @@ export default function PrepaidBookingConfirmed({ bookingData, analytics }: Prep
                   {bookingData.isNewUser ? 'Stance PrePaid Services' : currentCenter?.name || 'Online Center'}
                 </p>
                 <p className="text-sm text-gray-500 leading-relaxed">
-                  {servicesData?.services?.find((s: any) => s._id === bookingData.treatmentId)?.name || 'Online Consultation'}
+                  {servicesData?.services?.find((s: any) => s._id === bookingData.treatmentId)?.externalName || servicesData?.services?.find((s: any) => s._id === bookingData.treatmentId)?.name || 'Online Consultation'}
                 </p>
               </div>
             </div>
