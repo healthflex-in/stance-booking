@@ -5,7 +5,7 @@ import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { useBookingAnalytics } from '@/hooks/useBookingAnalytics';
 import { NewUserOfflineBookingConfirmed, NewUserOfflinePaymentConfirmation, NewUserOfflineSessionDetails, NewUserOfflineSlotSelection } from '@/components/onboarding/new-user-offline';
-import { parseBookingParams, storeBookingParamsInSession } from '@/utils/booking-params';
+import { parseBookingParams, storeBookingParamsInSession, captureUTMParams } from '@/utils/booking-params';
 import { bookingStorage } from '@/utils/booking-storage';
 import { resolveInitialStep } from '@/utils/booking-step-navigation';
 import NewUserServiceModal from '@/components/onboarding/shared/NewUserServiceModal';
@@ -57,6 +57,7 @@ export default function NewOfflinePage() {
 
   useEffect(() => {
     setMounted(true);
+    captureUTMParams();
     setIsDesktop(window.innerWidth >= 768);
     analytics.trackFlowStart(process.env.NEXT_PUBLIC_ORGANIZATION_ID || '', bookingData.centerId);
   }, []);

@@ -10,7 +10,7 @@ import {
 import { RepeatUserOnlineSessionDetails, RepeatUserOnlineSlotSelection } from '@/components/onboarding/repeat-user-online';
 import { getBookingCookies } from '@/utils/booking-cookies';
 import { useBookingAnalytics } from '@/hooks/useBookingAnalytics';
-import { parseBookingParams, storeBookingParamsInSession } from '@/utils/booking-params';
+import { parseBookingParams, storeBookingParamsInSession, captureUTMParams } from '@/utils/booking-params';
 import { bookingStorage } from '@/utils/booking-storage';
 import { resolveInitialStep } from '@/utils/booking-step-navigation';
 
@@ -54,6 +54,7 @@ export default function RepeatOnlinePage() {
 
   useEffect(() => {
     setMounted(true);
+    captureUTMParams();
     
     // Block HyFit from accessing online routes
     const cookies = getBookingCookies();
