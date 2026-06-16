@@ -133,7 +133,7 @@ export default function NewUserOnlineBookingConfirmed({ bookingData, analytics }
                   centerName: currentCenter.name,
                   centerAddress: currentCenter.address?.street || 'Online',
                   centerPhone: currentCenter.phone || '',
-                  treatmentName: currentService.name,
+                  treatmentName: currentService.externalName || currentService.name,
                   amount: bookingData.treatmentPrice,
                   centerLocation: currentCenter.location || '',
                   startDateTime: bookingData.selectedTimeSlot.startTime,
@@ -155,7 +155,7 @@ export default function NewUserOnlineBookingConfirmed({ bookingData, analytics }
                   patientName,
                   date: bookingData.selectedDate,
                   time: bookingData.selectedTimeSlot.displayTime,
-                  treatmentName: currentService.name,
+                  treatmentName: currentService.externalName || currentService.name,
                   startDateTime: bookingData.selectedTimeSlot.startTime,
                   endDateTime: bookingData.selectedTimeSlot.endTime,
                   meetingLink: appointmentData?.appointment?.meetingLink,
@@ -216,7 +216,7 @@ export default function NewUserOnlineBookingConfirmed({ bookingData, analytics }
                     Stance Online Services
                   </p>
                   <p className="text-sm text-gray-500 leading-relaxed">
-                    {currentService?.name || 'Online Consultation'}
+                    {currentService?.externalName || currentService?.name || 'Online Consultation'}
                   </p>
                 </div>
               </div>
