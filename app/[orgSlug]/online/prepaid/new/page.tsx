@@ -14,6 +14,7 @@ import { NewUserOnlineServiceSelection } from '@/components/onboarding/new-user-
 import { PrepaidNewSlotSelection } from '@/components/onboarding/prepaid-new';
 import { PrepaidNewConfirmation } from '@/components/onboarding/prepaid-new';
 import { PrepaidNewBookingConfirmed } from '@/components/onboarding/prepaid-new';
+import { getWebTrackingForBooking } from '@/utils/web-tracking';
 
 type BookingStep = 'session-details' | 'slot-selection' | 'confirmation' | 'booking-confirmed';
 
@@ -142,6 +143,7 @@ export default function PrepaidNewPage() {
           startTime: new Date(bookingData.selectedTimeSlot.startTime).getTime(),
           endTime: new Date(bookingData.selectedTimeSlot.endTime).getTime(),
         },
+        webTracking: getWebTrackingForBooking() ?? undefined,
       };
 
       const appointmentResult = await createAppointment({ variables: { input } });

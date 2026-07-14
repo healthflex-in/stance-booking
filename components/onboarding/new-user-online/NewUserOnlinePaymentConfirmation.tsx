@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { GET_CENTERS, GET_SERVICES, GET_USER, CREATE_APPOINTMENT, UPDATE_PATIENT, SEND_APPOINTMENT_EMAIL } from '@/gql/queries';
 import NewUserOnlinePaymentProcessing from './NewUserOnlinePaymentProcessing';
 import { useContainerDetection } from '@/hooks/useContainerDetection';
+import { getWebTrackingForBooking } from '@/utils/web-tracking';
 import { Button } from '@/components/ui-atoms';
 import { StanceHealthLoader } from '@/components/loader/StanceHealthLoader';
 import { EmailCollectionModal } from '@/components/onboarding/shared';
@@ -142,6 +143,7 @@ export default function NewUserOnlinePaymentConfirmation({
               startTime: new Date(bookingData.selectedTimeSlot.startTime).getTime(),
               endTime: new Date(bookingData.selectedTimeSlot.endTime).getTime(),
             },
+            webTracking: getWebTrackingForBooking() ?? undefined,
           },
         },
       });

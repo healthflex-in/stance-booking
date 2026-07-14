@@ -58,6 +58,8 @@ export default function NewOfflinePage() {
   useEffect(() => {
     setMounted(true);
     captureUTMParams();
+    // Ensure tracking IDs are persisted before any internal navigation
+    import('@/lib/tracking').then(({ captureTrackingParams }) => captureTrackingParams()).catch(() => {});
     setIsDesktop(window.innerWidth >= 768);
     analytics.trackFlowStart(process.env.NEXT_PUBLIC_ORGANIZATION_ID || '', bookingData.centerId);
   }, []);
@@ -78,10 +80,22 @@ export default function NewOfflinePage() {
     
     // Check URL params first
     const parsedParams = parseBookingParams(searchParams);
-    
+
+    // Only treat as a booking deep-link if actual booking params are present.
+    // Tracking-only params (anonymous_id, session_id, ga_client_id, etc.) must
+    // NOT trigger the redirect/onboarding logic — they are just attribution data.
+    const BOOKING_SIGNAL_KEYS: (keyof typeof parsedParams)[] = [
+      'patientId', 'centerId', 'serviceId', 'consultantId', 'slotStart',
+      'slotEnd', 'slotDate', 'paymentType', 'assessmentType',
+    ];
+    const hasBookingParams = BOOKING_SIGNAL_KEYS.some((k) => !!parsedParams[k]);
+
+    // Always store whatever params are in the URL (tracking IDs need tabStorage too)
     if (Object.keys(parsedParams).length > 0) {
       storeBookingParamsInSession(parsedParams);
-      
+    }
+
+    if (hasBookingParams) {
       const initialStep = resolveInitialStep(parsedParams);
       
       // If no patientId, redirect to offline onboarding page
