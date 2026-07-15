@@ -9,6 +9,7 @@ import { GET_CENTERS, GET_SERVICES, GET_USER, CREATE_APPOINTMENT, UPDATE_PATIENT
 import RepeatUserOnlinePaymentProcessing from './RepeatUserOnlinePaymentProcessing';
 import { useContainerDetection } from '@/hooks/useContainerDetection';
 import { Button } from '@/components/ui-atoms';
+import { getWebTrackingForBooking } from '@/utils/web-tracking';
 import { StanceHealthLoader } from '@/components/loader/StanceHealthLoader';
 import { EmailCollectionModal } from '@/components/onboarding/shared';
 import { BookingAnalytics } from '@/services/booking-analytics';
@@ -138,6 +139,7 @@ export default function RepeatUserOnlinePaymentConfirmation({
               startTime: new Date(bookingData.selectedTimeSlot.startTime).getTime(),
               endTime: new Date(bookingData.selectedTimeSlot.endTime).getTime(),
             },
+            webTracking: getWebTrackingForBooking() ?? undefined,
           },
         },
       });

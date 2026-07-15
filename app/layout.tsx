@@ -3,6 +3,7 @@ import { Suspense } from 'react';
 import { Toaster } from 'sonner';
 import type { Metadata } from 'next';
 import { Providers } from './providers';
+import TrackingInit from '@/components/TrackingInit';
 
 const GTM_ID = process.env.NEXT_PUBLIC_GTM_ID || '';
 const META_PIXEL_ID = process.env.NEXT_PUBLIC_META_PIXEL_ID || '';
@@ -71,6 +72,10 @@ export default function RootLayout({
         )}
         <Suspense fallback={<div>Loading...</div>}>
           <Providers>
+            {/* Capture UTMs, generate anonymous_id/session_id, ping track-user on every page */}
+            <Suspense fallback={null}>
+              <TrackingInit />
+            </Suspense>
             {children}
             <Toaster position="bottom-right" />
           </Providers>

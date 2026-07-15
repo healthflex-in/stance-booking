@@ -55,6 +55,7 @@ export default function RepeatOnlinePage() {
   useEffect(() => {
     setMounted(true);
     captureUTMParams();
+    import('@/lib/tracking').then(({ captureTrackingParams }) => captureTrackingParams()).catch(() => {});
     
     // Block HyFit from accessing online routes
     const cookies = getBookingCookies();
@@ -76,10 +77,14 @@ export default function RepeatOnlinePage() {
     if (!mounted) return;
     
     const parsedParams = parseBookingParams(searchParams);
-    
+    const BOOKING_SIGNAL_KEYS = ['patientId', 'centerId', 'serviceId', 'consultantId', 'slotStart', 'slotEnd', 'slotDate', 'paymentType', 'assessmentType'] as const;
+    const hasBookingParams = BOOKING_SIGNAL_KEYS.some((k) => !!(parsedParams as any)[k]);
+
     if (Object.keys(parsedParams).length > 0) {
       storeBookingParamsInSession(parsedParams);
-      
+    }
+
+    if (hasBookingParams) {
       const initialStep = resolveInitialStep(parsedParams);
       
       // If no patientId, redirect to online onboarding page

@@ -16,6 +16,7 @@ import { getBookingCookies } from '@/utils/booking-cookies';
 import { parseBookingParams, storeBookingParamsInSession, captureUTMParams } from '@/utils/booking-params';
 import { resolveInitialStep } from '@/utils/booking-step-navigation';
 import { bookingStorage } from '@/utils/booking-storage';
+import { getWebTrackingForBooking } from '@/utils/web-tracking';
 
 type BookingStep = 'session-details' | 'slot-selection' | 'confirmation' | 'booking-confirmed';
 
@@ -69,6 +70,7 @@ export default function RepeatOfflinePage() {
   useEffect(() => {
     setMounted(true);
     captureUTMParams();
+    import('@/lib/tracking').then(({ captureTrackingParams }) => captureTrackingParams()).catch(() => {});
     const cookies = getBookingCookies();
     analytics.trackFlowStart(cookies.organizationId || '', cookies.centerId || undefined);
   }, [analytics]);
@@ -87,10 +89,14 @@ export default function RepeatOfflinePage() {
     if (!mounted) return;
     
     const parsedParams = parseBookingParams(searchParams);
-    
+    const BOOKING_SIGNAL_KEYS = ['patientId', 'centerId', 'serviceId', 'consultantId', 'slotStart', 'slotEnd', 'slotDate', 'paymentType', 'assessmentType'] as const;
+    const hasBookingParams = BOOKING_SIGNAL_KEYS.some((k) => !!(parsedParams as any)[k]);
+
     if (Object.keys(parsedParams).length > 0) {
       storeBookingParamsInSession(parsedParams);
-      
+    }
+
+    if (hasBookingParams) {
       const initialStep = resolveInitialStep(parsedParams);
       
       // If no patientId, redirect to offline onboarding page
@@ -290,6 +296,7 @@ export default function RepeatOfflinePage() {
           startTime: new Date(bookingData.selectedTimeSlot.startTime).getTime(),
           endTime: new Date(bookingData.selectedTimeSlot.endTime).getTime(),
         },
+        webTracking: getWebTrackingForBooking() ?? undefined,
       };
 
       const appointmentResult = await createAppointment({

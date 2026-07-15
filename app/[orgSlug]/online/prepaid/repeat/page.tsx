@@ -14,6 +14,7 @@ import { PrepaidRepeatSlotSelection } from '@/components/onboarding/prepaid-repe
 import { PrepaidRepeatConfirmation } from '@/components/onboarding/prepaid-repeat';
 import { PrepaidRepeatBookingConfirmed } from '@/components/onboarding/prepaid-repeat';
 import type { BookingStep } from '@/services/booking-analytics';
+import { getWebTrackingForBooking } from '@/utils/web-tracking';
 
 interface BookingData {
   patientId: string;
@@ -177,6 +178,7 @@ export default function PrepaidRepeatPage() {
           startTime: new Date(bookingData.selectedTimeSlot.startTime).getTime(),
           endTime: new Date(bookingData.selectedTimeSlot.endTime).getTime(),
         },
+        webTracking: getWebTrackingForBooking() ?? undefined,
       };
 
       const appointmentResult = await createAppointment({ variables: { input } });

@@ -190,6 +190,7 @@ export type AdvanceSortInput = {
 };
 
 export enum AdvanceType {
+  Credit = 'CREDIT',
   Package = 'PACKAGE',
   Referral = 'REFERRAL',
   Refund = 'REFUND',
@@ -466,6 +467,7 @@ export type Appointment = DataRow & {
   appointmentEndTime?: Maybe<Scalars['DateTime']['output']>;
   appointmentStartTime?: Maybe<Scalars['DateTime']['output']>;
   bookingMeta?: Maybe<BookingMeta>;
+  cancellationDetails?: Maybe<CancellationDetails>;
   cancellationNote?: Maybe<Scalars['String']['output']>;
   cancellationReason?: Maybe<CancellationReason>;
   cancelledAt?: Maybe<Scalars['Timestamp']['output']>;
@@ -591,12 +593,169 @@ export type AssociatedPatientsInput = {
   patient: Scalars['ObjectID']['input'];
 };
 
+export enum AuditCategory {
+  Access = 'ACCESS',
+  Audit = 'AUDIT',
+  Security = 'SECURITY'
+}
+
+export type AuditChange = {
+  __typename?: 'AuditChange';
+  field: Scalars['String']['output'];
+  newValue?: Maybe<Scalars['JSON']['output']>;
+  oldValue?: Maybe<Scalars['JSON']['output']>;
+};
+
+export type AuditIntegrityResult = {
+  __typename?: 'AuditIntegrityResult';
+  checked: Scalars['Int']['output'];
+  invalid: Scalars['Int']['output'];
+  invalidIds: Array<Scalars['ObjectID']['output']>;
+  valid: Scalars['Int']['output'];
+};
+
+export type AuditLogEntry = {
+  __typename?: 'AuditLogEntry';
+  _id: Scalars['ObjectID']['output'];
+  actorId?: Maybe<Scalars['ObjectID']['output']>;
+  actorName?: Maybe<Scalars['String']['output']>;
+  actorRole?: Maybe<Scalars['String']['output']>;
+  category: AuditCategory;
+  center?: Maybe<Scalars['ObjectID']['output']>;
+  changes?: Maybe<Array<AuditChange>>;
+  createdAt: Scalars['DateTime']['output'];
+  integrityHash: Scalars['String']['output'];
+  ipAddress?: Maybe<Scalars['String']['output']>;
+  logType: AuditLogType;
+  metadata?: Maybe<Scalars['JSON']['output']>;
+  onBehalfOf?: Maybe<Scalars['ObjectID']['output']>;
+  organization?: Maybe<Scalars['ObjectID']['output']>;
+  outcome: AuditOutcome;
+  platform?: Maybe<Scalars['String']['output']>;
+  requestId?: Maybe<Scalars['String']['output']>;
+  snapshot?: Maybe<Scalars['JSON']['output']>;
+  sourceModule?: Maybe<Scalars['String']['output']>;
+  targetId?: Maybe<Scalars['ObjectID']['output']>;
+  targetLabel?: Maybe<Scalars['String']['output']>;
+  targetType?: Maybe<Scalars['String']['output']>;
+  tier?: Maybe<Scalars['String']['output']>;
+  userAgent?: Maybe<Scalars['String']['output']>;
+};
+
+/**
+ * Filter for the audit log. A date range (from/to) is REQUIRED to prevent
+ * unbounded full-collection scans (PRD §10.8).
+ */
+export type AuditLogFilter = {
+  actorId?: InputMaybe<Scalars['ObjectID']['input']>;
+  actorRole?: InputMaybe<Scalars['String']['input']>;
+  category?: InputMaybe<AuditCategory>;
+  center?: InputMaybe<Scalars['ObjectID']['input']>;
+  from: Scalars['DateTime']['input'];
+  logType?: InputMaybe<Array<AuditLogType>>;
+  outcome?: InputMaybe<AuditOutcome>;
+  /** Free-text over actor name, target label and IP address. */
+  search?: InputMaybe<Scalars['String']['input']>;
+  targetId?: InputMaybe<Scalars['ObjectID']['input']>;
+  targetType?: InputMaybe<Scalars['String']['input']>;
+  to: Scalars['DateTime']['input'];
+};
+
+export type AuditLogPage = {
+  __typename?: 'AuditLogPage';
+  data: Array<AuditLogEntry>;
+  hasNext: Scalars['Boolean']['output'];
+  hasPrevious: Scalars['Boolean']['output'];
+  nextCursor?: Maybe<Scalars['String']['output']>;
+  prevCursor?: Maybe<Scalars['String']['output']>;
+};
+
+export enum AuditLogType {
+  AuthFailed = 'AUTH_FAILED',
+  Create = 'CREATE',
+  Delete = 'DELETE',
+  Export = 'EXPORT',
+  Login = 'LOGIN',
+  Logout = 'LOGOUT',
+  PermissionDenied = 'PERMISSION_DENIED',
+  Restore = 'RESTORE',
+  SessionEnd = 'SESSION_END',
+  SessionStart = 'SESSION_START',
+  StatusChange = 'STATUS_CHANGE',
+  Update = 'UPDATE',
+  View = 'VIEW'
+}
+
+export enum AuditOutcome {
+  Failure = 'FAILURE',
+  Success = 'SUCCESS'
+}
+
+export enum AuditPageDirection {
+  Backward = 'BACKWARD',
+  Forward = 'FORWARD'
+}
+
+export type AuditSecurityAccount = {
+  __typename?: 'AuditSecurityAccount';
+  actorId?: Maybe<Scalars['ObjectID']['output']>;
+  actorName?: Maybe<Scalars['String']['output']>;
+  failures: Scalars['Int']['output'];
+  flagged: Scalars['Boolean']['output'];
+};
+
+export type AuditSecuritySummary = {
+  __typename?: 'AuditSecuritySummary';
+  affectedAccounts: Array<AuditSecurityAccount>;
+  authFailedCount: Scalars['Int']['output'];
+  generatedAt: Scalars['DateTime']['output'];
+  permissionDeniedCount: Scalars['Int']['output'];
+  windowHours: Scalars['Int']['output'];
+};
+
 export type AuthenticatedSession = {
   __typename?: 'AuthenticatedSession';
   permissions: Array<Permission>;
   refreshToken: Scalars['String']['output'];
   token: Scalars['String']['output'];
   user: User;
+};
+
+export type AutomationRule = {
+  __typename?: 'AutomationRule';
+  _id: Scalars['ObjectID']['output'];
+  actions: Array<AutomationRuleAction>;
+  conditions: Array<AutomationRuleCondition>;
+  createdAt: Scalars['Timestamp']['output'];
+  description: Scalars['String']['output'];
+  event: RuleEvent;
+  isActive: Scalars['Boolean']['output'];
+  name: Scalars['String']['output'];
+  organization: Organization;
+  seqNo: Scalars['String']['output'];
+  updatedAt: Scalars['Timestamp']['output'];
+};
+
+export type AutomationRuleAction = {
+  __typename?: 'AutomationRuleAction';
+  params?: Maybe<Scalars['JSON']['output']>;
+  type: RuleActionType;
+};
+
+export type AutomationRuleActionInput = {
+  params?: InputMaybe<Scalars['JSON']['input']>;
+  type: RuleActionType;
+};
+
+export type AutomationRuleCondition = {
+  __typename?: 'AutomationRuleCondition';
+  params?: Maybe<Scalars['JSON']['output']>;
+  type: RuleConditionType;
+};
+
+export type AutomationRuleConditionInput = {
+  params?: InputMaybe<Scalars['JSON']['input']>;
+  type: RuleConditionType;
 };
 
 export type AvailabilityEvent = BaseEvent & DataRow & {
@@ -725,6 +884,16 @@ export type CampaignData = {
   utmTerm?: Maybe<Scalars['String']['output']>;
 };
 
+export type CancellationDetails = {
+  __typename?: 'CancellationDetails';
+  durationHours?: Maybe<Scalars['Float']['output']>;
+  isWithin9Hours: Scalars['Boolean']['output'];
+  rescheduledOnSameDay?: Maybe<Scalars['Boolean']['output']>;
+  rescheduledToDate?: Maybe<Scalars['DateTime']['output']>;
+  rescheduledToId?: Maybe<Scalars['ObjectID']['output']>;
+  status: CancellationStatus;
+};
+
 export enum CancellationReason {
   BookedByMistake = 'BOOKED_BY_MISTAKE',
   ChoosingAnotherClinic = 'CHOOSING_ANOTHER_CLINIC',
@@ -745,11 +914,18 @@ export enum CancellationReason {
   TreatmentNotNeeded = 'TREATMENT_NOT_NEEDED'
 }
 
+export enum CancellationStatus {
+  Allowed = 'ALLOWED',
+  Complimentary = 'COMPLIMENTARY',
+  NotAllowed = 'NOT_ALLOWED'
+}
+
 export type Center = DataRow & {
   __typename?: 'Center';
   _id: Scalars['ObjectID']['output'];
   address: Address;
   createdAt: Scalars['Timestamp']['output'];
+  email?: Maybe<Scalars['String']['output']>;
   isActive: Scalars['Boolean']['output'];
   isOnline: Scalars['Boolean']['output'];
   location: Scalars['URL']['output'];
@@ -937,6 +1113,14 @@ export type CreateAppointmentWithPackageInput = {
   treatment: Scalars['ObjectID']['input'];
 };
 
+export type CreateAutomationRuleInput = {
+  actions: Array<AutomationRuleActionInput>;
+  conditions: Array<AutomationRuleConditionInput>;
+  description: Scalars['String']['input'];
+  event: RuleEvent;
+  name: Scalars['String']['input'];
+};
+
 export type CreateAvailabilityEventInput = {
   availabilityStatus: AvailabilityStatus;
   /** End time of the event. */
@@ -999,6 +1183,29 @@ export type CreateEventInput = {
   recurrenceRule?: InputMaybe<RecurrenceInput>;
   /** Title of the event. */
   title: Scalars['String']['input'];
+};
+
+export type CreateExternalUserInput = {
+  address?: InputMaybe<Scalars['String']['input']>;
+  /** Assigned centre(s) — scopes the External user's access. */
+  centers: Array<Scalars['ObjectID']['input']>;
+  city?: InputMaybe<Scalars['String']['input']>;
+  dob?: InputMaybe<Scalars['Timestamp']['input']>;
+  email: Scalars['String']['input'];
+  externalType: ExternalType;
+  firstName: Scalars['String']['input'];
+  gender?: InputMaybe<Gender>;
+  internalNotes?: InputMaybe<Scalars['String']['input']>;
+  lastName: Scalars['String']['input'];
+  licenseNo?: InputMaybe<Scalars['String']['input']>;
+  linkedPatients?: InputMaybe<Array<Scalars['ObjectID']['input']>>;
+  organisationName?: InputMaybe<Scalars['String']['input']>;
+  /** Admin-set temporary password. The user is forced to change it on first login. */
+  password: Scalars['String']['input'];
+  phone: Scalars['String']['input'];
+  profilePicture?: InputMaybe<Scalars['String']['input']>;
+  specialisation?: InputMaybe<Scalars['String']['input']>;
+  yearsOfExperience?: InputMaybe<Scalars['Int']['input']>;
 };
 
 export type CreateGoalAchievementInput = {
@@ -1132,7 +1339,7 @@ export type CreatePatientInput = {
   dob?: InputMaybe<Scalars['Timestamp']['input']>;
   email?: InputMaybe<Scalars['String']['input']>;
   firstName: Scalars['String']['input'];
-  gender: Gender;
+  gender?: InputMaybe<Gender>;
   lastName?: InputMaybe<Scalars['String']['input']>;
   patientType?: InputMaybe<PatientType>;
   phone: Scalars['String']['input'];
@@ -1259,7 +1466,13 @@ export type CreditFilter = {
   patient?: InputMaybe<Scalars['ObjectID']['input']>;
 };
 
+export enum CreditTarget {
+  Patient = 'PATIENT',
+  Referrer = 'REFERRER'
+}
+
 export enum CreditType {
+  HappyHour = 'HAPPY_HOUR',
   Referral = 'REFERRAL',
   Refund = 'REFUND'
 }
@@ -1558,6 +1771,39 @@ export type ExportValdDataAsPdfResponse = {
   errors?: Maybe<Array<Scalars['String']['output']>>;
   pdfUrl: Scalars['String']['output'];
 };
+
+/**
+ * External user profile (Phase 1).
+ * An External user is created by an Admin and represents an outside
+ * collaborator such as a referring doctor/GP or a gym trainer.
+ */
+export type External = {
+  __typename?: 'External';
+  address?: Maybe<Scalars['String']['output']>;
+  centers: Array<Center>;
+  city?: Maybe<Scalars['String']['output']>;
+  dob?: Maybe<Scalars['Timestamp']['output']>;
+  externalType: ExternalType;
+  firstName: Scalars['String']['output'];
+  gender?: Maybe<Gender>;
+  internalNotes?: Maybe<Scalars['String']['output']>;
+  lastName?: Maybe<Scalars['String']['output']>;
+  licenseNo?: Maybe<Scalars['String']['output']>;
+  linkedPatients?: Maybe<Array<Scalars['ObjectID']['output']>>;
+  /** True until the user changes the admin-set temporary password on first login. */
+  mustChangePassword: Scalars['Boolean']['output'];
+  organisationName?: Maybe<Scalars['String']['output']>;
+  organization: Organization;
+  profilePicture?: Maybe<Scalars['String']['output']>;
+  specialisation?: Maybe<Scalars['String']['output']>;
+  yearsOfExperience?: Maybe<Scalars['Int']['output']>;
+};
+
+/** Sub-category for EXTERNAL users. More types added in Phase 2. */
+export enum ExternalType {
+  GymTrainer = 'GYM_TRAINER',
+  ReferringDoctorGp = 'REFERRING_DOCTOR_GP'
+}
 
 export type File = DataRow & {
   __typename?: 'File';
@@ -2136,12 +2382,15 @@ export type Mutation = {
   createAppointment: Appointment;
   /** Create appointment with package payment */
   createAppointmentWithPackage: Appointment;
+  createAutomationRule: AutomationRule;
   /** Create a new availability event. */
   createAvailabilityEvent: AvailabilityEvent;
   /** Create a new center */
   createCenter: Center;
   createConsultant: User;
   createCredit: Credit;
+  /** Create a new External user (Admin only). */
+  createExternalUser: User;
   /** create a goal-set */
   createGoalSet: GoalSet;
   /** Create goalset from assessment data with selected goals */
@@ -2184,6 +2433,7 @@ export type Mutation = {
   deleteAdvance: Advance;
   /** Delete an appointment */
   deleteAppointment: Appointment;
+  deleteAutomationRule: Scalars['Boolean']['output'];
   /** Delete an availability event. */
   deleteAvailabilityEvent: Scalars['Boolean']['output'];
   /** Delete a center */
@@ -2243,6 +2493,12 @@ export type Mutation = {
   initiateConsentOTP: ConsentOtpChallenge;
   /** Lock a slot to prevent concurrent booking */
   lockSlot: SlotLock;
+  /**
+   * Admin-only: record that the audit log was exported (the export is itself
+   * audited as an EXPORT event — PRD §8.6 / decision D5). The client performs the
+   * actual CSV/PDF download; this records who/when/how-many.
+   */
+  logAuditLogExport: Scalars['Boolean']['output'];
   login: AuthenticatedSession;
   /**
    * Exchange a post-verify token (issued by verifyEmailOTPForRegistration) plus the
@@ -2266,6 +2522,11 @@ export type Mutation = {
   registerDeviceToken: DeviceToken;
   /** Reset a user's password (sends OTP and resets password) */
   resetPassword: Scalars['Boolean']['output'];
+  /**
+   * Complete a "forgot password" flow: verify the OTP issued by
+   * sendPasswordResetOTP and set a new password. Does NOT sign the user in.
+   */
+  resetPasswordWithOTP: Scalars['Boolean']['output'];
   resolveAlert?: Maybe<PatientAlert>;
   /** Log out from all sessions except the current one */
   revokeAllOtherSessions: Scalars['Int']['output'];
@@ -2281,6 +2542,21 @@ export type Mutation = {
   sendEmailOTPForRegistration: OtpChallenge;
   /** Send OTP to the given Phone Number and Returns an OtpChallenge as Response */
   sendOTP: OtpChallenge;
+  /**
+   * Begin a "forgot password" flow. `identifier` is the account's email or phone.
+   * The OTP is sent to the account's email, falling back to its phone (SMS) when
+   * the account has no email on file. Returns a PasswordResetChallenge.
+   */
+  sendPasswordResetOTP: PasswordResetChallenge;
+  /**
+   * Begin a "forgot password" flow for the currently authenticated user. The
+   * account is resolved from the session, not from a client-supplied identifier,
+   * so it keeps working even if the user's email was just removed and only a
+   * phone remains. The OTP is sent to the account's email, falling back to its
+   * phone (SMS). Used by the in-app Settings → Password flow.
+   */
+  sendPasswordResetOTPForCurrentUser: PasswordResetChallenge;
+  toggleAutomationRule: AutomationRule;
   toggleRule: Rule;
   triggerPaymentReconciliation: ReconciliationResponse;
   /** Unlock a slot */
@@ -2289,6 +2565,7 @@ export type Mutation = {
   updateAgentReport: AgentReport;
   /** Update an appointment */
   updateAppointment: Appointment;
+  updateAutomationRule: AutomationRule;
   /** Update an availability event. */
   updateAvailabilityEvent: AvailabilityEvent;
   /** Update a center */
@@ -2441,6 +2718,11 @@ export type MutationCreateAppointmentWithPackageArgs = {
 };
 
 
+export type MutationCreateAutomationRuleArgs = {
+  input: CreateAutomationRuleInput;
+};
+
+
 export type MutationCreateAvailabilityEventArgs = {
   availability: CreateAvailabilityEventInput;
   event: CreateEventInput;
@@ -2459,6 +2741,11 @@ export type MutationCreateConsultantArgs = {
 
 export type MutationCreateCreditArgs = {
   input: CreateCreditInput;
+};
+
+
+export type MutationCreateExternalUserArgs = {
+  input: CreateExternalUserInput;
 };
 
 
@@ -2576,6 +2863,11 @@ export type MutationDeleteAdvanceArgs = {
 
 
 export type MutationDeleteAppointmentArgs = {
+  id: Scalars['ObjectID']['input'];
+};
+
+
+export type MutationDeleteAutomationRuleArgs = {
   id: Scalars['ObjectID']['input'];
 };
 
@@ -2735,6 +3027,12 @@ export type MutationLockSlotArgs = {
 };
 
 
+export type MutationLogAuditLogExportArgs = {
+  format: Scalars['String']['input'];
+  rowCount: Scalars['Int']['input'];
+};
+
+
 export type MutationLoginArgs = {
   input: LoginInput;
 };
@@ -2780,6 +3078,11 @@ export type MutationResetPasswordArgs = {
 };
 
 
+export type MutationResetPasswordWithOtpArgs = {
+  input: ResetPasswordWithOtpInput;
+};
+
+
 export type MutationResolveAlertArgs = {
   patientId: Scalars['ObjectID']['input'];
   ruleSeqNo: Scalars['String']['input'];
@@ -2821,6 +3124,16 @@ export type MutationSendOtpArgs = {
 };
 
 
+export type MutationSendPasswordResetOtpArgs = {
+  identifier: Scalars['String']['input'];
+};
+
+
+export type MutationToggleAutomationRuleArgs = {
+  id: Scalars['ObjectID']['input'];
+};
+
+
 export type MutationToggleRuleArgs = {
   seqNo: Scalars['String']['input'];
 };
@@ -2846,6 +3159,12 @@ export type MutationUpdateAgentReportArgs = {
 export type MutationUpdateAppointmentArgs = {
   id: Scalars['ObjectID']['input'];
   input: UpdateAppointmentInput;
+};
+
+
+export type MutationUpdateAutomationRuleArgs = {
+  id: Scalars['ObjectID']['input'];
+  input: UpdateAutomationRuleInput;
 };
 
 
@@ -3242,6 +3561,12 @@ export type OtpChallenge = {
   token: Scalars['String']['output'];
 };
 
+/** Channel an OTP was delivered over. */
+export enum OtpChannel {
+  Email = 'EMAIL',
+  Sms = 'SMS'
+}
+
 export type OverlapInfo = {
   __typename?: 'OverlapInfo';
   conflictingDays?: Maybe<Array<Scalars['Timestamp']['output']>>;
@@ -3327,6 +3652,25 @@ export enum PaginationDirection {
   Backward = 'BACKWARD',
   Forward = 'FORWARD'
 }
+
+/**
+ * Returned by sendPasswordResetOTP. Like OtpChallenge, but also tells the client
+ * which channel the OTP was sent over and a masked destination so the UI can say
+ * e.g. "We sent a code to j***@example.com".
+ */
+export type PasswordResetChallenge = {
+  __typename?: 'PasswordResetChallenge';
+  /** Whether the OTP was emailed or sent over SMS. */
+  channel: OtpChannel;
+  /** Unix epoch (ms) at which the OTP becomes invalid server-side. */
+  expiresAt: Scalars['Timestamp']['output'];
+  /** Seconds from now until the OTP expires (mirror of expiresAt for convenience). */
+  expiresIn: Scalars['Int']['output'];
+  /** Masked destination the OTP was sent to (e.g. j***@example.com / *****1234). */
+  sentTo: Scalars['String']['output'];
+  /** Opaque token to be passed back to resetPasswordWithOTP. */
+  token: Scalars['String']['output'];
+};
 
 export type Patient = {
   __typename?: 'Patient';
@@ -3484,6 +3828,7 @@ export type PatientStats = {
   totalAppointments: Scalars['Int']['output'];
   totalBooked: Scalars['Int']['output'];
   totalCancelledSessions: Scalars['Int']['output'];
+  totalComplimentaryCancellations: Scalars['Int']['output'];
   totalInvoiceGenerated: Scalars['Int']['output'];
   totalNotAllowedCancellations: Scalars['Int']['output'];
   totalNotAllowedReschedules: Scalars['Int']['output'];
@@ -3747,7 +4092,7 @@ export type ProbabilityTier = {
   tier: Scalars['Int']['output'];
 };
 
-export type ProfileData = Consultant | Patient | Staff;
+export type ProfileData = Consultant | External | Patient | Staff;
 
 export type Prognosis = {
   __typename?: 'Prognosis';
@@ -3817,6 +4162,12 @@ export type Query = {
   appointment: Appointment;
   /** Get appointments by patient id */
   appointments: Array<Appointment>;
+  /** Admin-only: a single audit entry by id. */
+  auditLogEntry?: Maybe<AuditLogEntry>;
+  /** Admin-only: paginated, filtered audit log (date range required). */
+  auditLogs: AuditLogPage;
+  /** Admin-only: last-24h security event summary (PRD §8.7). */
+  auditSecuritySummary: AuditSecuritySummary;
   /** Get centre by id */
   center: Center;
   /** Get centres */
@@ -3857,6 +4208,8 @@ export type Query = {
   getActiveCreditsForPatient: Array<Credit>;
   /** Get all tests for dropdown */
   getAllTests: Array<ObjectiveCollectionEntry>;
+  getAutomationRule?: Maybe<AutomationRule>;
+  getAutomationRules: Array<AutomationRule>;
   /** Get center-level availability for consultants */
   getCenterAvailability: Array<ConsultantAvailability>;
   getCredit?: Maybe<Credit>;
@@ -3872,6 +4225,7 @@ export type Query = {
   /** Get hardcoded repeat-user slots filtered by breaks/bookings */
   getRepeatUserSlots: Array<ConsultantAvailability>;
   getRule?: Maybe<Rule>;
+  getRuleExecutionLogs: Array<RuleExecutionLog>;
   getRules: Array<Rule>;
   /** Get test by ID */
   getTestById?: Maybe<ObjectiveCollectionEntry>;
@@ -3938,6 +4292,8 @@ export type Query = {
   /** Get all preferred timing slots for a user */
   preferredTimings: Array<PreferredTimingSlot>;
   prognoses?: Maybe<Array<Prognosis>>;
+  /** Admin-only: full chronological history of one record. */
+  recordHistory: Array<AuditLogEntry>;
   /** Get a report */
   report: Report;
   /** Get list of reports */
@@ -3980,6 +4336,8 @@ export type Query = {
   /** Get all exercise names for a patient */
   valdExerciseNames: Array<Scalars['String']['output']>;
   validateOnboardingToken: OnboardingData;
+  /** Admin-only: tamper-evidence check over a date range (PRD §6.3). */
+  verifyAuditIntegrity: AuditIntegrityResult;
   /** Get notification history for a user or slot */
   waitlistNotificationHistory: Array<WaitlistNotificationLog>;
   /** Get waitlist queue for a specific slot */
@@ -4018,6 +4376,19 @@ export type QueryAppointmentArgs = {
 export type QueryAppointmentsArgs = {
   filter: AppointmentFilter;
   search?: InputMaybe<Scalars['String']['input']>;
+};
+
+
+export type QueryAuditLogEntryArgs = {
+  id: Scalars['ObjectID']['input'];
+};
+
+
+export type QueryAuditLogsArgs = {
+  cursor?: InputMaybe<Scalars['String']['input']>;
+  direction?: InputMaybe<AuditPageDirection>;
+  filter: AuditLogFilter;
+  limit?: InputMaybe<Scalars['Int']['input']>;
 };
 
 
@@ -4119,6 +4490,11 @@ export type QueryGetActiveCreditsForPatientArgs = {
 };
 
 
+export type QueryGetAutomationRuleArgs = {
+  id: Scalars['ObjectID']['input'];
+};
+
+
 export type QueryGetCenterAvailabilityArgs = {
   input: CenterAvailabilityInput;
 };
@@ -4167,6 +4543,12 @@ export type QueryGetRepeatUserSlotsArgs = {
 
 export type QueryGetRuleArgs = {
   seqNo: Scalars['String']['input'];
+};
+
+
+export type QueryGetRuleExecutionLogsArgs = {
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  ruleId: Scalars['ObjectID']['input'];
 };
 
 
@@ -4363,6 +4745,12 @@ export type QueryPrognosesArgs = {
 };
 
 
+export type QueryRecordHistoryArgs = {
+  targetId: Scalars['ObjectID']['input'];
+  targetType: Scalars['String']['input'];
+};
+
+
 export type QueryReportArgs = {
   id: Scalars['ObjectID']['input'];
 };
@@ -4464,6 +4852,12 @@ export type QueryValdExerciseNamesArgs = {
 
 export type QueryValidateOnboardingTokenArgs = {
   token: Scalars['String']['input'];
+};
+
+
+export type QueryVerifyAuditIntegrityArgs = {
+  from: Scalars['DateTime']['input'];
+  to: Scalars['DateTime']['input'];
 };
 
 
@@ -4721,6 +5115,15 @@ export type ResetPasswordInput = {
   token: Scalars['String']['input'];
 };
 
+export type ResetPasswordWithOtpInput = {
+  /** New password (min 8 characters). */
+  newPassword: Scalars['String']['input'];
+  /** OTP the user received over email/SMS. */
+  otp: Scalars['String']['input'];
+  /** Token issued by sendPasswordResetOTP. */
+  token: Scalars['String']['input'];
+};
+
 export enum ResistanceLevel {
   Heavy = 'HEAVY',
   Light = 'LIGHT',
@@ -4792,6 +5195,49 @@ export type Rule = {
   seqNo: Scalars['String']['output'];
   severity: RuleSeverity;
   updatedAt: Scalars['Timestamp']['output'];
+};
+
+export enum RuleActionType {
+  CreateAdvance = 'CREATE_ADVANCE',
+  CreateCredit = 'CREATE_CREDIT',
+  SendNotification = 'SEND_NOTIFICATION'
+}
+
+export enum RuleConditionType {
+  AppointmentMediumIs = 'APPOINTMENT_MEDIUM_IS',
+  AppointmentTimeBetween = 'APPOINTMENT_TIME_BETWEEN',
+  CenterIs = 'CENTER_IS',
+  IsFirstAssessment = 'IS_FIRST_ASSESSMENT',
+  PatientCategoryIs = 'PATIENT_CATEGORY_IS',
+  PatientHasPackage = 'PATIENT_HAS_PACKAGE',
+  PatientIsReferral = 'PATIENT_IS_REFERRAL',
+  PaymentPaidByPackage = 'PAYMENT_PAID_BY_PACKAGE'
+}
+
+export enum RuleEvent {
+  AppointmentBooked = 'APPOINTMENT_BOOKED',
+  AppointmentCancelled = 'APPOINTMENT_CANCELLED',
+  PatientCreated = 'PATIENT_CREATED',
+  PaymentCompleted = 'PAYMENT_COMPLETED'
+}
+
+export type RuleExecutionAction = {
+  __typename?: 'RuleExecutionAction';
+  details?: Maybe<Scalars['JSON']['output']>;
+  result: Scalars['String']['output'];
+  type: RuleActionType;
+};
+
+export type RuleExecutionLog = {
+  __typename?: 'RuleExecutionLog';
+  _id: Scalars['ObjectID']['output'];
+  actionsTaken: Array<RuleExecutionAction>;
+  createdAt: Scalars['Timestamp']['output'];
+  event: RuleEvent;
+  patientId: Scalars['ObjectID']['output'];
+  ruleId: Scalars['ObjectID']['output'];
+  ruleName: Scalars['String']['output'];
+  triggeredBy: Scalars['ObjectID']['output'];
 };
 
 export enum RuleSeverity {
@@ -5097,6 +5543,15 @@ export type UpdateAppointmentInput = {
   visitType?: InputMaybe<AppointmentVisitType>;
 };
 
+export type UpdateAutomationRuleInput = {
+  actions?: InputMaybe<Array<AutomationRuleActionInput>>;
+  conditions?: InputMaybe<Array<AutomationRuleConditionInput>>;
+  description?: InputMaybe<Scalars['String']['input']>;
+  event?: InputMaybe<RuleEvent>;
+  isActive?: InputMaybe<Scalars['Boolean']['input']>;
+  name?: InputMaybe<Scalars['String']['input']>;
+};
+
 export type UpdateAvailabilityEventInput = {
   availabilityStatus?: InputMaybe<AvailabilityStatus>;
   endTime?: InputMaybe<Scalars['Time']['input']>;
@@ -5106,6 +5561,7 @@ export type UpdateAvailabilityEventInput = {
 
 export type UpdateCenterInput = {
   address?: InputMaybe<AddressInput>;
+  email?: InputMaybe<Scalars['String']['input']>;
   isOnline?: InputMaybe<Scalars['Boolean']['input']>;
   location?: InputMaybe<Scalars['URL']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;
@@ -5393,6 +5849,7 @@ export type UserSortInput = {
 export enum UserType {
   Admin = 'ADMIN',
   Consultant = 'CONSULTANT',
+  External = 'EXTERNAL',
   Patient = 'PATIENT',
   Staff = 'STAFF'
 }
@@ -5584,7 +6041,7 @@ export type UpdatePatientMutationVariables = Exact<{
 }>;
 
 
-export type UpdatePatientMutation = { __typename?: 'Mutation', updatePatient: { __typename?: 'User', _id: any, profileData?: { __typename?: 'Consultant' } | { __typename?: 'Patient', centers: Array<{ __typename?: 'Center', _id: any, name: string }> } | { __typename?: 'Staff' } | null } };
+export type UpdatePatientMutation = { __typename?: 'Mutation', updatePatient: { __typename?: 'User', _id: any, profileData?: { __typename?: 'Consultant' } | { __typename?: 'External' } | { __typename?: 'Patient', centers: Array<{ __typename?: 'Center', _id: any, name: string }> } | { __typename?: 'Staff' } | null } };
 
 export type GetCentersQueryVariables = Exact<{ [key: string]: never; }>;
 

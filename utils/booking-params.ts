@@ -27,6 +27,13 @@ export interface BookingParams {
   treatmentDuration?: string; // Minutes as string
   assessmentType?: string;    // "in-person" | "online"
   isNewUserService?: string;  // "true" | "false"
+  // ── Web attribution (forwarded from stance-health via buildTrackedUrl) ────
+  anonymous_id?: string;      // Stance permanent visitor ID
+  session_id?: string;        // 30-min session ID
+  ga_client_id?: string;      // GA4 client id
+  fbp?: string;               // Meta browser id
+  fbc?: string;               // Meta click id
+  gcl_au?: string;            // Google Ads conversion linker
 }
 
 export const RECOGNIZED_KEYS: (keyof BookingParams)[] = [
@@ -44,6 +51,13 @@ export const RECOGNIZED_KEYS: (keyof BookingParams)[] = [
   'treatmentDuration',
   'assessmentType',
   'isNewUserService',
+  // web attribution
+  'anonymous_id',
+  'session_id',
+  'ga_client_id',
+  'fbp',
+  'fbc',
+  'gcl_au',
 ];
 
 /**

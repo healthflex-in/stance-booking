@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { AlertCircle } from 'lucide-react';
 import { GET_CENTERS, GET_SERVICES, GET_USER, CREATE_APPOINTMENT, GET_TOKENS_FOR_SERVICE, PURCHASE_TOKEN } from '@/gql/queries';
 import NewUserOfflinePaymentProcessing from './NewUserOfflinePaymentProcessing';
+import { getWebTrackingForBooking } from '@/utils/web-tracking';
 import { useContainerDetection } from '@/hooks/useContainerDetection';
 import { Button } from '@/components/ui-atoms';
 import { BookingAnalytics } from '@/services/booking-analytics';
@@ -186,6 +187,7 @@ export default function NewUserOfflinePaymentConfirmation({
               startTime: new Date(bookingData.selectedTimeSlot.startTime).getTime(),
               endTime: new Date(bookingData.selectedTimeSlot.endTime).getTime(),
             },
+            webTracking: getWebTrackingForBooking() ?? undefined,
           },
         },
       });

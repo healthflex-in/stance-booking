@@ -10,6 +10,26 @@ import { setBookingCookies, getBookingCookies } from '@/utils/booking-cookies';
 import { parseBookingParams, storeBookingParamsInSession, captureUTMParams, BookingParams } from '@/utils/booking-params';
 import { bookingStorage } from '@/utils/booking-storage';
 
+/**
+ * Appends identity tracking params (anonymous_id, session_id, etc.) to an
+ * internal path before router.replace() so the destination page gets them
+ * in the URL and captureTrackingParams() doesn't mint fresh IDs.
+ */
+function withTrackingParams(path: string): string {
+  if (typeof window === 'undefined') return path;
+  try {
+    const raw = window.localStorage.getItem('stance_tracking');
+    if (!raw) return path;
+    const data = JSON.parse(raw) as Record<string, string>;
+    const url = new URL(path, window.location.origin);
+    const IDENTITY = ['anonymous_id', 'session_id', 'ga_client_id', 'fbp', 'fbc', 'gcl_au'] as const;
+    for (const key of IDENTITY) {
+      if (data[key] && !url.searchParams.has(key)) url.searchParams.set(key, data[key]);
+    }
+    return `${url.pathname}${url.search}`;
+  } catch { return path; }
+}
+
 type BookingStep =
   | 'patient-onboarding'
   | 'session-details'
@@ -68,6 +88,18 @@ function BookPageContent() {
     // Must run unconditionally — even when there are no booking params in
     // the URL — so utm_source=facebook&utm_term=page landing URLs are tracked.
     captureUTMParams();
+    
+    // Also run the full tracking capture so anonymous_id/session_id are
+    // generated and persisted to localStorage before any redirect happens.
+    // This ensures IDs survive router.replace() to inner pages.
+    if (typeof window !== 'undefined') {
+      try {
+        // Dynamic import to avoid SSR issues
+        import('@/lib/tracking').then(({ captureTrackingParams }) => {
+          captureTrackingParams();
+        }).catch(() => { /* non-fatal */ });
+      } catch { /* non-fatal */ }
+    }
     
     // Get organization config
     const org = getOrganizationBySlug(orgSlug);
@@ -129,7 +161,7 @@ function BookPageContent() {
           const flowType = effectiveOnline ? 'online' : 'offline';
 
           // Default to 'new' — the flow page will refine based on actual patient data
-          router.replace(`/${orgSlug}/${flowType}/new`);
+          router.replace(withTrackingParams(`/${orgSlug}/${flowType}/new`));
         }
         return;
       }
@@ -153,9 +185,9 @@ function BookPageContent() {
     const effectiveOnline = effectiveSessionType === 'online' && orgSlug !== 'hyfit' && orgSlug !== 'devhyfit';
 
     if (isNewUser) {
-      router.replace(`/${orgSlug}/${effectiveOnline ? 'online' : 'offline'}/new`);
+      router.replace(withTrackingParams(`/${orgSlug}/${effectiveOnline ? 'online' : 'offline'}/new`));
     } else {
-      router.replace(`/${orgSlug}/${effectiveOnline ? 'online' : 'offline'}/repeat`);
+      router.replace(withTrackingParams(`/${orgSlug}/${effectiveOnline ? 'online' : 'offline'}/repeat`));
     }
   };
 
