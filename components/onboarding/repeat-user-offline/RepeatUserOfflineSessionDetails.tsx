@@ -31,7 +31,8 @@ export default function RepeatUserOfflineSessionDetails({
   const [selectedCenter, setSelectedCenter] = useState<any>(null);
   const [selectedService, setSelectedService] = useState<any>(null);
   const [selectedDesignation, setSelectedDesignation] = useState<string>('Physiotherapist');
-  const [isFromParams, setIsFromParams] = useState(false);
+  const [isCenterFromParams, setIsCenterFromParams] = useState(false);
+  const [isServiceFromParams, setIsServiceFromParams] = useState(false);
   const [isConsultantTypeFromParams, setIsConsultantTypeFromParams] = useState(false);
 
   // Modal states
@@ -54,7 +55,7 @@ export default function RepeatUserOfflineSessionDetails({
 
   const { data: servicesData } = useQuery(GET_SERVICES, {
     variables: { centerId: centerId ? [centerId] : [] },
-    skip: !centerId || !serviceId,
+    skip: !centerId,
     fetchPolicy: 'network-only',
   });
 
@@ -79,7 +80,7 @@ export default function RepeatUserOfflineSessionDetails({
       const center = filteredCenters.find((c: any) => c._id === centerId);
       if (center) {
         setSelectedCenter(center);
-        setIsFromParams(isParamFromUrl('centerId'));
+        setIsCenterFromParams(isParamFromUrl('centerId'));
       }
     }
   }, [centerId, filteredCenters, selectedCenter]);
@@ -89,6 +90,7 @@ export default function RepeatUserOfflineSessionDetails({
       const service = servicesData.services.find((s: any) => s._id === serviceId);
       if (service) {
         setSelectedService(service);
+        setIsServiceFromParams(isParamFromUrl('serviceId'));
       }
     }
   }, [serviceId, servicesData, selectedService]);
@@ -172,14 +174,14 @@ export default function RepeatUserOfflineSessionDetails({
               Location
             </h2>
             <p className="text-gray-600 text-sm mb-4">
-              {isFromParams ? 'Pre-selected location' : 'Select your preferred location'}
+              {isCenterFromParams ? 'Pre-selected location' : 'Select your preferred location'}
             </p>
             <button
-              onClick={() => { if (!isFromParams) setShowLocationModal(true); }}
-              disabled={isFromParams}
+              onClick={() => { if (!isCenterFromParams) setShowLocationModal(true); }}
+              disabled={isCenterFromParams}
               className="w-full"
             >
-              <div className="bg-white rounded-2xl p-4 border-2 transition-all" style={{ borderColor: selectedCenter ? '#DDFE71' : '#e5e7eb', opacity: isFromParams ? 0.7 : 1, cursor: isFromParams ? 'not-allowed' : 'pointer' }}>
+              <div className="bg-white rounded-2xl p-4 border-2 transition-all" style={{ borderColor: selectedCenter ? '#DDFE71' : '#e5e7eb', opacity: isCenterFromParams ? 0.7 : 1, cursor: isCenterFromParams ? 'not-allowed' : 'pointer' }}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
                     <div className="w-10 h-10 bg-green-50 rounded-xl flex items-center justify-center">
@@ -250,19 +252,19 @@ export default function RepeatUserOfflineSessionDetails({
               Service
             </h2>
             <p className="text-gray-600 text-sm mb-4">
-              {isFromParams ? 'Pre-selected service' : 'Choose the service you need'}
+              {isServiceFromParams ? 'Pre-selected service' : 'Choose the service you need'}
             </p>
             <button
               onClick={() => {
-                if (selectedCenter && !isFromParams) {
+                if (selectedCenter && !isServiceFromParams) {
                   analytics?.trackServiceModalOpened();
                   setShowServiceModal(true);
                 }
               }}
-              disabled={!selectedCenter || isFromParams}
+              disabled={!selectedCenter || isServiceFromParams}
               className="w-full"
             >
-              <div className="bg-white rounded-2xl p-4 border-2 transition-all" style={{ borderColor: selectedService ? '#DDFE71' : '#e5e7eb', opacity: !selectedCenter || isFromParams ? 0.7 : 1, cursor: !selectedCenter || isFromParams ? 'not-allowed' : 'pointer' }}>
+              <div className="bg-white rounded-2xl p-4 border-2 transition-all" style={{ borderColor: selectedService ? '#DDFE71' : '#e5e7eb', opacity: !selectedCenter || isServiceFromParams ? 0.7 : 1, cursor: !selectedCenter || isServiceFromParams ? 'not-allowed' : 'pointer' }}>
                 <div className="flex items-center justify-between">
                   <div className="flex-1 text-left">
                     {selectedService ? (

@@ -42,7 +42,7 @@ export default function NewUserOfflineSessionDetails({
 
   const { data: servicesData, loading: servicesLoading } = useQuery(GET_SERVICES, {
     variables: { centerId: centerId ? [centerId] : [] },
-    skip: !centerId || !serviceId,
+    skip: !centerId,
     fetchPolicy: 'network-only',
   });
 
