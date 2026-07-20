@@ -187,18 +187,30 @@ export function createApolloClient(initialState = {}) {
       const mobileOrgId = cookies.organizationId;
       const mobileCenterId = cookies.centerId;
 
-      // Extract UTM params and current booking URL from the browser URL
+      // Extract UTM params and current booking URL from localStorage "stance_tracking"
       const utmHeaders: Record<string, string> = {};
       if (typeof window !== 'undefined') {
-        // Read from tab storage (persisted on page entry before URL cleanup)
-        const { getStoredUTMParams, getBookingLandingUrl } = await import('@/utils/booking-params');
-        const storedUtm = getStoredUTMParams();
-        const landingUrl = getBookingLandingUrl();
-        if (storedUtm) {
-          utmHeaders['x-utm-params'] = storedUtm;
-        }
-        // Send the landing URL (preserves UTMs) instead of the current cleaned-up URL
-        utmHeaders['x-booking-url'] = landingUrl || window.location.href;
+        try {
+          const UTM_KEYS = [
+            'utm_source', 'utm_medium', 'utm_campaign', 'utm_id',
+            'utm_term', 'utm_content', 'utm_adgroup', 'utm_matchtype',
+            'utm_device', 'utm_network', 'placement', 'asset_id',
+          ];
+          const raw = window.localStorage.getItem('stance_tracking');
+          const tracking = raw ? JSON.parse(raw) as Record<string, string> : {};
+          const parts: string[] = [];
+          for (const key of UTM_KEYS) {
+            const val = tracking[key];
+            if (val) parts.push(`${key}=${encodeURIComponent(val)}`);
+          }
+          if (parts.length > 0) {
+            utmHeaders['x-utm-params'] = parts.join('&');
+          }
+          const landingUrl = tracking['landing_page'];
+          utmHeaders['x-booking-url'] = (landingUrl && landingUrl.startsWith('http'))
+            ? landingUrl
+            : window.location.href;
+        } catch { /* ignore */ }
       }
 
       return {
@@ -235,6 +247,36 @@ export function createApolloClient(initialState = {}) {
       token = localStorage.getItem('token');
     }
 
+    // UTM + booking URL headers — built directly from localStorage "stance_tracking"
+    // (the source of truth written by captureTrackingParams on every page load).
+    // This survives router.replace() stripping the URL and cross-page navigation.
+    const utmHeaders: Record<string, string> = {};
+    if (typeof window !== 'undefined') {
+      try {
+        const UTM_KEYS = [
+          'utm_source', 'utm_medium', 'utm_campaign', 'utm_id',
+          'utm_term', 'utm_content', 'utm_adgroup', 'utm_matchtype',
+          'utm_device', 'utm_network', 'placement', 'asset_id',
+        ];
+        const raw = window.localStorage.getItem('stance_tracking');
+        const tracking = raw ? JSON.parse(raw) as Record<string, string> : {};
+        const parts: string[] = [];
+        for (const key of UTM_KEYS) {
+          const val = tracking[key];
+          if (val) parts.push(`${key}=${encodeURIComponent(val)}`);
+        }
+        if (parts.length > 0) {
+          utmHeaders['x-utm-params'] = parts.join('&');
+        }
+        // x-booking-url: send the full landing URL (includes UTMs) when available,
+        // otherwise the current page URL
+        const landingUrl = tracking['landing_page'];
+        utmHeaders['x-booking-url'] = (landingUrl && landingUrl.startsWith('http'))
+          ? landingUrl
+          : window.location.href;
+      } catch { /* ignore — tracking must never break requests */ }
+    }
+
     return {
       headers: {
         ...headers,
@@ -242,6 +284,7 @@ export function createApolloClient(initialState = {}) {
         'x-organization-id': organizationId,
         authorization: token ? `Bearer ${token}` : '',
         'x-client-source': 'BOOKING',
+        ...utmHeaders,
       },
     };
   });

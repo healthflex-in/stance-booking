@@ -124,10 +124,14 @@ export function captureTrackingParams(): TrackingData {
   const stored = readStoredParams();
   const url    = new URL(window.location.href);
 
-  // 1. URL params — highest priority, always accept identity IDs
+  // If the current URL has UTM params, this is a fresh paid referral from
+  // stance-health. Always overwrite stale UTMs so the new campaign wins.
+  const urlHasUtms = TRACKED_PARAMS.some(k => url.searchParams.has(k));
+
+  // 1. URL params — always win for identity keys; overwrite UTMs when URL has them
   for (const key of TRACKED_PARAMS) {
     const val = url.searchParams.get(key);
-    if (val && !stored[key]) stored[key] = val;
+    if (val && (urlHasUtms || !stored[key])) stored[key] = val;
   }
   for (const key of IDENTITY_KEYS) {
     const val = url.searchParams.get(key);
@@ -154,9 +158,10 @@ export function captureTrackingParams(): TrackingData {
     if (decoded._gcl_au && !stored.gcl_au) stored.gcl_au = decoded._gcl_au;
   }
 
-  // 4. Visit context
-  if (!stored.landing_page) {
-    stored.landing_page = url.pathname + url.search;
+  // 4. Visit context — store the full URL with UTMs as landing_page.
+  //    Overwrite if the current URL has fresh UTMs (new paid referral).
+  if (!stored.landing_page || urlHasUtms) {
+    stored.landing_page = url.href; // full URL: origin + path + UTMs
   }
 
   // 5. Generate IDs only for direct traffic (stance-health didn't forward them)

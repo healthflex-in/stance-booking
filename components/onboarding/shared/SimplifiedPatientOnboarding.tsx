@@ -9,12 +9,13 @@ import { CREATE_PATIENT, PATIENT_EXISTS, PATIENT_BY_PHONE, GET_CENTERS, CHECK_PA
 import { useContainerDetection } from '@/hooks/useContainerDetection';
 import { useMobileFlowAnalytics } from '@/services/mobile-analytics';
 import { getBookingCookies } from '@/utils/booking-cookies';
-import { tabStorage } from '@/utils/tab-storage';
 import { captureUTMParams } from '@/utils/booking-params';
+import { getWebTrackingForBooking } from '@/utils/web-tracking';
 import SessionTypeSelectionModal from './SessionTypeSelectionModal';
 import CrossOrgModal from './CrossOrgModal';
 import NewUserServiceModal from './NewUserServiceModal';
 import EmailOTPModal from './EmailOTPModal';
+import { tabStorage } from '@/utils/tab-storage';
 
 interface SimplifiedPatientOnboardingProps {
   centerId: string;
@@ -556,6 +557,8 @@ export default function SimplifiedPatientOnboarding({
     const dobDate = formData.dob ? new Date(formData.dob) : null;
     const dobTimestamp = dobDate ? Math.floor(dobDate.getTime() / 1000) : null;
 
+    const webTracking = getWebTrackingForBooking();
+
     const input = {
       phone: formData.phone,
       firstName: formData.firstName,
@@ -569,6 +572,7 @@ export default function SimplifiedPatientOnboarding({
       patientType: 'OP_Patient',
       cohort: 'SURGICAL',
       referral: formData.referral.type ? formData.referral : undefined,
+      ...(webTracking && { webTracking }),
     };
 
     try {

@@ -12,7 +12,7 @@ import {
   VERIFY_EMAIL_OTP,
 } from '@/gql/queries';
 import { getBookingCookies } from '@/utils/booking-cookies';
-import { tabStorage } from '@/utils/tab-storage';
+import { getWebTrackingForBooking } from '@/utils/web-tracking';
 import { StanceHealthLoader } from '@/components/loader/StanceHealthLoader';
 import CrossOrgModal from './shared/CrossOrgModal';
 import NewUserServiceModal from './shared/NewUserServiceModal';
@@ -189,7 +189,7 @@ export default function OfflineOnboarding({ centerId, onComplete }: OfflineOnboa
       }
 
       if (exists && !isInDifferentOrg) {
-        const isNewUserService = tabStorage.getItem('isNewUserService') === 'true';
+        const isNewUserService = sessionStorage.getItem('isNewUserService') === 'true';
         if (isNewUserService) {
           setShowNewUserServiceModal(true);
           setFormData(prev => ({ ...prev, phone: '' }));
@@ -251,6 +251,7 @@ export default function OfflineOnboarding({ centerId, onComplete }: OfflineOnboa
     }
     const dobDate = formData.dob ? new Date(formData.dob) : null;
     const dobTimestamp = dobDate ? Math.floor(dobDate.getTime() / 1000) : null;
+    const webTracking = getWebTrackingForBooking();
     const input = {
       phone: formData.phone,
       firstName: formData.firstName,
@@ -263,6 +264,7 @@ export default function OfflineOnboarding({ centerId, onComplete }: OfflineOnboa
       category: 'WEBSITE',
       patientType: 'OP_Patient',
       cohort: 'SURGICAL',
+      ...(webTracking && { webTracking }),
     };
     try {
       await createPatient({ variables: { input } });

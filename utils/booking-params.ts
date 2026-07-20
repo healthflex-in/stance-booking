@@ -106,27 +106,60 @@ export function storeBookingParamsInSession(params: BookingParams): void {
   captureUTMParams();
 }
 
-const UTM_KEYS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_id', 'utm_term', 'utm_content'] as const;
+const UTM_KEYS = [
+  'utm_source', 'utm_medium', 'utm_campaign', 'utm_id',
+  'utm_term', 'utm_content', 'utm_adgroup', 'utm_matchtype',
+  'utm_device', 'utm_network', 'placement', 'asset_id',
+] as const;
 
 /**
- * Reads UTM params from the current URL and persists them to tab storage.
+ * Reads UTM params from the current URL and from localStorage ("stance_tracking"),
+ * persists them to tab storage, and writes to stance_tracking.
  * Should be called on every page entry before any router.replace() strips the query string.
- * Existing values are NOT overwritten so the first-touch attribution is preserved.
+ * Existing values are NOT overwritten so first-touch attribution is preserved.
  */
 export function captureUTMParams(): void {
   if (typeof window === 'undefined') return;
   try {
     const urlParams = new URLSearchParams(window.location.search);
-    const parts: string[] = [];
+
+    // 1. Collect UTMs from the URL
+    const fromUrl: Partial<Record<typeof UTM_KEYS[number], string>> = {};
     for (const key of UTM_KEYS) {
       const val = urlParams.get(key);
+      if (val) fromUrl[key] = val;
+    }
+
+    // 2. Merge into stance_tracking (localStorage) — URL wins over stored
+    let tracking: Record<string, string> = {};
+    try {
+      const raw = window.localStorage.getItem('stance_tracking');
+      if (raw) tracking = JSON.parse(raw);
+    } catch { /* ignore */ }
+
+    let updated = false;
+    for (const key of UTM_KEYS) {
+      const urlVal = fromUrl[key];
+      if (urlVal && !tracking[key]) {
+        tracking[key] = urlVal;
+        updated = true;
+      }
+    }
+    if (updated) {
+      try { window.localStorage.setItem('stance_tracking', JSON.stringify(tracking)); } catch { /* quota */ }
+    }
+
+    // 3. Build serialised UTM string from the merged tracking data (all UTMs)
+    const parts: string[] = [];
+    for (const key of UTM_KEYS) {
+      const val = tracking[key];
       if (val) parts.push(`${key}=${encodeURIComponent(val)}`);
     }
-    // Only write if we have fresh UTM data — don't wipe a previously captured value
     if (parts.length > 0) {
       tabStorage.setItem('utm_params', parts.join('&'));
     }
-    // Capture original landing URL once (first-touch wins)
+
+    // 4. Capture original landing URL once (first-touch wins)
     if (!tabStorage.getItem('booking_landing_url')) {
       tabStorage.setItem('booking_landing_url', window.location.href);
     }
@@ -136,12 +169,28 @@ export function captureUTMParams(): void {
 }
 
 /**
- * Returns a serialised UTM param string from tab storage (same format as query string).
- * Returns null if no UTM params were captured.
+ * Returns a serialised UTM param string built from localStorage ("stance_tracking").
+ * This is the source of truth — captureTrackingParams() writes ALL UTMs there
+ * on every page load and they survive router.replace() stripping the URL.
+ *
+ * Falls back to tabStorage ("utm_params") for backward compatibility.
+ * Returns null if no UTM params exist anywhere.
  */
 export function getStoredUTMParams(): string | null {
   if (typeof window === 'undefined') return null;
   try {
+    // Primary: localStorage "stance_tracking" — has all UTMs written by captureTrackingParams()
+    const raw = window.localStorage.getItem('stance_tracking');
+    if (raw) {
+      const tracking = JSON.parse(raw) as Record<string, string>;
+      const parts: string[] = [];
+      for (const key of UTM_KEYS) {
+        const val = tracking[key];
+        if (val) parts.push(`${key}=${encodeURIComponent(val)}`);
+      }
+      if (parts.length > 0) return parts.join('&');
+    }
+    // Fallback: tabStorage (written by captureUTMParams when UTMs are in the URL)
     return tabStorage.getItem('utm_params');
   } catch {
     return null;
@@ -149,11 +198,18 @@ export function getStoredUTMParams(): string | null {
 }
 
 /**
- * Returns the original booking landing URL captured on first entry.
+ * Returns the original booking landing URL.
+ * Reads from localStorage "stance_tracking" first (written by captureTrackingParams),
+ * falls back to tabStorage for backward compatibility.
  */
 export function getBookingLandingUrl(): string | null {
   if (typeof window === 'undefined') return null;
   try {
+    const raw = window.localStorage.getItem('stance_tracking');
+    if (raw) {
+      const tracking = JSON.parse(raw) as Record<string, string>;
+      if (tracking.landing_page) return tracking.landing_page;
+    }
     return tabStorage.getItem('booking_landing_url');
   } catch {
     return null;

@@ -12,6 +12,7 @@ import {
   VERIFY_EMAIL_OTP,
 } from '@/gql/queries';
 import { getBookingCookies } from '@/utils/booking-cookies';
+import { getWebTrackingForBooking } from '@/utils/web-tracking';
 import { StanceHealthLoader } from '@/components/loader/StanceHealthLoader';
 import CrossOrgModal from './shared/CrossOrgModal';
 import NewUserServiceModal from './shared/NewUserServiceModal';
@@ -262,6 +263,7 @@ export default function OnlineOnboarding({ organizationId, onComplete }: OnlineO
     const dobDate = formData.dob ? new Date(formData.dob) : null;
     const dobTimestamp = dobDate ? Math.floor(dobDate.getTime() / 1000) : null;
     const cookies = getBookingCookies();
+    const webTracking = getWebTrackingForBooking();
     const input = {
       phone: formData.phone,
       firstName: formData.firstName,
@@ -274,6 +276,7 @@ export default function OnlineOnboarding({ organizationId, onComplete }: OnlineO
       category: 'WEBSITE',
       patientType: 'OP_Patient',
       cohort: 'SURGICAL',
+      ...(webTracking && { webTracking }),
     };
     try {
       await createPatient({ variables: { input } });
