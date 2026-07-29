@@ -217,16 +217,11 @@ export default function NewUserOnlinePaymentConfirmation({
             await updatePatient({
               variables: {
                 patientId: bookingData.patientId,
-                input: {
-                  status: 'ACTIVE',
-                },
+                input: {},
               },
             });
-            if (process.env.NEXT_PUBLIC_ENVIRONMENT === 'development') {
-              console.log('✅ Patient status updated to ACTIVE');
-            }
           } catch (error) {
-            console.error('❌ Failed to update patient status:', error);
+            console.error('❌ Failed to update patient:', error);
           }
           
           const storedAppointmentId = bookingStorage.getItem('appointmentId');

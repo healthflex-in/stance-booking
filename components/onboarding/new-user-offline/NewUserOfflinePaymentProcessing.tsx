@@ -162,7 +162,7 @@ export default function NewUserOfflinePaymentProcessing({
             await updatePatientMutation({
               variables: {
                 patientId,
-                input: { centers: [centerId], status: 'ACTIVE' },
+                input: { centers: [centerId] },
               },
             });
             console.log('✅ Patient center updated to:', centerId);
@@ -261,7 +261,7 @@ export default function NewUserOfflinePaymentProcessing({
               await updatePatientMutation({
                 variables: {
                   patientId,
-                  input: { centers: [centerId], status: 'ACTIVE' },
+                  input: { centers: [centerId] },
                 },
               });
               console.log('✅ Patient center updated to:', centerId);
