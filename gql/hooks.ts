@@ -95,7 +95,8 @@ export enum Action {
   Invite = 'INVITE',
   Manage = 'MANAGE',
   Reject = 'REJECT',
-  View = 'VIEW'
+  View = 'VIEW',
+  Waive = 'WAIVE'
 }
 
 /** Patient type for healthcare recipients */
@@ -155,6 +156,7 @@ export type AdvanceItem = {
   creditType?: Maybe<CreditType>;
   description?: Maybe<Scalars['String']['output']>;
   item?: Maybe<Package>;
+  packageName?: Maybe<Scalars['String']['output']>;
   tokenData?: Maybe<TokenData>;
   type: AdvanceType;
   validTill: Scalars['Timestamp']['output'];
@@ -167,6 +169,11 @@ export type AdvanceItemBalance = {
   creditType?: Maybe<CreditType>;
   description?: Maybe<Scalars['String']['output']>;
   item?: Maybe<Package>;
+  packageName?: Maybe<Scalars['String']['output']>;
+  /** Sessions included in this package (enriched from live Package data) */
+  sessionCount?: Maybe<Scalars['Int']['output']>;
+  /** Price per session (enriched from live Package data) */
+  sessionPrice?: Maybe<Scalars['Int']['output']>;
   type: AdvanceType;
   validTill: Scalars['Timestamp']['output'];
 };
@@ -541,6 +548,7 @@ export enum AppointmentMedium {
 
 export enum AppointmentStatus {
   Booked = 'BOOKED',
+  CancellationFeePaid = 'CANCELLATION_FEE_PAID',
   Cancelled = 'CANCELLED',
   InvoiceGenerated = 'INVOICE_GENERATED',
   Paid = 'PAID',
@@ -851,6 +859,7 @@ export type BookingMeta = {
   platform?: Maybe<Scalars['String']['output']>;
   source: BookingSource;
   sourceUrl?: Maybe<Scalars['String']['output']>;
+  webTracking?: Maybe<WebTrackingData>;
 };
 
 export enum BookingSource {
@@ -876,10 +885,16 @@ export enum CalculationType {
 
 export type CampaignData = {
   __typename?: 'CampaignData';
+  assetId?: Maybe<Scalars['String']['output']>;
+  placement?: Maybe<Scalars['String']['output']>;
+  utmAdgroup?: Maybe<Scalars['String']['output']>;
   utmCampaign?: Maybe<Scalars['String']['output']>;
   utmContent?: Maybe<Scalars['String']['output']>;
+  utmDevice?: Maybe<Scalars['String']['output']>;
   utmId?: Maybe<Scalars['String']['output']>;
+  utmMatchtype?: Maybe<Scalars['String']['output']>;
   utmMedium?: Maybe<Scalars['String']['output']>;
+  utmNetwork?: Maybe<Scalars['String']['output']>;
   utmSource?: Maybe<Scalars['String']['output']>;
   utmTerm?: Maybe<Scalars['String']['output']>;
 };
@@ -893,6 +908,17 @@ export type CancellationDetails = {
   rescheduledToId?: Maybe<Scalars['ObjectID']['output']>;
   status: CancellationStatus;
 };
+
+/**
+ * Status of a cancellation-fee invoice.
+ * Extends InvoiceStatus with a WAIVED terminal state.
+ */
+export enum CancellationInvoiceStatus {
+  CancellationFeePaid = 'CANCELLATION_FEE_PAID',
+  Paid = 'PAID',
+  Pending = 'PENDING',
+  Waived = 'WAIVED'
+}
 
 export enum CancellationReason {
   BookedByMistake = 'BOOKED_BY_MISTAKE',
@@ -1033,10 +1059,25 @@ export type ConsultantFilterInput = {
 
 export type CreateAdvanceInput = {
   center: Scalars['ObjectID']['input'];
+  /**
+   * Only relevant when items[0].type is REFUND or CREDIT with creditType=REFUND.
+   * true  (default) → create a Credit document so the refund amount lands in the
+   *                    patient wallet and can be used for future invoices.
+   * false           → record the refund as a payment + ledger entry only (e.g. the
+   *                    money was returned via bank transfer / cash). Nothing is added
+   *                    to the wallet balance.
+   */
+  createCredit?: InputMaybe<Scalars['Boolean']['input']>;
   createdAt?: InputMaybe<Scalars['Timestamp']['input']>;
   footer?: InputMaybe<Scalars['String']['input']>;
   items?: InputMaybe<Array<CreateAdvanceItemInput>>;
   notes?: InputMaybe<Scalars['String']['input']>;
+  /**
+   * Required when createCredit is false. The _id of the original advance being
+   * refunded. Used to write the DEBIT ledger entry that zeroes out the original
+   * advance balance.
+   */
+  originalAdvanceId?: InputMaybe<Scalars['ObjectID']['input']>;
   patient: Scalars['ObjectID']['input'];
   payment: CreateAdvancePaymentInput;
   total: Scalars['Float']['input'];
@@ -1098,6 +1139,7 @@ export type CreateAppointmentInput = {
   status?: InputMaybe<AppointmentStatus>;
   treatment?: InputMaybe<Scalars['ObjectID']['input']>;
   visitType?: InputMaybe<AppointmentVisitType>;
+  webTracking?: InputMaybe<WebTrackingInput>;
 };
 
 /** Input for updating an appointment */
@@ -1255,6 +1297,8 @@ export type CreateInvoiceInput = {
   createdAt?: InputMaybe<Scalars['Timestamp']['input']>;
   dueDate: Scalars['Timestamp']['input'];
   footer?: InputMaybe<Scalars['String']['input']>;
+  /** Mark this invoice as a cancellation fee (generated from NOT_ALLOWED cancellation) */
+  isCancellationFee?: InputMaybe<Scalars['Boolean']['input']>;
   items?: InputMaybe<Array<CreateInvoiceItemInput>>;
   notes?: InputMaybe<Scalars['String']['input']>;
   patient?: InputMaybe<Scalars['ObjectID']['input']>;
@@ -1321,6 +1365,10 @@ export type CreatePackageInput = {
   name: Scalars['String']['input'];
   price: Scalars['Float']['input'];
   services: Array<Scalars['ObjectID']['input']>;
+  /** Number of sessions included in this package. Null = unlimited. */
+  sessionCount?: InputMaybe<Scalars['Int']['input']>;
+  /** Price per individual session. Set explicitly for multi-user packages. */
+  sessionPrice?: InputMaybe<Scalars['Int']['input']>;
   validity: Scalars['Int']['input'];
 };
 
@@ -1345,6 +1393,8 @@ export type CreatePatientInput = {
   phone: Scalars['String']['input'];
   profilePicture?: InputMaybe<Scalars['String']['input']>;
   referral?: InputMaybe<ReferralInput>;
+  /** Web attribution tracking data — captured from the booking site at registration time */
+  webTracking?: InputMaybe<WebTrackingInput>;
 };
 
 export type CreatePaymentInput = {
@@ -2030,6 +2080,8 @@ export type Invoice = DataRow & {
   dueDate: Scalars['Timestamp']['output'];
   footer?: Maybe<Scalars['String']['output']>;
   isActive: Scalars['Boolean']['output'];
+  /** Whether this invoice was generated from a NOT_ALLOWED cancellation */
+  isCancellationFee?: Maybe<Scalars['Boolean']['output']>;
   items: Array<InvoiceItem>;
   notes?: Maybe<Scalars['String']['output']>;
   organization: Organization;
@@ -2046,6 +2098,11 @@ export type Invoice = DataRow & {
   total: Scalars['Float']['output'];
   updatedAt: Scalars['Timestamp']['output'];
   version: Scalars['Int']['output'];
+  waivedAt?: Maybe<Scalars['Timestamp']['output']>;
+  waivedBy?: Maybe<User>;
+  waiverNotes?: Maybe<Scalars['String']['output']>;
+  /** Waiver details — only present when the invoice has been waived */
+  waiverReason?: Maybe<WaiverReason>;
 };
 
 export type InvoiceFilter = {
@@ -2079,8 +2136,11 @@ export type InvoiceSortInput = {
 };
 
 export enum InvoiceStatus {
+  CancellationFeePaid = 'CANCELLATION_FEE_PAID',
+  Cancelled = 'CANCELLED',
   Paid = 'PAID',
-  Pending = 'PENDING'
+  Pending = 'PENDING',
+  Waived = 'WAIVED'
 }
 
 export type ItemsInput = {
@@ -2626,6 +2686,12 @@ export type Mutation = {
   verifyEmailOTPForRegistration: RegistrationOtpVerification;
   verifyOTP: AuthenticatedSession;
   verifyPayment: WebhookResponse;
+  /**
+   * Waive a cancellation-fee invoice. Allowed only for CENTER_HEAD and ADMIN roles.
+   * Records a permanent audit trail with who waived, when, and why.
+   * Does NOT change the appointment status.
+   */
+  waiveInvoice: Invoice;
 };
 
 
@@ -3360,6 +3426,12 @@ export type MutationVerifyPaymentArgs = {
   razorpayPaymentId: Scalars['String']['input'];
 };
 
+
+export type MutationWaiveInvoiceArgs = {
+  id: Scalars['ObjectID']['input'];
+  input: WaiveInvoiceInput;
+};
+
 export type NewSummary = {
   __typename?: 'NewSummary';
   _id: Scalars['ObjectID']['output'];
@@ -3603,15 +3675,59 @@ export type Package = DataRow & {
   isActive: Scalars['Boolean']['output'];
   isMultiUser: Scalars['Boolean']['output'];
   maxUsers?: Maybe<Scalars['Int']['output']>;
-  name: Scalars['String']['output'];
+  name?: Maybe<Scalars['String']['output']>;
   organization: Organization;
   price: Scalars['Float']['output'];
   seqNo: Scalars['String']['output'];
   services: Array<Service>;
+  /** Number of sessions included in this package. Null = unlimited. */
+  sessionCount?: Maybe<Scalars['Int']['output']>;
+  /** Price per single session (price ÷ sessionCount). Null if sessionCount is not set. */
+  sessionPrice?: Maybe<Scalars['Int']['output']>;
   updatedAt: Scalars['Timestamp']['output'];
   validity: Scalars['Int']['output'];
   version: Scalars['Int']['output'];
 };
+
+/**
+ * One PackageLedger document per patient-advance pair.
+ * Root fields show the current session state; history[] contains all transactions.
+ */
+export type PackageLedger = DataRow & {
+  __typename?: 'PackageLedger';
+  _id: Scalars['ObjectID']['output'];
+  /** The PACKAGE advance that granted these sessions */
+  advance: Advance;
+  center: Center;
+  createdAt: Scalars['Timestamp']['output'];
+  /** Full transaction history (CREDIT / DEBIT / CANCEL), oldest first */
+  history: Array<SessionHistoryEntry>;
+  isActive: Scalars['Boolean']['output'];
+  organization: Organization;
+  /** The package definition */
+  package: Package;
+  /** Denormalized package name for display */
+  packageName: Scalars['String']['output'];
+  /** The patient these sessions belong to */
+  patient: User;
+  /** Whether this patient is the package owner or an associated user */
+  patientRole: PackageLedgerPatientRole;
+  seqNo: Scalars['String']['output'];
+  /** Current remaining sessions */
+  sessionBalance: Scalars['Int']['output'];
+  /** Total sessions granted to this patient for this advance */
+  sessions: Scalars['Int']['output'];
+  updatedAt: Scalars['Timestamp']['output'];
+  version: Scalars['Int']['output'];
+};
+
+/** Role of the patient in a PackageLedger document. */
+export enum PackageLedgerPatientRole {
+  /** A patient associated to the advance by the owner */
+  AssociatedUser = 'ASSOCIATED_USER',
+  /** The patient who purchased the advance */
+  PackageOwner = 'PACKAGE_OWNER'
+}
 
 export type PaginatedAdvances = {
   __typename?: 'PaginatedAdvances';
@@ -3697,6 +3813,8 @@ export type Patient = {
   recommendations?: Maybe<Array<Maybe<RecommendationSnapshot>>>;
   referral?: Maybe<Referral>;
   status?: Maybe<PatientStatus>;
+  /** Web attribution data stamped at first booking */
+  webAnalytics?: Maybe<PatientWebAnalytics>;
 };
 
 export type PatientAdvancePackageItem = {
@@ -3862,6 +3980,61 @@ export enum PatientType {
   OpPatient = 'OP_Patient'
 }
 
+/**
+ * Web attribution snapshot saved on the patient record at registration or first booking.
+ * Provides a single-record view of how this patient was acquired without
+ * requiring a join to web_visitors.
+ */
+export type PatientWebAnalytics = {
+  __typename?: 'PatientWebAnalytics';
+  /** Stance first-party anonymous visitor ID (permanent per browser) */
+  anonymousId?: Maybe<Scalars['String']['output']>;
+  /** Creative asset ID */
+  assetId?: Maybe<Scalars['String']['output']>;
+  /** Full URL of the booking page at the moment the patient registered */
+  bookingUrl?: Maybe<Scalars['String']['output']>;
+  /** Meta click ID (_fbc cookie) */
+  fbc?: Maybe<Scalars['String']['output']>;
+  /** Meta browser ID (_fbp cookie) */
+  fbp?: Maybe<Scalars['String']['output']>;
+  /** Epoch ms — when we first saw this browser */
+  firstTouchAt?: Maybe<Scalars['Timestamp']['output']>;
+  /** Google Ads conversion linker */
+  gclAu?: Maybe<Scalars['String']['output']>;
+  /** Google click ID (gclid) */
+  gclid?: Maybe<Scalars['String']['output']>;
+  /** First landing page path the visitor hit on the booking site */
+  landingPage?: Maybe<Scalars['String']['output']>;
+  /** Epoch ms — most recent tracking event */
+  lastTouchAt?: Maybe<Scalars['Timestamp']['output']>;
+  /** Ad placement */
+  placement?: Maybe<Scalars['String']['output']>;
+  /** HTTP referrer at registration time */
+  referrer?: Maybe<Scalars['String']['output']>;
+  /** Total unique sessions across all visits */
+  totalSessions?: Maybe<Scalars['Int']['output']>;
+  /** Total page-loads tracked */
+  totalTouchpoints?: Maybe<Scalars['Int']['output']>;
+  /** Last-touch UTM ad group */
+  utmAdgroup?: Maybe<Scalars['String']['output']>;
+  /** Last-touch UTM campaign */
+  utmCampaign?: Maybe<Scalars['String']['output']>;
+  /** Last-touch UTM content (ad creative variant) */
+  utmContent?: Maybe<Scalars['String']['output']>;
+  /** Last-touch UTM device */
+  utmDevice?: Maybe<Scalars['String']['output']>;
+  /** Last-touch UTM keyword match type */
+  utmMatchtype?: Maybe<Scalars['String']['output']>;
+  /** Last-touch UTM medium (e.g. cpc, organic) */
+  utmMedium?: Maybe<Scalars['String']['output']>;
+  /** Last-touch UTM network */
+  utmNetwork?: Maybe<Scalars['String']['output']>;
+  /** Last-touch UTM source (e.g. google, facebook) */
+  utmSource?: Maybe<Scalars['String']['output']>;
+  /** Last-touch UTM term (keyword) */
+  utmTerm?: Maybe<Scalars['String']['output']>;
+};
+
 export type Payment = DataRow & {
   __typename?: 'Payment';
   _id: Scalars['ObjectID']['output'];
@@ -3912,8 +4085,10 @@ export enum PaymentMode {
 
 export enum PaymentStatus {
   Authorized = 'AUTHORIZED',
+  Cancelled = 'CANCELLED',
   Captured = 'CAPTURED',
-  Failed = 'FAILED'
+  Failed = 'FAILED',
+  Refunded = 'REFUNDED'
 }
 
 export enum PaymentType {
@@ -4263,6 +4438,17 @@ export type Query = {
   newSummaries?: Maybe<Array<NewSummary>>;
   /** Get organization by id */
   organization: Organization;
+  /** Get all PackageLedger documents for an advance (one per patient). */
+  packageLedgerByAdvance: Array<PackageLedger>;
+  /**
+   * Get all PackageLedger documents for a patient under a specific package
+   * (across multiple advances).
+   */
+  packageLedgerByPatientAndPackage: Array<PackageLedger>;
+  /** Get the PackageLedger document for a specific patient + advance pair. */
+  packageLedgerForPatient?: Maybe<PackageLedger>;
+  /** Current session balance for a patient on a specific advance. */
+  packageSessionBalance: Scalars['Int']['output'];
   /** Get list of packages */
   packages: Array<Package>;
   patientAdvanceSummaries: PaginatedPatientAdvanceSummaries;
@@ -4649,6 +4835,29 @@ export type QueryNewSummariesArgs = {
 
 export type QueryOrganizationArgs = {
   id: Scalars['ObjectID']['input'];
+};
+
+
+export type QueryPackageLedgerByAdvanceArgs = {
+  advanceId: Scalars['ObjectID']['input'];
+};
+
+
+export type QueryPackageLedgerByPatientAndPackageArgs = {
+  packageId: Scalars['ObjectID']['input'];
+  patientId: Scalars['ObjectID']['input'];
+};
+
+
+export type QueryPackageLedgerForPatientArgs = {
+  advanceId: Scalars['ObjectID']['input'];
+  patientId: Scalars['ObjectID']['input'];
+};
+
+
+export type QueryPackageSessionBalanceArgs = {
+  advanceId: Scalars['ObjectID']['input'];
+  patientId?: InputMaybe<Scalars['ObjectID']['input']>;
 };
 
 
@@ -5199,6 +5408,7 @@ export type Rule = {
 
 export enum RuleActionType {
   CreateAdvance = 'CREATE_ADVANCE',
+  CreateCancellationFeeInvoice = 'CREATE_CANCELLATION_FEE_INVOICE',
   CreateCredit = 'CREATE_CREDIT',
   SendNotification = 'SEND_NOTIFICATION'
 }
@@ -5206,6 +5416,7 @@ export enum RuleActionType {
 export enum RuleConditionType {
   AppointmentMediumIs = 'APPOINTMENT_MEDIUM_IS',
   AppointmentTimeBetween = 'APPOINTMENT_TIME_BETWEEN',
+  CancellationStatusIs = 'CANCELLATION_STATUS_IS',
   CenterIs = 'CENTER_IS',
   IsFirstAssessment = 'IS_FIRST_ASSESSMENT',
   PatientCategoryIs = 'PATIENT_CATEGORY_IS',
@@ -5335,6 +5546,33 @@ export enum SessionFrequency {
   Monthly = 'MONTHLY',
   OneTime = 'ONE_TIME',
   Weekly = 'WEEKLY'
+}
+
+/** A single history entry embedded inside PackageLedger. */
+export type SessionHistoryEntry = {
+  __typename?: 'SessionHistoryEntry';
+  _id: Scalars['ObjectID']['output'];
+  /** Set on DEBIT / CANCEL entries */
+  appointment?: Maybe<Appointment>;
+  /** Running balance after this entry */
+  balanceAfter: Scalars['Int']['output'];
+  date: Scalars['Timestamp']['output'];
+  /** Set on DEBIT entries */
+  invoice?: Maybe<Invoice>;
+  notes?: Maybe<Scalars['String']['output']>;
+  /** Number of sessions affected (always ≥ 1) */
+  sessions: Scalars['Int']['output'];
+  type: SessionTransactionType;
+};
+
+/** Transaction types embedded inside a PackageLedger history entry. */
+export enum SessionTransactionType {
+  /** Session returned — appointment cancelled */
+  Cancel = 'CANCEL',
+  /** Sessions granted — package purchased or allocation updated */
+  Credit = 'CREDIT',
+  /** Session consumed — invoice paid via this package */
+  Debit = 'DEBIT'
 }
 
 export enum SessionType {
@@ -5656,6 +5894,10 @@ export type UpdatePackageInput = {
   organization?: InputMaybe<Scalars['ObjectID']['input']>;
   price?: InputMaybe<Scalars['Float']['input']>;
   services?: InputMaybe<Array<InputMaybe<Scalars['ObjectID']['input']>>>;
+  /** Number of sessions included in this package. Null = unlimited. */
+  sessionCount?: InputMaybe<Scalars['Int']['input']>;
+  /** Price per individual session. Set explicitly for multi-user packages. */
+  sessionPrice?: InputMaybe<Scalars['Int']['input']>;
   validity?: InputMaybe<Scalars['Int']['input']>;
 };
 
@@ -5848,6 +6090,7 @@ export type UserSortInput = {
 /** Available user types in the system */
 export enum UserType {
   Admin = 'ADMIN',
+  CenterHead = 'CENTER_HEAD',
   Consultant = 'CONSULTANT',
   External = 'EXTERNAL',
   Patient = 'PATIENT',
@@ -6005,6 +6248,110 @@ export type WaitlistQueueUser = {
   priority: Scalars['Int']['output'];
   /** User (Patient) in the queue */
   user: User;
+};
+
+export type WaiveInvoiceInput = {
+  /** Optional free-text notes explaining the waiver decision */
+  notes?: InputMaybe<Scalars['String']['input']>;
+  /** Reason for waiving the cancellation fee — required */
+  reason: WaiverReason;
+};
+
+/**
+ * Reason a cancellation-fee invoice was waived. Captured at waiver time
+ * and stored permanently on the invoice for audit purposes.
+ */
+export enum WaiverReason {
+  /** Center was at fault (e.g. consultant changed slots) */
+  CenterAtFault = 'CENTER_AT_FAULT',
+  /** First-time offence — goodwill gesture */
+  GoodwillFirstOffence = 'GOODWILL_FIRST_OFFENCE',
+  /** Approved by management for commercial / VIP reasons */
+  ManagementApproval = 'MANAGEMENT_APPROVAL',
+  /** Medical emergency on the patient's side */
+  MedicalEmergency = 'MEDICAL_EMERGENCY',
+  /** Other reason — details in the notes field */
+  Other = 'OTHER',
+  /** Patient was not informed of cancellation policy */
+  PatientNotInformed = 'PATIENT_NOT_INFORMED',
+  /** Technical or system error caused the cancellation */
+  SystemError = 'SYSTEM_ERROR'
+}
+
+/**
+ * First-party web attribution data captured by the website tracking layer.
+ * Populated when a booking originates from www.stance.health or the landing pages.
+ */
+export type WebTrackingData = {
+  __typename?: 'WebTrackingData';
+  /** Stance permanent anonymous visitor ID (per browser) */
+  anonymousId?: Maybe<Scalars['String']['output']>;
+  /** Creative asset ID */
+  assetId?: Maybe<Scalars['String']['output']>;
+  /** Full booking URL including all params at the moment of booking */
+  bookingUrl?: Maybe<Scalars['String']['output']>;
+  /** Meta click ID derived from fbclid (_fbc cookie) */
+  fbc?: Maybe<Scalars['String']['output']>;
+  /** Meta browser ID (_fbp cookie) */
+  fbp?: Maybe<Scalars['String']['output']>;
+  /** GA4 web client ID */
+  gaClientId?: Maybe<Scalars['String']['output']>;
+  /** Google Ads conversion linker */
+  gclAu?: Maybe<Scalars['String']['output']>;
+  /** Google click ID (gclid param) */
+  gclid?: Maybe<Scalars['String']['output']>;
+  /** Landing page path — first page the visitor hit */
+  landingPage?: Maybe<Scalars['String']['output']>;
+  /** Ad placement */
+  placement?: Maybe<Scalars['String']['output']>;
+  /** HTTP referrer at booking time */
+  referrer?: Maybe<Scalars['String']['output']>;
+  /** 30-min session ID */
+  sessionId?: Maybe<Scalars['String']['output']>;
+  /** UTM ad group */
+  utmAdgroup?: Maybe<Scalars['String']['output']>;
+  /** UTM campaign */
+  utmCampaign?: Maybe<Scalars['String']['output']>;
+  /** UTM content */
+  utmContent?: Maybe<Scalars['String']['output']>;
+  /** UTM device */
+  utmDevice?: Maybe<Scalars['String']['output']>;
+  /** UTM keyword match type */
+  utmMatchtype?: Maybe<Scalars['String']['output']>;
+  /** UTM medium */
+  utmMedium?: Maybe<Scalars['String']['output']>;
+  /** UTM network */
+  utmNetwork?: Maybe<Scalars['String']['output']>;
+  /** UTM source */
+  utmSource?: Maybe<Scalars['String']['output']>;
+  /** UTM term */
+  utmTerm?: Maybe<Scalars['String']['output']>;
+  /** Linked WebVisitor document ID */
+  webVisitorId?: Maybe<Scalars['ObjectID']['output']>;
+};
+
+export type WebTrackingInput = {
+  anonymousId?: InputMaybe<Scalars['String']['input']>;
+  assetId?: InputMaybe<Scalars['String']['input']>;
+  bookingUrl?: InputMaybe<Scalars['String']['input']>;
+  fbc?: InputMaybe<Scalars['String']['input']>;
+  fbp?: InputMaybe<Scalars['String']['input']>;
+  gaClientId?: InputMaybe<Scalars['String']['input']>;
+  gclAu?: InputMaybe<Scalars['String']['input']>;
+  gclid?: InputMaybe<Scalars['String']['input']>;
+  landingPage?: InputMaybe<Scalars['String']['input']>;
+  placement?: InputMaybe<Scalars['String']['input']>;
+  referrer?: InputMaybe<Scalars['String']['input']>;
+  sessionId?: InputMaybe<Scalars['String']['input']>;
+  utmAdgroup?: InputMaybe<Scalars['String']['input']>;
+  utmCampaign?: InputMaybe<Scalars['String']['input']>;
+  utmContent?: InputMaybe<Scalars['String']['input']>;
+  utmDevice?: InputMaybe<Scalars['String']['input']>;
+  utmMatchtype?: InputMaybe<Scalars['String']['input']>;
+  utmMedium?: InputMaybe<Scalars['String']['input']>;
+  utmNetwork?: InputMaybe<Scalars['String']['input']>;
+  utmSource?: InputMaybe<Scalars['String']['input']>;
+  utmTerm?: InputMaybe<Scalars['String']['input']>;
 };
 
 export type WebhookResponse = {
