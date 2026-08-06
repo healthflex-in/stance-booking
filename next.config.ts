@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { getShortLinkRewrite } from "./lib/urls";
 
 /**
  * Origin of the Stance API that serves GET /r/:code redirects.
@@ -29,14 +30,14 @@ function getShortLinkApiOrigin(): string {
 const shortLinkApiOrigin = getShortLinkApiOrigin();
 
 const nextConfig: NextConfig = {
-  async rewrites() {
-    return [
+  images: {
+    remotePatterns: [
       {
-        // Public short links: https://book.stance.health/r/:code → API redirect
-        source: "/r/:code",
-        destination: `${shortLinkApiOrigin}/r/:code`,
+        protocol: 'https',
+        hostname: 'api.dicebear.com',
+        pathname: '/**',
       },
-    ];
+    ],
   },
 };
 
