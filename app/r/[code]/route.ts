@@ -9,10 +9,10 @@ export const dynamic = 'force-dynamic';
  */
 export async function GET(
   _request: NextRequest,
-  context: { params: Promise<{ code: string }> | { code: string } },
+  context: { params: Promise<{ code: string }> },
 ) {
-  const params = await Promise.resolve(context.params);
-  const code = params?.code?.trim();
+  const { code: rawCode } = await context.params;
+  const code = rawCode?.trim();
 
   if (!code) {
     return new NextResponse('Short link not found.', { status: 404 });
