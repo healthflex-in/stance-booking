@@ -335,7 +335,7 @@ export const GET_SERVICES = gql`
       _id
       seqNo
       name
-      internalName
+      externalName
       price
       duration
       description
@@ -343,6 +343,8 @@ export const GET_SERVICES = gql`
       allowOnlineDelivery
       isNewUserService
       isPrePaid
+      doneBy
+      tokenAmount
       centers {
         _id
         seqNo
@@ -360,7 +362,7 @@ export const CREATE_SERVICE = gql`
       _id
       seqNo
       name
-      internalName
+      externalName
       price
       duration
       description
@@ -368,6 +370,7 @@ export const CREATE_SERVICE = gql`
       allowOnlineDelivery
       isNewUserService
       isPrePaid
+      doneBy
     }
   }
 `;
@@ -378,7 +381,7 @@ export const UPDATE_SERVICE = gql`
       _id
       seqNo
       name
-      internalName
+      externalName
       price
       duration
       description
@@ -386,6 +389,7 @@ export const UPDATE_SERVICE = gql`
       allowOnlineDelivery
       isNewUserService
       isPrePaid
+      doneBy
     }
   }
 `;
@@ -396,7 +400,7 @@ export const DELETE_SERVICE = gql`
       _id
       seqNo
       name
-      internalName
+      externalName
       price
       duration
       description
@@ -422,7 +426,7 @@ export const GET_PACKAGES = gql`
       _id
       seqNo
       name
-      internalName
+      externalName
       price
       validity
       isMultiUser
@@ -436,7 +440,7 @@ export const GET_PACKAGES = gql`
         isActive
         seqNo
         name
-        internalName
+        externalName
         price
         duration
         description
@@ -462,7 +466,7 @@ export const CREATE_PACKAGE = gql`
       _id
       seqNo
       name
-      internalName
+      externalName
       price
       validity
       isMultiUser
@@ -478,7 +482,7 @@ export const UPDATE_PACKAGE = gql`
       _id
       seqNo
       name
-      internalName
+      externalName
       price
       validity
       isMultiUser
@@ -494,7 +498,7 @@ export const DELETE_PACKAGE = gql`
       _id
       seqNo
       name
-      internalName
+      externalName
       price
       validity
       isMultiUser
@@ -504,7 +508,7 @@ export const DELETE_PACKAGE = gql`
         _id
         seqNo
         name
-        internalName
+        externalName
         price
       }
     }
@@ -573,6 +577,16 @@ export const GET_USER = gql`
               socialLinks
             }
           }
+        }
+        ... on Consultant {
+          firstName
+          lastName
+          bio
+          dob
+          gender
+          profilePicture
+          designation
+          specialization
         }
       }
     }
@@ -986,7 +1000,7 @@ export const GET_APPOINTMENTS = gql`
               isActive
               seqNo
               name
-              internalName
+              externalName
               price
               duration
               description
@@ -1648,7 +1662,7 @@ export const GET_INVOICES = gql`
             _id
             seqNo
             name
-            internalName
+            externalName
             price
             duration
             description
@@ -1903,7 +1917,7 @@ export const UPDATE_APPOINTMENT = gql`
         _id
         seqNo
         name
-        internalName
+        externalName
         price
         duration
         description
@@ -2395,7 +2409,7 @@ export const GET_APPOINTMENT_BY_ID = gql`
 
       treatment {
         name
-        internalName
+        externalName
         description
         price
         duration
@@ -2518,6 +2532,158 @@ export const GET_ORGANIZATION_AVAILABILITY = gql`
         centerId
         centerName
       }
+    }
+  }
+`;
+
+export const CHECK_PATIENT_BY_PHONE = gql`
+  query CheckPatientByPhone($phone: String!, $organizationId: ObjectID!) {
+    checkPatientByPhone(phone: $phone, organizationId: $organizationId) {
+      exists
+      isInDifferentOrg
+      currentOrgId
+      patient {
+        _id
+        phone
+        email
+        profileData {
+          ... on Patient {
+            firstName
+            lastName
+            gender
+            dob
+            status
+          }
+        }
+      }
+    }
+  }
+`;
+
+export const ADD_PATIENT_TO_ORGANIZATION = gql`
+  mutation AddPatientToOrganization(
+    $patientId: ObjectID!
+    $organizationId: ObjectID!
+    $centerIds: [ObjectID!]!
+  ) {
+    addPatientToOrganization(
+      patientId: $patientId
+      organizationId: $organizationId
+      centerIds: $centerIds
+    ) {
+      _id
+      phone
+      profileData {
+        ... on Patient {
+          firstName
+          lastName
+          centers {
+            _id
+            name
+          }
+        }
+      }
+    }
+  }
+`;
+
+export const SEND_EMAIL_OTP = gql`
+  mutation SendEmailOTP($email: String!) {
+    sendEmailOTP(email: $email) {
+      token
+      expiresAt
+      expiresIn
+    }
+  }
+`;
+
+export const VERIFY_EMAIL_OTP = gql`
+  mutation VerifyEmailOTP($input: VerifyEmailOTPInput!) {
+    verifyEmailOTP(input: $input) {
+      user {
+        _id
+        seqNo
+        phone
+        email
+        isActive
+        userType
+        profileData {
+          ... on Patient {
+            firstName
+            lastName
+          }
+        }
+      }
+      token
+      refreshToken
+    }
+  }
+`;
+
+export const GET_TOKENS = gql`
+  query Tokens($centerId: [ObjectID!]) {
+    tokens(centerId: $centerId) {
+      _id
+      seqNo
+      name
+      description
+      tokenAmount
+      validityDays
+      isActive
+      eligibleServices {
+        service {
+          _id
+          name
+          price
+        }
+        serviceAmount
+        balanceAmount
+      }
+      centers {
+        _id
+        name
+      }
+    }
+  }
+`;
+
+export const GET_TOKENS_FOR_SERVICE = gql`
+  query TokensForService($serviceId: ObjectID!) {
+    tokensForService(serviceId: $serviceId) {
+      _id
+      seqNo
+      name
+      description
+      tokenAmount
+      validityDays
+      isActive
+      eligibleServices {
+        service {
+          _id
+          name
+          price
+        }
+        serviceAmount
+        balanceAmount
+      }
+    }
+  }
+`;
+
+export const PURCHASE_TOKEN = gql`
+  mutation PurchaseToken($input: PurchaseTokenInput!) {
+    purchaseToken(input: $input) {
+      advance {
+        _id
+        total
+      }
+      appointment {
+        _id
+        seqNo
+        status
+      }
+      balanceAmount
+      tokenAmount
     }
   }
 `;

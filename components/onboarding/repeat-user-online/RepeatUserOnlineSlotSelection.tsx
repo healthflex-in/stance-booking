@@ -7,12 +7,18 @@ import { useContainerDetection } from '@/hooks/useContainerDetection';
 import { ConsultantSelectionModal } from '../shared';
 import { StanceHealthLoader } from '@/components/loader/StanceHealthLoader';
 
+import { BookingAnalytics } from '@/services/booking-analytics';
+import { isParamFromUrl } from '@/utils/booking-params';
+import { getBookingCookies } from '@/utils/booking-cookies';
+
 interface RepeatUserOnlineSlotSelectionProps {
   organizationId: string;
   serviceDuration: number;
   designation?: string;
+  preSelectedDate?: string;
   onSlotSelect: (consultantId: string, slot: any) => void;
   onBack: () => void;
+  analytics: BookingAnalytics;
 }
 
 interface TimeSlot {
@@ -42,8 +48,10 @@ export default function RepeatUserOnlineSlotSelection({
   organizationId,
   serviceDuration,
   designation,
+  preSelectedDate,
   onSlotSelect,
   onBack,
+  analytics,
 }: RepeatUserOnlineSlotSelectionProps) {
   const { isInDesktopContainer } = useContainerDetection();
   const [selectedConsultant, setSelectedConsultant] = useState<any>(null);
@@ -54,6 +62,7 @@ export default function RepeatUserOnlineSlotSelection({
   const [currentSelectedDate, setCurrentSelectedDate] = useState<Date | null>(null);
   const [dateSlots, setDateSlots] = useState<{ [key: string]: TimeSlot[] }>({});
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [isDateFromParams, setIsDateFromParams] = useState(false);
 
   const startOfDay = React.useMemo(() => {
     if (!currentSelectedDate) return new Date();
@@ -71,23 +80,35 @@ export default function RepeatUserOnlineSlotSelection({
 
   const { consultants: availabilityConsultants, loading: slotsLoading } = useAvailability({
     organizationId,
+    centerId: undefined, // Don't pass centerId for online bookings - use organization-wide availability
     startDate: startOfDay,
     endDate: endOfDay,
     serviceDuration,
     designation,
+    deliveryMode: 'ONLINE',
     enabled: !!currentSelectedDate,
+    isRepeatUser: true,
   });
 
+  // Debug logging
+  React.useEffect(() => {
+    console.log('🔍 RepeatUserOnlineSlotSelection - designation prop:', designation);
+    console.log('🔍 RepeatUserOnlineSlotSelection - availabilityConsultants:', availabilityConsultants);
+  }, [designation, availabilityConsultants]);
+
   const consultants = React.useMemo(() => {
-    return availabilityConsultants.map((ac: any) => ({
+    const mapped = availabilityConsultants.map((ac: any) => ({
       _id: ac.consultantId,
       profileData: {
         firstName: ac.consultantName.split(' ')[0] || '',
         lastName: ac.consultantName.split(' ').slice(1).join(' ') || '',
-        designation: designation || 'Consultant',
+        designation: ac.consultantDesignation || 'Consultant',
       }
     }));
-  }, [availabilityConsultants, designation]);
+    console.log('📋 Total consultants from API:', availabilityConsultants.length);
+    console.log('📋 Mapped consultants:', mapped.length, mapped);
+    return mapped;
+  }, [availabilityConsultants]);
 
   const availableSlots = React.useMemo(() => {
     let filteredConsultants = availabilityConsultants;
@@ -136,13 +157,27 @@ export default function RepeatUserOnlineSlotSelection({
     const initialDates = generateNext14Days();
     setAvailableDates(initialDates);
     
+    // If preSelectedDate is provided, use it; otherwise use first date
+    if (preSelectedDate) {
+      const preSelected = new Date(preSelectedDate);
+      const matchingDate = initialDates.find(d => d.fullDate.toDateString() === preSelected.toDateString());
+      if (matchingDate) {
+        const dateKey = `${matchingDate.day}, ${matchingDate.date} ${matchingDate.month}`;
+        setSelectedDate(dateKey);
+        setCurrentSelectedDate(matchingDate.fullDate);
+        // Only lock if it came from URL params
+        setIsDateFromParams(isParamFromUrl('slotDate'));
+        return;
+      }
+    }
+    
     if (!selectedDate && initialDates.length > 0) {
       const firstDate = initialDates[0];
       const dateKey = `${firstDate.day}, ${firstDate.date} ${firstDate.month}`;
       setSelectedDate(dateKey);
       setCurrentSelectedDate(firstDate.fullDate);
     }
-  }, []);
+  }, [preSelectedDate]);
 
   useEffect(() => {
     if (!currentSelectedDate || slotsLoading) return;
@@ -170,11 +205,15 @@ export default function RepeatUserOnlineSlotSelection({
         });
       } else {
         const existing = slotMap.get(timeKey);
+        // Only add if this consultant is not already in the slot
         if (!existing.consultantIds.includes(slot.consultantId)) {
           existing.consultantIds.push(slot.consultantId);
           if (consultantName) existing.consultantNames.push(consultantName);
-          existing.centerIds.push(slot.centerId);
-          existing.centerNames.push(slot.centerName);
+          // Always add center info even if consultant exists, to maintain proper mapping
+          if (!existing.centerIds.includes(slot.centerId)) {
+            existing.centerIds.push(slot.centerId);
+            existing.centerNames.push(slot.centerName);
+          }
         }
       }
     });
@@ -196,7 +235,9 @@ export default function RepeatUserOnlineSlotSelection({
   }, [currentSelectedDate, availableSlots, slotsLoading, availabilityConsultants]);
 
   const handleDateSelect = (date: DateOption) => {
+    if (isDateFromParams) return;
     const dateKey = `${date.day}, ${date.date} ${date.month}`;
+    analytics.trackDateSelected(dateKey);
     setSelectedDate(dateKey);
     setCurrentSelectedDate(date.fullDate);
     setSelectedTimeSlot(null);
@@ -204,23 +245,62 @@ export default function RepeatUserOnlineSlotSelection({
 
   const handleTimeSlotSelect = (slot: TimeSlot) => {
     if (!slot.isAvailable) return;
+    analytics.trackTimeSlotClicked(slot.displayTime, slot.consultantIds.length);
     setSelectedTimeSlot(slot);
   };
 
   const handleContinue = () => {
     if (selectedTimeSlot) {
-      const randomIndex = Math.floor(Math.random() * selectedTimeSlot.consultantIds.length);
-      const consultantId = selectedConsultant?._id || selectedTimeSlot.consultantIds[randomIndex];
+      // If a specific consultant is selected, find their slot data
+      let consultantId: string;
+      let centerId: string;
+      let centerName: string;
+      
+      if (selectedConsultant) {
+        // Use the selected consultant's ID
+        consultantId = selectedConsultant._id;
+        
+        // Find the index of this consultant in the slot's consultant arrays
+        const consultantIndex = selectedTimeSlot.consultantIds.indexOf(consultantId);
+        
+        if (consultantIndex !== -1) {
+          // Use the matching center for this consultant
+          centerId = selectedTimeSlot.centerIds[consultantIndex];
+          centerName = selectedTimeSlot.centerNames[consultantIndex];
+        } else {
+          // Fallback: use first available
+          centerId = selectedTimeSlot.centerIds[0];
+          centerName = selectedTimeSlot.centerNames[0];
+        }
+      } else {
+        // No specific consultant selected, pick randomly
+        const randomIndex = Math.floor(Math.random() * selectedTimeSlot.consultantIds.length);
+        consultantId = selectedTimeSlot.consultantIds[randomIndex];
+        centerId = selectedTimeSlot.centerIds[randomIndex];
+        centerName = selectedTimeSlot.centerNames[randomIndex];
+      }
+      
       const slotWithCenter = {
         ...selectedTimeSlot,
-        centerId: selectedTimeSlot.centerIds[randomIndex],
-        centerName: selectedTimeSlot.centerNames[randomIndex],
+        centerId,
+        centerName,
       };
+      
+      analytics.trackSlotSelectionContinueClicked(
+        consultantId,
+        selectedTimeSlot.displayTime,
+        centerId
+      );
       onSlotSelect(consultantId, slotWithCenter);
     }
   };
 
   const handleConsultantSelect = (consultant: any | null) => {
+    if (consultant) {
+      analytics.trackConsultantFilterApplied(consultant._id, `${consultant.profileData?.firstName || ''} ${consultant.profileData?.lastName || ''}`.trim());
+    } else {
+      analytics.trackConsultantFilterCleared();
+    }
     setSelectedConsultant(consultant);
     setShowConsultantModal(false);
   };
@@ -245,7 +325,7 @@ export default function RepeatUserOnlineSlotSelection({
                       <>
                         <p className="text-sm font-bold text-gray-900">
                           {selectedConsultant.profileData?.firstName || selectedConsultant.profileData?.lastName ? (
-                            <>Dr. {selectedConsultant.profileData?.firstName || ''} {selectedConsultant.profileData?.lastName || ''}</>
+                            <>{selectedConsultant.profileData?.firstName || ''} {selectedConsultant.profileData?.lastName || ''}</>
                           ) : (
                             <>Consultant</>
                           )}
@@ -263,7 +343,10 @@ export default function RepeatUserOnlineSlotSelection({
                   </div>
                 </div>
                 <button
-                  onClick={() => setShowConsultantModal(true)}
+                  onClick={() => {
+                    analytics.trackConsultantModalOpened();
+                    setShowConsultantModal(true);
+                  }}
                   className="p-2 hover:bg-gray-50 rounded-lg transition-colors"
                 >
                   <ChevronRight className="w-5 h-5" style={{ color: '#203A37' }} />
@@ -276,17 +359,20 @@ export default function RepeatUserOnlineSlotSelection({
 
           <div className="mb-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Visit details</h3>
+            {isDateFromParams && (
+              <p className="text-sm text-gray-600 mb-3">Pre-selected date</p>
+            )}
 
             <div className="mb-4">
               <div
                 ref={scrollContainerRef}
                 className="flex overflow-x-auto space-x-3 pb-2"
-                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', opacity: isDateFromParams ? 0.7 : 1 }}
               >
                 {availableDates.map((dateOption) => {
                   const dateKey = `${dateOption.day}, ${dateOption.date} ${dateOption.month}`;
                   const isCurrentDate = selectedDate === dateKey;
-                  const isDisabled = Boolean(slotsLoading && !isCurrentDate);
+                  const isDisabled = Boolean((slotsLoading && !isCurrentDate) || isDateFromParams);
                   
                   return (
                     <button
@@ -353,18 +439,11 @@ export default function RepeatUserOnlineSlotSelection({
                           }}
                         >
                           <div className="text-sm font-semibold">{slot.displayTime}</div>
-                          {process.env.NEXT_PUBLIC_ENVIRONMENT === 'development' && (
+                          {slot.consultantNames && slot.consultantNames.length > 0 && (
                             <div className="text-xs text-gray-500 mt-1">
-                              {slot.consultantNames && slot.consultantNames.length > 0 
-                                ? slot.consultantNames.filter(n => n).join(', ') || `${slot.consultantNames.length} consultants`
-                                : 'No consultant'}
-                            </div>
-                          )}
-                          {process.env.NEXT_PUBLIC_ENVIRONMENT === 'development' && (
-                            <div className="text-xs text-gray-400 mt-1">
-                              {slot.centerNames && slot.centerNames.length > 0
-                                ? slot.centerNames.filter(n => n).join(', ')
-                                : 'No center'}
+                              {slot.consultantNames.length === 1
+                                ? slot.consultantNames[0]
+                                : `${slot.consultantNames.length} consultants`}
                             </div>
                           )}
                         </button>
@@ -398,7 +477,10 @@ export default function RepeatUserOnlineSlotSelection({
 
       <ConsultantSelectionModal
         isOpen={showConsultantModal}
-        onClose={() => setShowConsultantModal(false)}
+        onClose={() => {
+          analytics.trackConsultantModalClosed();
+          setShowConsultantModal(false);
+        }}
         consultants={consultants}
         sessionType="online"
         organizationId={organizationId}

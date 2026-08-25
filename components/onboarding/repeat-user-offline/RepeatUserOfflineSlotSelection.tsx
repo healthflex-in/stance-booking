@@ -1,20 +1,22 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { useQuery } from '@apollo/client';
 import { Clock, UserCircle, ChevronRight } from 'lucide-react';
-import { GET_CONSULTANTS } from '@/gql/queries';
 import { useCenterAvailability } from '@/hooks';
 import { useContainerDetection } from '@/hooks/useContainerDetection';
 import { ConsultantSelectionModal } from '../shared';
 import { StanceHealthLoader } from '@/components/loader/StanceHealthLoader';
+import { BookingAnalytics } from '@/services/booking-analytics';
+import { isParamFromUrl } from '@/utils/booking-params';
 
 interface RepeatUserOfflineSlotSelectionProps {
   centerId: string;
   serviceDuration: number;
   designation?: string;
+  preSelectedDate?: string;
   onSlotSelect: (consultantId: string, slot: any) => void;
   onBack?: () => void;
+  analytics?: BookingAnalytics;
 }
 
 interface TimeSlot {
@@ -43,8 +45,10 @@ export default function RepeatUserOfflineSlotSelection({
   centerId,
   serviceDuration,
   designation,
+  preSelectedDate,
   onSlotSelect,
   onBack = () => {},
+  analytics,
 }: RepeatUserOfflineSlotSelectionProps) {
   const { isInDesktopContainer } = useContainerDetection();
   const [selectedConsultant, setSelectedConsultant] = useState<any>(null);
@@ -55,19 +59,7 @@ export default function RepeatUserOfflineSlotSelection({
   const [currentSelectedDate, setCurrentSelectedDate] = useState<Date | null>(null);
   const [dateSlots, setDateSlots] = useState<{ [key: string]: TimeSlot[] }>({});
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-
-  const { data: consultantsData, loading: consultantsLoading } = useQuery(GET_CONSULTANTS, {
-    variables: {
-      userType: 'CONSULTANT',
-      centerId: [centerId],
-    },
-    fetchPolicy: 'network-only',
-  });
-
-  const allConsultants = React.useMemo(() => {
-    if (!consultantsData?.users?.data) return [];
-    return consultantsData.users.data;
-  }, [consultantsData]);
+  const [isDateFromParams, setIsDateFromParams] = useState(false);
 
   const startOfDay = React.useMemo(() => {
     if (!currentSelectedDate) return new Date();
@@ -83,40 +75,46 @@ export default function RepeatUserOfflineSlotSelection({
     return end;
   }, [currentSelectedDate]);
 
+  // Convert frontend designation to backend enum
+  const backendDesignation = React.useMemo(() => {
+    if (!designation) return undefined;
+    // Map frontend display names to backend enum values
+    const designationMap: Record<string, string> = {
+      'S&C Coach': 'SNC_Coach',
+      'Orthopaedic Doctor': 'Orthopaedic_Doctor',
+      'Sports Massage Therapist': 'Sports_Massage_Therapist',
+      'Physiotherapist': 'Physiotherapist',
+    };
+    return designationMap[designation] || designation;
+  }, [designation]);
+
   const { consultants: availabilityConsultants, loading: slotsLoading } = useCenterAvailability({
     centerId,
     startDate: startOfDay,
     endDate: endOfDay,
     serviceDuration,
     consultantId: selectedConsultant?._id,
-    designation,
+    designation: backendDesignation,
     enabled: !!currentSelectedDate,
+    isRepeatUser: true,
   });
 
+  // Build consultant list from availability API (single source of truth)
   const consultants = React.useMemo(() => {
-    if (!consultantsData?.users?.data) return [];
-    return consultantsData.users.data.filter((consultant: any) => {
-      const matchesBooking = consultant.profileData?.allowOnlineBooking === true &&
-        (consultant.profileData?.allowOnlineDelivery === 'OFFLINE' ||
-         consultant.profileData?.allowOnlineDelivery === 'BOTH');
-      if (!matchesBooking) return false;
-      
-      if (designation && consultant.profileData?.designation !== designation) return false;
-      
-      const hasAvailableSlots = availabilityConsultants.some((ac: any) => ac.consultantId === consultant._id);
-      return hasAvailableSlots;
-    });
-  }, [consultantsData, designation, availabilityConsultants]);
+    return availabilityConsultants.map(ac => ({
+      _id: ac.consultantId,
+      profileData: {
+        firstName: ac.consultantName.split(' ')[0] || '',
+        lastName: ac.consultantName.split(' ').slice(1).join(' ') || '',
+        designation: 'Physiotherapist',
+        allowOnlineBooking: true,
+        allowOnlineDelivery: 'OFFLINE',
+      }
+    }));
+  }, [availabilityConsultants]);
 
   const availableSlots = React.useMemo(() => {
     let filteredConsultants = availabilityConsultants;
-    
-    if (designation) {
-      filteredConsultants = filteredConsultants.filter(ac => {
-        const consultant = allConsultants.find((c: any) => c._id === ac.consultantId);
-        return consultant && consultant.profileData?.designation === designation;
-      });
-    }
     
     if (selectedConsultant) {
       filteredConsultants = filteredConsultants.filter(c => c.consultantId === selectedConsultant._id);
@@ -127,10 +125,11 @@ export default function RepeatUserOfflineSlotSelection({
         startTime: new Date(slot.startTime * 1000),
         endTime: new Date(slot.endTime * 1000),
         consultantId: consultant.consultantId,
+        consultantName: consultant.consultantName,
         centerName: slot.centerName,
       }))
     );
-  }, [availabilityConsultants, selectedConsultant, designation, allConsultants]);
+  }, [availabilityConsultants, selectedConsultant]);
 
   const generateNext14Days = (): DateOption[] => {
     const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -161,13 +160,27 @@ export default function RepeatUserOfflineSlotSelection({
     const initialDates = generateNext14Days();
     setAvailableDates(initialDates);
     
+    // If preSelectedDate is provided, use it; otherwise use first date
+    if (preSelectedDate) {
+      const preSelected = new Date(preSelectedDate);
+      const matchingDate = initialDates.find(d => d.fullDate.toDateString() === preSelected.toDateString());
+      if (matchingDate) {
+        const dateKey = `${matchingDate.day}, ${matchingDate.date} ${matchingDate.month}`;
+        setSelectedDate(dateKey);
+        setCurrentSelectedDate(matchingDate.fullDate);
+        // Only lock if it came from URL params
+        setIsDateFromParams(isParamFromUrl('slotDate'));
+        return;
+      }
+    }
+    
     if (!selectedDate && initialDates.length > 0) {
       const firstDate = initialDates[0];
       const dateKey = `${firstDate.day}, ${firstDate.date} ${firstDate.month}`;
       setSelectedDate(dateKey);
       setCurrentSelectedDate(firstDate.fullDate);
     }
-  }, []);
+  }, [preSelectedDate]);
 
   useEffect(() => {
     if (!currentSelectedDate || slotsLoading) return;
@@ -177,12 +190,9 @@ export default function RepeatUserOfflineSlotSelection({
     const slotMap = new Map();
     availableSlots.forEach(slot => {
       if (!slot.consultantId) return;
-      const consultant = consultants.find((c: any) => c._id === slot.consultantId);
-      if (!consultant) return;
-      if (designation && consultant.profileData?.designation !== designation) return;
       
+      const consultantName = slot.consultantName || slot.consultantId;
       const timeKey = new Date(slot.startTime).toISOString();
-      const consultantName = `${consultant.profileData?.firstName || ''} ${consultant.profileData?.lastName || ''}`.trim();
       
       if (!slotMap.has(timeKey)) {
         slotMap.set(timeKey, {
@@ -219,10 +229,12 @@ export default function RepeatUserOfflineSlotSelection({
         return date;
       })
     );
-  }, [currentSelectedDate, availableSlots, slotsLoading, consultants]);
+  }, [currentSelectedDate, availableSlots, slotsLoading]);
 
   const handleDateSelect = (date: DateOption) => {
+    if (isDateFromParams) return;
     const dateKey = `${date.day}, ${date.date} ${date.month}`;
+    analytics?.trackDateSelected(dateKey);
     setSelectedDate(dateKey);
     setCurrentSelectedDate(date.fullDate);
     setSelectedTimeSlot(null);
@@ -230,6 +242,7 @@ export default function RepeatUserOfflineSlotSelection({
 
   const handleTimeSlotSelect = (slot: TimeSlot) => {
     if (!slot.isAvailable) return;
+    analytics?.trackTimeSlotClicked(slot.displayTime, slot.consultantIds.length);
     setSelectedTimeSlot(slot);
   };
 
@@ -237,11 +250,20 @@ export default function RepeatUserOfflineSlotSelection({
     if (selectedTimeSlot) {
       const randomIndex = Math.floor(Math.random() * selectedTimeSlot.consultantIds.length);
       const consultantId = selectedConsultant?._id || selectedTimeSlot.consultantIds[randomIndex];
+      analytics?.trackSlotSelectionContinueClicked(consultantId, selectedTimeSlot.displayTime, centerId);
       onSlotSelect(consultantId, selectedTimeSlot);
     }
   };
 
   const handleConsultantSelect = (consultant: any | null) => {
+    if (consultant) {
+      const consultantName = consultant.profileData?.firstName || consultant.profileData?.lastName 
+        ? `${consultant.profileData?.firstName || ''} ${consultant.profileData?.lastName || ''}`.trim()
+        : 'Consultant';
+      analytics?.trackConsultantFilterApplied(consultant._id, consultantName);
+    } else {
+      analytics?.trackConsultantFilterCleared();
+    }
     setSelectedConsultant(consultant);
     setShowConsultantModal(false);
   };
@@ -266,7 +288,7 @@ export default function RepeatUserOfflineSlotSelection({
                       <>
                         <p className="text-sm font-bold text-gray-900">
                           {selectedConsultant.profileData?.firstName || selectedConsultant.profileData?.lastName ? (
-                            <>Dr. {selectedConsultant.profileData?.firstName || ''} {selectedConsultant.profileData?.lastName || ''}</>
+                            <>{selectedConsultant.profileData?.firstName || ''} {selectedConsultant.profileData?.lastName || ''}</>
                           ) : (
                             <>Consultant</>
                           )}
@@ -284,7 +306,7 @@ export default function RepeatUserOfflineSlotSelection({
                   </div>
                 </div>
                 <button
-                  onClick={() => setShowConsultantModal(true)}
+                  onClick={() => { analytics?.trackConsultantModalOpened(); setShowConsultantModal(true); }}
                   className="p-2 hover:bg-gray-50 rounded-lg transition-colors"
                 >
                   <ChevronRight className="w-5 h-5" style={{ color: '#203A37' }} />
@@ -297,17 +319,20 @@ export default function RepeatUserOfflineSlotSelection({
 
           <div className="mb-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Visit details</h3>
+            {isDateFromParams && (
+              <p className="text-sm text-gray-600 mb-3">Pre-selected date</p>
+            )}
 
             <div className="mb-4">
               <div
                 ref={scrollContainerRef}
                 className="flex overflow-x-auto space-x-3 pb-2"
-                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', opacity: isDateFromParams ? 0.7 : 1 }}
               >
                 {availableDates.map((dateOption) => {
                   const dateKey = `${dateOption.day}, ${dateOption.date} ${dateOption.month}`;
                   const isCurrentDate = selectedDate === dateKey;
-                  const isDisabled = Boolean(slotsLoading && !isCurrentDate);
+                  const isDisabled = Boolean((slotsLoading && !isCurrentDate) || isDateFromParams);
                   
                   return (
                     <button
@@ -374,15 +399,12 @@ export default function RepeatUserOfflineSlotSelection({
                           }}
                         >
                           <div className="text-sm font-semibold">{slot.displayTime}</div>
-                          {process.env.NEXT_PUBLIC_ENVIRONMENT === 'development' && (
+                          {process.env.NODE_ENV !== 'production' && slot.consultantNames && slot.consultantNames.length > 0 && (
                             <div className="text-xs text-gray-500 mt-1">
-                              {slot.consultantNames && slot.consultantNames.length > 0 
-                                ? slot.consultantNames.filter(n => n).join(', ') || `${slot.consultantNames.length} consultants`
-                                : 'No consultant'}
+                              {slot.consultantNames.length === 1
+                                ? slot.consultantNames[0]
+                                : `${slot.consultantNames.length} consultants`}
                             </div>
-                          )}
-                          {process.env.NEXT_PUBLIC_ENVIRONMENT === 'development' && (
-                            <div className="text-xs text-gray-400 mt-1">{slot.centerName || 'No center'}</div>
                           )}
                         </button>
                       );

@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import RazorpayScriptLoader from '@/components/loader/RazorpayScriptLoader';
 import RazorpayLoader from '@/components/loader/RazorLoader';
 import MobileLoadingScreen from '../shared/MobileLoadingScreen';
+import { bookingStorage } from '@/utils/booking-storage';
 
 interface NewUserOnlinePaymentProcessingProps {
   amount: number;
@@ -164,7 +165,7 @@ export default function NewUserOnlinePaymentProcessing({
       };
 
       if (paymentType === 'invoice') {
-        const appointmentId = sessionStorage.getItem('appointmentId');
+        const appointmentId = bookingStorage.getItem('appointmentId');
         
         if (!appointmentId) {
           throw new Error('Appointment ID not found');

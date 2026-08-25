@@ -6,6 +6,8 @@ import { toast } from 'sonner';
 import RazorpayScriptLoader from '@/components/loader/RazorpayScriptLoader';
 import RazorpayLoader from '@/components/loader/RazorLoader';
 import MobileLoadingScreen from '../shared/MobileLoadingScreen';
+import { bookingStorage } from '@/utils/booking-storage';
+import { getTokenPackageIdByServiceAndCenter, getTokenPackageIdByServiceId, getTokenPackageIdByCenterId } from '@/utils/booking-config';
 
 interface NewUserOfflinePaymentProcessingProps {
   amount: number;
@@ -15,6 +17,7 @@ interface NewUserOfflinePaymentProcessingProps {
   centerId: string;
   consultantId: string;
   treatmentId: string;
+  tokensData?: any;
   onPaymentSuccess: (paymentId: string, invoiceId?: string) => void;
   onPaymentFailure: (error: any) => void;
 }
@@ -82,6 +85,7 @@ export default function NewUserOfflinePaymentProcessing({
   centerId,
   consultantId,
   treatmentId,
+  tokensData,
   onPaymentSuccess,
   onPaymentFailure,
 }: NewUserOfflinePaymentProcessingProps) {
@@ -194,23 +198,28 @@ export default function NewUserOfflinePaymentProcessing({
       };
 
       if (paymentType === 'invoice') {
-        const appointmentId = sessionStorage.getItem('appointmentId');
+        const appointmentId = bookingStorage.getItem('appointmentId');
         if (!appointmentId) {
           throw new Error('Appointment ID not found');
         }
         orderInput.appointment = appointmentId;
       } else {
-        const center = centersData?.centers?.find((c: any) => c._id === centerId);
-        const centerName = center?.name?.toLowerCase() || '';
+        // For token payment, use the selected token amount
+        const storedTokenAmount = bookingStorage.getItem('selectedTokenAmount');
+        const storedServiceId = bookingStorage.getItem('selectedServiceId');
         
-        const getPackageId = (name: string) => {
-          if (name.includes('indiranagar')) return process.env.NEXT_PUBLIC_INDIRANAGAR_PACKAGE_ID || '68d64545bd448a9f282aa3b3';
-          if (name.includes('whitefield')) return process.env.NEXT_PUBLIC_WHITEFIELD_PACKAGE_ID || '68da370d862df251a77c3b0c';
-          if (name.includes('hsr')) return process.env.NEXT_PUBLIC_HSR_PACKAGE_ID || '68da3760862df251a77c3b2e';
-          return process.env.NEXT_PUBLIC_INDIRANAGAR_PACKAGE_ID || '68d64545bd448a9f282aa3b3';
-        };
-        
-        orderInput.packageId = getPackageId(centerName);
+        if (storedTokenAmount) {
+          console.log('✅ Using stored token amount:', storedTokenAmount);
+          orderInput.tokenAmount = parseFloat(storedTokenAmount);
+          
+          if (storedServiceId) {
+            console.log('✅ Using stored service ID:', storedServiceId);
+            orderInput.serviceId = storedServiceId;
+          }
+        } else {
+          console.error('❌ No token amount found');
+          throw new Error('Token amount not found');
+        }
       }
 
       const { data } = await createOrderMutation({ variables: { input: orderInput } });
@@ -259,8 +268,7 @@ export default function NewUserOfflinePaymentProcessing({
             } catch (updateError: any) {
               console.error('⚠️ Failed to update patient center:', updateError);
             }
-            
-            // Get the order to retrieve invoice ID
+                        // Get the order to retrieve invoice ID (if it exists)
             const { data } = await updateOrderMutation({ 
               variables: { orderId: orderData.orderDbId },
               fetchPolicy: 'network-only'

@@ -3,28 +3,37 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@apollo/client';
 import { MapPin, ChevronRight } from 'lucide-react';
-import { GET_CENTERS, GET_USER } from '@/gql/queries';
+import { GET_CENTERS, GET_USER, GET_SERVICES } from '@/gql/queries';
 import { useContainerDetection } from '@/hooks/useContainerDetection';
 import { PrimaryButton } from '@/components/ui-atoms';
 import { LocationSelectionModal, ServiceSelectionModal } from '@/components/onboarding/shared';
+import { BookingAnalytics } from '@/services/booking-analytics';
+import { isParamFromUrl } from '@/utils/booking-params';
 
 interface RepeatUserOfflineSessionDetailsProps {
   patientId: string;
   centerId: string;
+  serviceId?: string;
   onBack: () => void;
   onContinue: (data: { centerId: string; serviceId: string; serviceDuration: number; servicePrice: number; designation: string }) => void;
+  analytics?: BookingAnalytics;
 }
 
 export default function RepeatUserOfflineSessionDetails({
   patientId,
   centerId,
+  serviceId,
   onBack,
   onContinue,
+  analytics,
 }: RepeatUserOfflineSessionDetailsProps) {
   const { isInDesktopContainer } = useContainerDetection();
   const [selectedCenter, setSelectedCenter] = useState<any>(null);
   const [selectedService, setSelectedService] = useState<any>(null);
   const [selectedDesignation, setSelectedDesignation] = useState<string>('Physiotherapist');
+  const [isCenterFromParams, setIsCenterFromParams] = useState(false);
+  const [isServiceFromParams, setIsServiceFromParams] = useState(false);
+  const [isConsultantTypeFromParams, setIsConsultantTypeFromParams] = useState(false);
 
   // Modal states
   const [showLocationModal, setShowLocationModal] = useState(false);
@@ -36,12 +45,18 @@ export default function RepeatUserOfflineSessionDetails({
   });
 
   // Fetch patient data for welcome message
-  const { data: patientData } = useQuery(GET_USER, {
+  const { data: patientData, loading: patientLoading } = useQuery(GET_USER, {
     variables: {
       userId: patientId,
     },
     skip: !patientId,
     fetchPolicy: 'cache-first',
+  });
+
+  const { data: servicesData } = useQuery(GET_SERVICES, {
+    variables: { centerId: centerId ? [centerId] : [] },
+    skip: !centerId,
+    fetchPolicy: 'network-only',
   });
 
   const patient = patientData?.user;
@@ -59,6 +74,37 @@ export default function RepeatUserOfflineSessionDetails({
     });
   }, [centersData]);
 
+  // Set center from prop only if it passes the isOnline filter
+  useEffect(() => {
+    if (centerId && filteredCenters.length > 0 && !selectedCenter) {
+      const center = filteredCenters.find((c: any) => c._id === centerId);
+      if (center) {
+        setSelectedCenter(center);
+        setIsCenterFromParams(isParamFromUrl('centerId'));
+      }
+    }
+  }, [centerId, filteredCenters, selectedCenter]);
+
+  useEffect(() => {
+    if (serviceId && servicesData?.services && !selectedService) {
+      const service = servicesData.services.find((s: any) => s._id === serviceId);
+      if (service) {
+        setSelectedService(service);
+        setIsServiceFromParams(isParamFromUrl('serviceId'));
+      }
+    }
+  }, [serviceId, servicesData, selectedService]);
+
+  // Set consultant type from sessionStorage
+  useEffect(() => {
+    const storedConsultantType = sessionStorage.getItem('consultantType');
+    if (storedConsultantType && (storedConsultantType === 'Physiotherapist' || storedConsultantType === 'S&C Coach')) {
+      setSelectedDesignation(storedConsultantType);
+      // Only lock if it came from URL params
+      setIsConsultantTypeFromParams(isParamFromUrl('consultantType'));
+    }
+  }, []);
+
 
 
   // Reset service when center changes
@@ -66,19 +112,46 @@ export default function RepeatUserOfflineSessionDetails({
     setSelectedService(null);
   }, [selectedCenter]);
 
+  // Reset service when designation changes — a Physio service is not valid for S&C Coach and vice versa
+  useEffect(() => {
+    setSelectedService(null);
+  }, [selectedDesignation]);
+
   const handleContinue = () => {
     if (!selectedService || !selectedCenter) return;
+
+    const backendDesignation = selectedDesignation === 'S&C Coach' ? 'SNC_Coach' : selectedDesignation;
+
+    analytics?.trackSessionDetailsContinueClicked(selectedService._id, backendDesignation);
 
     onContinue({
       centerId: selectedCenter._id,
       serviceId: selectedService._id,
       serviceDuration: selectedService.duration,
       servicePrice: selectedService.bookingAmount || selectedService.price || 0,
-      designation: selectedDesignation,
+      designation: backendDesignation,
     });
   };
 
   const canProceed = selectedService && selectedCenter;
+
+  // Wait for patient + centers before rendering so the welcome message and
+  // location card don't render empty and then flash with data.
+  const isInitialLoading =
+    (patientId && (patientLoading || !patientData?.user)) || centersLoading;
+
+  if (isInitialLoading) {
+    return (
+      <div
+        className={`${isInDesktopContainer ? 'h-full' : 'min-h-screen'} bg-gray-50 flex items-center justify-center`}
+      >
+        <div className="flex flex-col items-center gap-3">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-900" />
+          <p className="text-sm text-gray-500">Loading your details…</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`${isInDesktopContainer ? 'h-full' : 'min-h-screen'} bg-gray-50 flex flex-col`}>
@@ -101,13 +174,14 @@ export default function RepeatUserOfflineSessionDetails({
               Location
             </h2>
             <p className="text-gray-600 text-sm mb-4">
-              Select your preferred location
+              {isCenterFromParams ? 'Pre-selected location' : 'Select your preferred location'}
             </p>
             <button
-              onClick={() => setShowLocationModal(true)}
+              onClick={() => { if (!isCenterFromParams) setShowLocationModal(true); }}
+              disabled={isCenterFromParams}
               className="w-full"
             >
-              <div className="bg-white rounded-2xl p-4 border-2 transition-all" style={{ borderColor: selectedCenter ? '#DDFE71' : '#e5e7eb' }}>
+              <div className="bg-white rounded-2xl p-4 border-2 transition-all" style={{ borderColor: selectedCenter ? '#DDFE71' : '#e5e7eb', opacity: isCenterFromParams ? 0.7 : 1, cursor: isCenterFromParams ? 'not-allowed' : 'pointer' }}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
                     <div className="w-10 h-10 bg-green-50 rounded-xl flex items-center justify-center">
@@ -136,17 +210,18 @@ export default function RepeatUserOfflineSessionDetails({
               Consultant Type
             </h2>
             <p className="text-gray-600 text-sm mb-4">
-              Select the type of consultant you need
+              {isConsultantTypeFromParams ? 'Pre-selected consultant type' : 'Select the type of consultant you need'}
             </p>
-            <div className="bg-white rounded-xl p-1 border border-gray-200 flex">
+            <div className="bg-white rounded-xl p-1 border border-gray-200 flex" style={{ opacity: isConsultantTypeFromParams ? 0.7 : 1 }}>
               <button
                 type="button"
-                onClick={() => setSelectedDesignation('Physiotherapist')}
+                onClick={() => { if (!isConsultantTypeFromParams) { analytics?.trackDesignationToggled('Physiotherapist'); setSelectedDesignation('Physiotherapist'); } }}
+                disabled={isConsultantTypeFromParams}
                 className={`flex-1 py-2 px-3 rounded-lg font-medium text-xs transition-all ${
                   selectedDesignation === 'Physiotherapist'
                     ? 'text-black shadow-sm'
                     : 'text-gray-600 hover:text-gray-900'
-                }`}
+                } ${isConsultantTypeFromParams ? 'cursor-not-allowed' : ''}`}
                 style={{
                   backgroundColor: selectedDesignation === 'Physiotherapist' ? '#DDFE71' : 'transparent'
                 }}
@@ -155,12 +230,13 @@ export default function RepeatUserOfflineSessionDetails({
               </button>
               <button
                 type="button"
-                onClick={() => setSelectedDesignation('S&C Coach')}
+                onClick={() => { if (!isConsultantTypeFromParams) { analytics?.trackDesignationToggled('S&C Coach'); setSelectedDesignation('S&C Coach'); } }}
+                disabled={isConsultantTypeFromParams}
                 className={`flex-1 py-2 px-3 rounded-lg font-medium text-xs transition-all ${
                   selectedDesignation === 'S&C Coach'
                     ? 'text-black shadow-sm'
                     : 'text-gray-600 hover:text-gray-900'
-                }`}
+                } ${isConsultantTypeFromParams ? 'cursor-not-allowed' : ''}`}
                 style={{
                   backgroundColor: selectedDesignation === 'S&C Coach' ? '#DDFE71' : 'transparent'
                 }}
@@ -176,27 +252,23 @@ export default function RepeatUserOfflineSessionDetails({
               Service
             </h2>
             <p className="text-gray-600 text-sm mb-4">
-              Choose the service you need
+              {isServiceFromParams ? 'Pre-selected service' : 'Choose the service you need'}
             </p>
             <button
               onClick={() => {
-                if (selectedCenter) {
+                if (selectedCenter && !isServiceFromParams) {
+                  analytics?.trackServiceModalOpened();
                   setShowServiceModal(true);
                 }
               }}
-              disabled={!selectedCenter}
+              disabled={!selectedCenter || isServiceFromParams}
               className="w-full"
             >
-              <div className="bg-white rounded-2xl p-4 border-2 transition-all" style={{ borderColor: selectedService ? '#DDFE71' : '#e5e7eb', opacity: !selectedCenter ? 0.5 : 1, cursor: !selectedCenter ? 'not-allowed' : 'pointer' }}>
+              <div className="bg-white rounded-2xl p-4 border-2 transition-all" style={{ borderColor: selectedService ? '#DDFE71' : '#e5e7eb', opacity: !selectedCenter || isServiceFromParams ? 0.7 : 1, cursor: !selectedCenter || isServiceFromParams ? 'not-allowed' : 'pointer' }}>
                 <div className="flex items-center justify-between">
                   <div className="flex-1 text-left">
                     {selectedService ? (
-                      <>
-                        <h3 className="font-semibold text-gray-900">{selectedService.name}</h3>
-                        <p className="text-sm text-gray-500">
-                          {selectedService.duration} minutes • ₹{selectedService.bookingAmount || selectedService.price || 0}
-                        </p>
-                      </>
+                      <h3 className="font-semibold text-gray-900">{selectedService.externalName}</h3>
                     ) : (
                       <>
                         <h3 className="font-semibold text-gray-900">Select a service</h3>
@@ -234,6 +306,7 @@ export default function RepeatUserOfflineSessionDetails({
         centers={filteredCenters}
         sessionType="in-person"
         onSelect={(center) => {
+          analytics?.trackEvent('center_selected', { centerId: center._id, centerName: center.name });
           setSelectedCenter(center);
           setShowLocationModal(false);
         }}
@@ -247,7 +320,9 @@ export default function RepeatUserOfflineSessionDetails({
         isNewUser={false}
         sessionType="in-person"
         designation={selectedDesignation}
+        preSelectedServiceId={sessionStorage.getItem('serviceId') || undefined}
         onSelect={(service) => {
+          analytics?.trackServiceSelected(service._id, service.name, service.bookingAmount || service.price || 0, service.duration);
           setSelectedService(service);
           setShowServiceModal(false);
         }}

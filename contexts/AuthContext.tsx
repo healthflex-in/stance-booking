@@ -44,7 +44,17 @@ export type AuthContextType = {
 /**
  * route patterns
  */
-const publicRoutes = ['/', '/login', '/signup', '/about', '/onboarding-patient', '/book', '/book-prepaid'];
+const publicRoutes = [
+  '/', 
+  '/login', 
+  '/signup', 
+  '/about', 
+  '/onboarding-patient', 
+  '/book', 
+  '/book-prepaid',
+  // All organization booking routes are public (e.g., /stance-health, /org-name, etc.)
+  // They follow the pattern /[orgSlug]
+];
 const protectedRoutes = [
   '/dashboard',
   '/select-center',
@@ -197,9 +207,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     );
     
     // Check if current path is a public route
-    const isPublicRoute = publicRoutes.some((route) =>
-      pathname.startsWith(route)
-    );
+    // All routes are public by default except protected routes (booking-first approach)
+    const isPublicRoute = !isProtectedRoute;
 
     // Only redirect if trying to access protected routes without auth
     if (!isAuthenticated && isProtectedRoute) {

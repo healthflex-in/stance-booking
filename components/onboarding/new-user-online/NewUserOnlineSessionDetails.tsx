@@ -8,37 +8,45 @@ import { useContainerDetection } from '@/hooks/useContainerDetection';
 import { PrimaryButton } from '@/components/ui-atoms';
 import { StanceHealthLoader } from '@/components/loader/StanceHealthLoader';
 
+import { BookingAnalytics } from '@/services/booking-analytics';
+import { getBookingCookies } from '@/utils/booking-cookies';
+
 interface NewUserOnlineSessionDetailsProps {
   patientId: string;
   onBack: () => void;
   onContinue: (data: { serviceId: string; serviceDuration: number; servicePrice: number }) => void;
+  analytics: BookingAnalytics;
 }
 
 export default function NewUserOnlineSessionDetails({
   patientId,
   onBack,
   onContinue,
+  analytics,
 }: NewUserOnlineSessionDetailsProps) {
   const { isInDesktopContainer } = useContainerDetection();
+  const centerId = getBookingCookies().centerId;
   const [selectedService, setSelectedService] = useState<any>(null);
 
   const { data: servicesData, loading: servicesLoading } = useQuery(GET_SERVICES, {
-    variables: { centerId: null },
+    variables: { centerId: centerId ? [centerId] : null },
     fetchPolicy: 'network-only',
   });
 
   const onlineServices = React.useMemo(() => {
     if (!servicesData?.services) return [];
-    return servicesData.services.filter((service: any) => 
-      service.allowOnlineBooking === true && 
+    return servicesData.services.filter((service: any) =>
+      service.allowOnlineBooking === true &&
       service.isNewUserService === true &&
       service.allowOnlineDelivery === true &&
-      service.isPrePaid === false
+      service.isPrePaid === false &&
+      (!service.doneBy || service.doneBy.length === 0 || service.doneBy.includes('Physiotherapist'))
     );
   }, [servicesData]);
 
   const handleContinue = () => {
     if (!selectedService) return;
+    analytics.trackSessionDetailsContinueClicked(selectedService._id, 'Physiotherapist');
     onContinue({
       serviceId: selectedService._id,
       serviceDuration: selectedService.duration,
@@ -78,19 +86,16 @@ export default function NewUserOnlineSessionDetails({
                 {onlineServices.map((service: any) => (
                 <button
                   key={service._id}
-                  onClick={() => setSelectedService(service)}
+                  onClick={() => {
+                    analytics.trackServiceSelected(service._id, service.name, service.bookingAmount || service.price || 0, service.duration);
+                    setSelectedService(service);
+                  }}
                   className="w-full bg-white rounded-2xl p-4 border-2 transition-all text-left"
                   style={{ borderColor: selectedService?._id === service._id ? '#DDFE71' : '#e5e7eb' }}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex-1">
-                      <h3 className="font-semibold text-gray-900">{service.name}</h3>
-                      <p className="text-sm text-gray-500 mt-1">
-                        {service.duration} minutes • ₹{service.bookingAmount || service.price || 0}
-                      </p>
-                      {service.description && (
-                        <p className="text-xs text-gray-400 mt-1">{service.description}</p>
-                      )}
+                      <h3 className="font-semibold text-gray-900">{service.externalName}</h3>
                     </div>
                     {selectedService?._id === service._id && (
                       <div className="w-6 h-6 rounded-full flex items-center justify-center ml-3" style={{ backgroundColor: '#DDFE71' }}>

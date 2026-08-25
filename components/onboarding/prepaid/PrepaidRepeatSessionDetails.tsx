@@ -1,4 +1,5 @@
 'use client';
+import { getServiceName } from '@/utils/service-utils';
 
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@apollo/client';
@@ -7,6 +8,7 @@ import { GET_CENTERS, GET_USER } from '@/gql/queries';
 import { useContainerDetection } from '@/hooks/useContainerDetection';
 import { PrimaryButton } from '@/components/ui-atoms';
 import { LocationSelectionModal, ServiceSelectionModal } from '@/components/onboarding/shared';
+import { BookingAnalytics } from '@/services/booking-analytics';
 
 interface PrepaidRepeatSessionDetailsProps {
   patientId: string;
@@ -14,9 +16,10 @@ interface PrepaidRepeatSessionDetailsProps {
   isNewUser: boolean;
   onBack: () => void;
   onContinue: (data: { centerId: string; serviceId: string; serviceDuration: number; servicePrice: number; designation?: string }) => void;
+  analytics?: BookingAnalytics;
 }
 
-export default function PrepaidRepeatSessionDetails({ patientId, centerId, onBack, onContinue }: PrepaidRepeatSessionDetailsProps) {
+export default function PrepaidRepeatSessionDetails({ patientId, centerId, onBack, onContinue, analytics }: PrepaidRepeatSessionDetailsProps) {
   const { isInDesktopContainer } = useContainerDetection();
   const [selectedCenter, setSelectedCenter] = useState<any>(null);
   const [selectedService, setSelectedService] = useState<any>(null);
@@ -24,8 +27,10 @@ export default function PrepaidRepeatSessionDetails({ patientId, centerId, onBac
   const [showLocationModal, setShowLocationModal] = useState(false);
   const [showServiceModal, setShowServiceModal] = useState(false);
 
-  const { data: centersData } = useQuery(GET_CENTERS, { fetchPolicy: 'cache-first' });
-  const { data: patientData } = useQuery(GET_USER, {
+  const { data: centersData, loading: centersLoading } = useQuery(GET_CENTERS, {
+    fetchPolicy: 'cache-first',
+  });
+  const { data: patientData, loading: patientLoading } = useQuery(GET_USER, {
     variables: { userId: patientId },
     skip: !patientId,
     fetchPolicy: 'cache-first',
@@ -49,6 +54,9 @@ export default function PrepaidRepeatSessionDetails({ patientId, centerId, onBac
 
   const handleContinue = () => {
     if (!selectedService || !selectedCenter) return;
+    
+    analytics?.trackSessionDetailsContinueClicked(selectedService._id, selectedDesignation);
+    
     onContinue({
       centerId: selectedCenter._id,
       serviceId: selectedService._id,
@@ -59,6 +67,22 @@ export default function PrepaidRepeatSessionDetails({ patientId, centerId, onBac
   };
 
   const canProceed = selectedService && selectedCenter;
+
+  const isInitialLoading =
+    (patientId && (patientLoading || !patientData?.user)) || centersLoading;
+
+  if (isInitialLoading) {
+    return (
+      <div
+        className={`${isInDesktopContainer ? 'h-full' : 'min-h-screen'} bg-gray-50 flex items-center justify-center`}
+      >
+        <div className="flex flex-col items-center gap-3">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-900" />
+          <p className="text-sm text-gray-500">Loading your details…</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`${isInDesktopContainer ? 'h-full' : 'min-h-screen'} bg-gray-50 flex flex-col`}>
@@ -142,7 +166,7 @@ export default function PrepaidRepeatSessionDetails({ patientId, centerId, onBac
                   <div className="flex-1 text-left">
                     {selectedService ? (
                       <>
-                        <h3 className="font-semibold text-gray-900">{selectedService.name}</h3>
+                        <h3 className="font-semibold text-gray-900">{getServiceName(selectedService)}</h3>
                         <p className="text-sm text-gray-500">{selectedService.duration} minutes • ₹{selectedService.bookingAmount || selectedService.price || 0}</p>
                       </>
                     ) : (
@@ -172,6 +196,7 @@ export default function PrepaidRepeatSessionDetails({ patientId, centerId, onBac
         centers={filteredCenters}
         sessionType="online"
         onSelect={(center) => {
+          analytics?.trackEvent('center_selected', { centerId: center._id, centerName: center.name });
           setSelectedCenter(center);
           setShowLocationModal(false);
         }}

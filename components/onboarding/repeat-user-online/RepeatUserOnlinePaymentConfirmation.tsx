@@ -2,15 +2,18 @@
 
 import React, { useState } from 'react';
 import { useQuery, useMutation } from '@apollo/client';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { MapPin, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { GET_CENTERS, GET_SERVICES, GET_USER, CREATE_APPOINTMENT, UPDATE_PATIENT, SEND_APPOINTMENT_EMAIL } from '@/gql/queries';
 import RepeatUserOnlinePaymentProcessing from './RepeatUserOnlinePaymentProcessing';
 import { useContainerDetection } from '@/hooks/useContainerDetection';
 import { Button } from '@/components/ui-atoms';
+import { getWebTrackingForBooking } from '@/utils/web-tracking';
 import { StanceHealthLoader } from '@/components/loader/StanceHealthLoader';
 import { EmailCollectionModal } from '@/components/onboarding/shared';
+import { BookingAnalytics } from '@/services/booking-analytics';
+import { bookingStorage } from '@/utils/booking-storage';
 
 interface BookingData {
   sessionType: 'online';
@@ -28,22 +31,27 @@ interface BookingData {
 interface RepeatUserOnlinePaymentConfirmationProps {
   bookingData: BookingData;
   onNext: (appointmentId?: string) => void;
+  analytics: BookingAnalytics;
 }
 
 export default function RepeatUserOnlinePaymentConfirmation({
   bookingData,
   onNext,
+  analytics,
 }: RepeatUserOnlinePaymentConfirmationProps) {
   const router = useRouter();
+  const params = useParams();
+  const orgSlug = params.orgSlug as string;
   const { isInDesktopContainer } = useContainerDetection();
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [showEmailModal, setShowEmailModal] = useState(false);
+  const [isCreatingAppointment, setIsCreatingAppointment] = useState(false);
 
   const { data: centersData, loading: centersLoading } = useQuery(GET_CENTERS);
   const { data: servicesData, loading: servicesLoading } = useQuery(GET_SERVICES, {
     variables: { centerId: [bookingData.centerId] },
   });
-  const { data: userData, loading: userLoading } = useQuery(GET_USER, {
+  const { data: userData, loading: userLoading, refetch: refetchUser } = useQuery(GET_USER, {
     variables: { userId: bookingData.patientId },
   });
 
@@ -65,17 +73,40 @@ export default function RepeatUserOnlinePaymentConfirmation({
 
   const handleProceedToPayment = async () => {
     if (!patient?.email) {
+      toast.error('Please add your email address to continue');
       setShowEmailModal(true);
       return;
     }
     
+    analytics.trackProceedToPaymentClicked(
+      bookingData.treatmentPrice,
+      bookingData.treatmentId,
+      bookingData.consultantId
+    );
+    
+    setIsCreatingAppointment(true);
+    const startTime = Date.now();
+    
+    // Timeout handler
+    const timeoutId = setTimeout(() => {
+      console.warn('⚠️ Appointment creation taking longer than expected...');
+      toast.info('Setting up your online session...', { 
+        duration: 3000,
+        position: 'top-center',
+        className: 'text-sm',
+      });
+    }, 3000);
+    
     try {
-      // Add center to patient's centers array if not already present
+      console.log('⏱️ Starting appointment creation...');
+      
+      // Add center to patient's centers array if not already present (non-blocking)
       const existingCenters = patient?.profileData?.centers || [];
       const centerIds = existingCenters.map((c: any) => c._id);
       
       if (bookingData.centerId && !centerIds.includes(bookingData.centerId)) {
         try {
+          const updateStart = Date.now();
           await updatePatient({
             variables: {
               patientId: bookingData.patientId,
@@ -84,12 +115,15 @@ export default function RepeatUserOnlinePaymentConfirmation({
               },
             },
           });
-        } catch (error) {
-          console.error('Failed to add center to patient:', error);
+          console.log(`✅ Patient center updated in ${Date.now() - updateStart}ms`);
+        } catch (updateError) {
+          console.warn('⚠️ Failed to update patient centers (non-critical):', updateError);
+          // Continue anyway - this is not critical for appointment creation
         }
       }
       
-      // Create appointment FIRST
+      // Create appointment
+      const appointmentStart = Date.now();
       const appointmentResult = await createAppointment({
         variables: {
           input: {
@@ -99,55 +133,92 @@ export default function RepeatUserOnlinePaymentConfirmation({
             treatment: bookingData.treatmentId,
             medium: 'ONLINE',
             visitType: 'FOLLOW_UP',
-            status: 'BOOKED',
+            status: 'TOKEN_PENDING',
             category: 'WEBSITE',
             event: {
               startTime: new Date(bookingData.selectedTimeSlot.startTime).getTime(),
               endTime: new Date(bookingData.selectedTimeSlot.endTime).getTime(),
             },
+            webTracking: getWebTrackingForBooking() ?? undefined,
           },
         },
       });
+      console.log(`✅ Appointment created in ${Date.now() - appointmentStart}ms`);
 
       const appointmentId = appointmentResult?.data?.createAppointment?._id;
       if (!appointmentId) {
         throw new Error('Failed to create appointment');
       }
 
-      // Store appointment ID for payment
-      sessionStorage.setItem('appointmentId', appointmentId);
-      sessionStorage.setItem('paymentType', 'invoice');
-      sessionStorage.setItem('paymentAmount', bookingData.treatmentPrice.toString());
+      console.log('✅ Appointment ID:', appointmentId);
+      bookingStorage.setItem('appointmentId', appointmentId);
+      bookingStorage.setItem('paymentType', 'invoice');
+      bookingStorage.setItem('paymentAmount', bookingData.treatmentPrice.toString());
       
-      // Set processing state AFTER appointment is created and stored
+      // Track payment initiation
+      analytics.trackPaymentInitiated(bookingData.treatmentPrice, appointmentId);
+      
+      // Verify storage was written
+      const storedId = bookingStorage.getItem('appointmentId');
+      console.log('✅ Verified stored appointment ID:', storedId);
+      
+      if (!storedId) {
+        throw new Error('Failed to store appointment ID');
+      }
+      
+      clearTimeout(timeoutId);
+      console.log(`⏱️ Total time: ${Date.now() - startTime}ms`);
+      
+      // Only NOW transition to payment screen
+      setIsCreatingAppointment(false);
       setIsProcessingPayment(true);
     } catch (error) {
+      clearTimeout(timeoutId);
       console.error('Error creating appointment:', error);
       toast.error('Failed to create appointment. Please try again.');
+      setIsCreatingAppointment(false);
     }
   };
 
   const handlePaymentSuccess = async (paymentId: string, invoiceId?: string) => {
-    const appointmentId = sessionStorage.getItem('appointmentId');
-    sessionStorage.removeItem('appointmentId');
-    sessionStorage.removeItem('paymentType');
-    sessionStorage.removeItem('paymentAmount');
+    const appointmentId = bookingStorage.getItem('appointmentId');
+    
+    // Track payment success
+    if (appointmentId) {
+      analytics.trackPaymentSuccess(paymentId, bookingData.treatmentPrice, appointmentId);
+    }
+    
+    bookingStorage.removeItem('appointmentId');
+    bookingStorage.removeItem('paymentType');
+    bookingStorage.removeItem('paymentAmount');
     setIsProcessingPayment(false);
     onNext(appointmentId || undefined);
   };
 
   const handlePaymentFailure = (error: any) => {
-    setIsProcessingPayment(false);
-    sessionStorage.removeItem('paymentType');
-    sessionStorage.removeItem('paymentAmount');
     const errorMsg = typeof error === 'string' ? error : error?.description || error?.message || 'Payment failed';
-    router.push(`/onboarding-patient/failure?error=${encodeURIComponent(errorMsg)}`);
+    
+    // Track payment failure
+    analytics.trackPaymentFailure(errorMsg);
+    
+    setIsProcessingPayment(false);
+    bookingStorage.removeItem('paymentType');
+    bookingStorage.removeItem('paymentAmount');
+    router.push(`/${orgSlug}/failure?error=${encodeURIComponent(errorMsg)}`);
   };
 
   if (isLoading) {
     return (
       <div className="h-full flex items-center justify-center">
         <StanceHealthLoader message="Loading details..." />
+      </div>
+    );
+  }
+
+  if (isCreatingAppointment) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <StanceHealthLoader message="Creating appointment..." />
       </div>
     );
   }
@@ -183,12 +254,33 @@ export default function RepeatUserOnlinePaymentConfirmation({
                 <span className="text-sm text-gray-600 font-medium block">Phone</span>
                 <p className="text-sm font-medium text-gray-900">{patientDetails.phone}</p>
               </div>
-              {patientDetails.email && (
-                <div>
-                  <span className="text-sm text-gray-600 font-medium block">Email</span>
-                  <p className="text-sm font-medium text-gray-900">{patientDetails.email}</p>
-                </div>
-              )}
+              <div>
+                <span className="text-sm text-gray-600 font-medium block">Email</span>
+                {patientDetails.email ? (
+                  <button
+                    onClick={() => {
+                      console.log('📧 Email field clicked - opening modal');
+                      console.log('📧 Current email:', patientDetails.email);
+                      console.log('📧 Patient ID:', bookingData.patientId);
+                      setShowEmailModal(true);
+                    }}
+                    className="text-sm font-medium text-gray-900 hover:text-blue-600 transition-colors text-left underline decoration-dotted"
+                  >
+                    {patientDetails.email}
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => {
+                      console.log('📧 Add email clicked - opening modal');
+                      console.log('📧 Patient ID:', bookingData.patientId);
+                      setShowEmailModal(true);
+                    }}
+                    className="text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors"
+                  >
+                    + Add email address
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
@@ -242,6 +334,19 @@ export default function RepeatUserOnlinePaymentConfirmation({
               </p>
             </div>
           </div>
+
+          {/* Cancellation Policy */}
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 mb-6">
+            <div className="flex items-start space-x-2">
+              <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-xs font-semibold text-blue-900 mb-1">Cancellation Policy</p>
+                <p className="text-xs text-blue-800">
+                  Cancellations made less than one day prior to the appointment will incur a ₹300 cancellation fee.
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -249,13 +354,13 @@ export default function RepeatUserOnlinePaymentConfirmation({
       <div className={`${isInDesktopContainer ? 'flex-shrink-0' : 'fixed bottom-0 left-0 right-0'} bg-white border-t border-gray-200 p-4`}>
         <Button
           onClick={handleProceedToPayment}
-          disabled={creatingAppointment}
-          isLoading={creatingAppointment}
+          disabled={creatingAppointment || isProcessingPayment || isCreatingAppointment}
+          isLoading={creatingAppointment || isProcessingPayment || isCreatingAppointment}
           fullWidth
           variant="primary"
           size="lg"
         >
-          Proceed to Payment
+          {creatingAppointment || isProcessingPayment || isCreatingAppointment ? 'Creating Appointment...' : 'Proceed to Payment'}
         </Button>
       </div>
 
@@ -263,8 +368,16 @@ export default function RepeatUserOnlinePaymentConfirmation({
         isOpen={showEmailModal}
         patientId={bookingData.patientId}
         patientName={patientDetails.name}
-        onEmailSaved={() => setShowEmailModal(false)}
-        onClose={() => setShowEmailModal(false)}
+        currentEmail={patientDetails.email}
+        onEmailSaved={async (newEmail) => {
+          console.log('📧 Email saved callback:', newEmail);
+          await refetchUser();
+          setShowEmailModal(false);
+        }}
+        onClose={() => {
+          console.log('📧 Modal closed');
+          setShowEmailModal(false);
+        }}
       />
     </div>
   );

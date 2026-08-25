@@ -8,11 +8,16 @@ import { useContainerDetection } from '@/hooks/useContainerDetection';
 import { PrimaryButton } from '@/components/ui-atoms';
 import { LocationSelectionModal, ServiceSelectionModal } from '@/components/onboarding/shared';
 
+import { BookingAnalytics } from '@/services/booking-analytics';
+import { isParamFromUrl } from '@/utils/booking-params';
+import { getBookingCookies } from '@/utils/booking-cookies';
+
 interface RepeatUserOnlineSessionDetailsProps {
   patientId: string;
   organizationId: string;
   onBack: () => void;
   onContinue: (data: { organizationId: string; serviceId: string; serviceDuration: number; servicePrice: number; designation: string }) => void;
+  analytics: BookingAnalytics;
 }
 
 export default function RepeatUserOnlineSessionDetails({
@@ -20,13 +25,26 @@ export default function RepeatUserOnlineSessionDetails({
   organizationId,
   onBack,
   onContinue,
+  analytics,
 }: RepeatUserOnlineSessionDetailsProps) {
   const { isInDesktopContainer } = useContainerDetection();
+  const centerId = getBookingCookies().centerId ?? undefined;
   const [selectedService, setSelectedService] = useState<any>(null);
   const [selectedDesignation, setSelectedDesignation] = useState<string>('Physiotherapist');
+  const [isConsultantTypeFromParams, setIsConsultantTypeFromParams] = useState(false);
 
   // Modal states
   const [showServiceModal, setShowServiceModal] = useState(false);
+
+  // Set consultant type from sessionStorage
+  useEffect(() => {
+    const storedConsultantType = sessionStorage.getItem('consultantType');
+    if (storedConsultantType && (storedConsultantType === 'Physiotherapist' || storedConsultantType === 'S&C Coach')) {
+      setSelectedDesignation(storedConsultantType);
+      // Only lock if it came from URL params
+      setIsConsultantTypeFromParams(isParamFromUrl('consultantType'));
+    }
+  }, []);
 
 
 
@@ -51,12 +69,16 @@ export default function RepeatUserOnlineSessionDetails({
   const handleContinue = () => {
     if (!selectedService) return;
 
+    const backendDesignation = selectedDesignation === 'S&C Coach' ? 'SNC_Coach' : selectedDesignation;
+
+    analytics.trackSessionDetailsContinueClicked(selectedService._id, backendDesignation);
+
     onContinue({
       organizationId,
       serviceId: selectedService._id,
       serviceDuration: selectedService.duration,
       servicePrice: selectedService.bookingAmount || selectedService.price || 0,
-      designation: selectedDesignation,
+      designation: backendDesignation,
     });
   };
 
@@ -83,31 +105,44 @@ export default function RepeatUserOnlineSessionDetails({
               Consultant Type
             </h2>
             <p className="text-gray-600 text-sm mb-4">
-              Select the type of consultant you need
+              {isConsultantTypeFromParams ? 'Pre-selected consultant type' : 'Select the type of consultant you need'}
             </p>
-            <div className="bg-white rounded-xl p-1 border border-gray-200 flex">
+            <div className="bg-white rounded-xl p-1 border-2 flex relative" style={{ borderColor: '#DDFE71', opacity: isConsultantTypeFromParams ? 0.7 : 1 }}>
               <button
                 type="button"
-                onClick={() => setSelectedDesignation('Physiotherapist')}
+                onClick={() => {
+                  if (!isConsultantTypeFromParams) {
+                    analytics.trackDesignationToggled('Physiotherapist');
+                    setSelectedDesignation('Physiotherapist');
+                  }
+                }}
+                disabled={isConsultantTypeFromParams}
                 className={`flex-1 py-2 px-3 rounded-lg font-medium text-xs transition-all ${
                   selectedDesignation === 'Physiotherapist'
                     ? 'text-black shadow-sm'
                     : 'text-gray-600 hover:text-gray-900'
-                }`}
+                } ${isConsultantTypeFromParams ? 'cursor-not-allowed' : ''}`}
                 style={{
                   backgroundColor: selectedDesignation === 'Physiotherapist' ? '#DDFE71' : 'transparent'
                 }}
               >
                 Physiotherapist
               </button>
+              <div className="w-px bg-gray-300 mx-1" />
               <button
                 type="button"
-                onClick={() => setSelectedDesignation('S&C Coach')}
+                onClick={() => {
+                  if (!isConsultantTypeFromParams) {
+                    analytics.trackDesignationToggled('S&C Coach');
+                    setSelectedDesignation('S&C Coach');
+                  }
+                }}
+                disabled={isConsultantTypeFromParams}
                 className={`flex-1 py-2 px-3 rounded-lg font-medium text-xs transition-all ${
                   selectedDesignation === 'S&C Coach'
                     ? 'text-black shadow-sm'
                     : 'text-gray-600 hover:text-gray-900'
-                }`}
+                } ${isConsultantTypeFromParams ? 'cursor-not-allowed' : ''}`}
                 style={{
                   backgroundColor: selectedDesignation === 'S&C Coach' ? '#DDFE71' : 'transparent'
                 }}
@@ -126,19 +161,17 @@ export default function RepeatUserOnlineSessionDetails({
               Choose the service you need
             </p>
             <button
-              onClick={() => setShowServiceModal(true)}
+              onClick={() => {
+                analytics.trackServiceModalOpened();
+                setShowServiceModal(true);
+              }}
               className="w-full"
             >
               <div className="bg-white rounded-2xl p-4 border-2 transition-all" style={{ borderColor: selectedService ? '#DDFE71' : '#e5e7eb' }}>
                 <div className="flex items-center justify-between">
                   <div className="flex-1 text-left">
                     {selectedService ? (
-                      <>
-                        <h3 className="font-semibold text-gray-900">{selectedService.name}</h3>
-                        <p className="text-sm text-gray-500">
-                          {selectedService.duration} minutes • ₹{selectedService.bookingAmount || selectedService.price || 0}
-                        </p>
-                      </>
+                      <h3 className="font-semibold text-gray-900">{selectedService.externalName}</h3>
                     ) : (
                       <>
                         <h3 className="font-semibold text-gray-900">Select a service</h3>
@@ -170,14 +203,19 @@ export default function RepeatUserOnlineSessionDetails({
       {/* Modals */}
       <ServiceSelectionModal
         isOpen={showServiceModal}
-        onClose={() => setShowServiceModal(false)}
+        onClose={() => {
+          analytics.trackServiceModalClosed();
+          setShowServiceModal(false);
+        }}
         patientId={patientId}
+        centerId={centerId}
         organizationId={organizationId}
         isNewUser={false}
         sessionType="online"
         designation={selectedDesignation}
         onSelect={(service) => {
           setSelectedService(service);
+          analytics.trackServiceModalClosed();
           setShowServiceModal(false);
         }}
       />

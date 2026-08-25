@@ -5,12 +5,18 @@ import { Clock } from 'lucide-react';
 import { useAvailability } from '@/hooks';
 import { useContainerDetection } from '@/hooks/useContainerDetection';
 import { StanceHealthLoader } from '@/components/loader/StanceHealthLoader';
+import { getBookingCookies } from '@/utils/booking-cookies';
+
+import { BookingAnalytics } from '@/services/booking-analytics';
+import { isParamFromUrl } from '@/utils/booking-params';
 
 interface NewUserOnlineSlotSelectionProps {
   serviceDuration: number;
   designation?: string;
+  preSelectedDate?: string;
   onSlotSelect: (consultantId: string, slot: any) => void;
   onBack: () => void;
+  analytics: BookingAnalytics;
 }
 
 interface TimeSlot {
@@ -39,8 +45,10 @@ interface DateOption {
 export default function NewUserOnlineSlotSelection({
   serviceDuration,
   designation,
+  preSelectedDate,
   onSlotSelect,
   onBack,
+  analytics,
 }: NewUserOnlineSlotSelectionProps) {
   const { isInDesktopContainer } = useContainerDetection();
   const [selectedDate, setSelectedDate] = useState<string>('');
@@ -49,8 +57,11 @@ export default function NewUserOnlineSlotSelection({
   const [currentSelectedDate, setCurrentSelectedDate] = useState<Date | null>(null);
   const [dateSlots, setDateSlots] = useState<{ [key: string]: TimeSlot[] }>({});
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [isDateFromParams, setIsDateFromParams] = useState(false);
 
-  const organizationId = process.env.NEXT_PUBLIC_ORGANIZATION_ID || '67fe35f25e42152fb5185a5e';
+  // Get organization ID from cookies
+  const cookies = getBookingCookies();
+  const organizationId = cookies.organizationId || process.env.NEXT_PUBLIC_ORGANIZATION_ID || '67fe35f25e42152fb5185a5e';
 
   const startOfDay = React.useMemo(() => {
     if (!currentSelectedDate) return new Date();
@@ -116,13 +127,27 @@ export default function NewUserOnlineSlotSelection({
     const initialDates = generateNext14Days();
     setAvailableDates(initialDates);
     
+    // If preSelectedDate is provided, use it; otherwise use first date
+    if (preSelectedDate) {
+      const preSelected = new Date(preSelectedDate);
+      const matchingDate = initialDates.find(d => d.fullDate.toDateString() === preSelected.toDateString());
+      if (matchingDate) {
+        const dateKey = `${matchingDate.day}, ${matchingDate.date} ${matchingDate.month}`;
+        setSelectedDate(dateKey);
+        setCurrentSelectedDate(matchingDate.fullDate);
+        // Only lock if it came from URL params
+        setIsDateFromParams(isParamFromUrl('slotDate'));
+        return;
+      }
+    }
+    
     if (!selectedDate && initialDates.length > 0) {
       const firstDate = initialDates[0];
       const dateKey = `${firstDate.day}, ${firstDate.date} ${firstDate.month}`;
       setSelectedDate(dateKey);
       setCurrentSelectedDate(firstDate.fullDate);
     }
-  }, []);
+  }, [preSelectedDate]);
 
   useEffect(() => {
     if (!currentSelectedDate || slotsLoading) return;
@@ -176,7 +201,9 @@ export default function NewUserOnlineSlotSelection({
   }, [currentSelectedDate, availableSlots, slotsLoading, availabilityConsultants]);
 
   const handleDateSelect = (date: DateOption) => {
+    if (isDateFromParams) return;
     const dateKey = `${date.day}, ${date.date} ${date.month}`;
+    analytics.trackDateSelected(dateKey);
     setSelectedDate(dateKey);
     setCurrentSelectedDate(date.fullDate);
     setSelectedTimeSlot(null);
@@ -184,6 +211,7 @@ export default function NewUserOnlineSlotSelection({
 
   const handleTimeSlotSelect = (slot: TimeSlot) => {
     if (!slot.isAvailable) return;
+    analytics.trackTimeSlotClicked(slot.displayTime, slot.consultantIds.length);
     setSelectedTimeSlot(slot);
   };
 
@@ -196,6 +224,18 @@ export default function NewUserOnlineSlotSelection({
         centerId: selectedTimeSlot.centerIds[randomIndex],
         centerName: selectedTimeSlot.centerNames[randomIndex],
       };
+      analytics.trackSlotSelectionContinueClicked(randomConsultantId, selectedTimeSlot.displayTime, slotWithCenter.centerId);
+      
+      // Track time slot selected for Meta Pixel
+      const mobileAnalytics = new (require('@/services/mobile-analytics').MobileFlowAnalytics)();
+      mobileAnalytics.trackTimeSlotSelected(
+        selectedTimeSlot.displayTime,
+        selectedDate,
+        slotWithCenter.centerId,
+        '', // patientId not available in this component
+        randomConsultantId
+      );
+      
       onSlotSelect(randomConsultantId, slotWithCenter);
     }
   };
@@ -209,17 +249,20 @@ export default function NewUserOnlineSlotSelection({
         <div className={`p-4 ${isInDesktopContainer ? 'pb-6' : 'pb-32'}`}>
           <div className="mb-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Visit details</h3>
+            {isDateFromParams && (
+              <p className="text-sm text-gray-600 mb-3">Pre-selected date</p>
+            )}
 
             <div className="mb-4">
               <div
                 ref={scrollContainerRef}
                 className="flex overflow-x-auto space-x-3 pb-2"
-                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', opacity: isDateFromParams ? 0.7 : 1 }}
               >
                 {availableDates.map((dateOption) => {
                   const dateKey = `${dateOption.day}, ${dateOption.date} ${dateOption.month}`;
                   const isCurrentDate = selectedDate === dateKey;
-                  const isDisabled = Boolean(slotsLoading && !isCurrentDate);
+                  const isDisabled = Boolean((slotsLoading && !isCurrentDate) || isDateFromParams);
                   
                   return (
                     <button
@@ -302,18 +345,11 @@ export default function NewUserOnlineSlotSelection({
                           }`}
                         >
                           <div className="text-sm font-semibold">{slot.displayTime}</div>
-                          {process.env.NEXT_PUBLIC_ENVIRONMENT === 'development' && (
+                          {slot.consultantNames && slot.consultantNames.length > 0 && (
                             <div className="text-xs text-gray-500 mt-1">
-                              {slot.consultantNames && slot.consultantNames.length > 0 
-                                ? slot.consultantNames.filter(n => n).join(', ') || `${slot.consultantNames.length} consultants`
-                                : 'No consultant'}
-                            </div>
-                          )}
-                          {process.env.NEXT_PUBLIC_ENVIRONMENT === 'development' && (
-                            <div className="text-xs text-gray-400 mt-1">
-                              {slot.centerNames && slot.centerNames.length > 0
-                                ? slot.centerNames.filter(n => n).join(', ')
-                                : 'No center'}
+                              {slot.consultantNames.length === 1
+                                ? slot.consultantNames[0]
+                                : `${slot.consultantNames.length} consultants`}
                             </div>
                           )}
                         </button>

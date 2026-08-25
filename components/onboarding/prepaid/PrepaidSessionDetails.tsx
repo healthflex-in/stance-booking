@@ -1,4 +1,5 @@
 'use client';
+import { getServiceName } from '@/utils/service-utils';
 
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@apollo/client';
@@ -8,6 +9,7 @@ import { useContainerDetection } from '@/hooks/useContainerDetection';
 import { PrimaryButton } from '@/components/ui-atoms';
 import { LocationSelectionModal, ServiceSelectionModal } from '@/components/onboarding/shared';
 import { StanceHealthLoader } from '@/components/loader/StanceHealthLoader';
+import { BookingAnalytics } from '@/services/booking-analytics';
 
 interface PrepaidSessionDetailsProps {
   patientId: string;
@@ -15,6 +17,7 @@ interface PrepaidSessionDetailsProps {
   isNewUser: boolean;
   onBack: () => void;
   onContinue: (data: { centerId: string; serviceId: string; serviceDuration: number; servicePrice: number; designation?: string }) => void;
+  analytics?: BookingAnalytics;
 }
 
 export default function PrepaidSessionDetails({
@@ -23,6 +26,7 @@ export default function PrepaidSessionDetails({
   isNewUser,
   onBack,
   onContinue,
+  analytics,
 }: PrepaidSessionDetailsProps) {
   const { isInDesktopContainer } = useContainerDetection();
   const [selectedCenter, setSelectedCenter] = useState<any>(null);
@@ -83,6 +87,8 @@ export default function PrepaidSessionDetails({
   const handleContinue = () => {
     if (!selectedService) return;
     if (!isNewUser && !selectedCenter) return;
+    
+    analytics?.trackSessionDetailsContinueClicked(selectedService._id, selectedDesignation);
     
     onContinue({
       centerId: selectedCenter?._id || centerId,
@@ -163,13 +169,16 @@ export default function PrepaidSessionDetails({
                   {prepaidServices.map((service: any) => (
                     <button
                       key={service._id}
-                      onClick={() => setSelectedService(service)}
+                      onClick={() => {
+                        analytics?.trackServiceSelected(service._id, service.name, service.bookingAmount || service.price || 0, service.duration);
+                        setSelectedService(service);
+                      }}
                       className="w-full bg-white rounded-2xl p-4 border-2 transition-all text-left"
                       style={{ borderColor: selectedService?._id === service._id ? '#DDFE71' : '#e5e7eb', backgroundColor: selectedService?._id === service._id ? '#f7ffe5' : '#fff' }}
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
-                          <h3 className="font-semibold text-gray-900">{service.name}</h3>
+                          <h3 className="font-semibold text-gray-900">{getServiceName(service)}</h3>
                           <p className="text-sm text-gray-500 mt-1">
                             {service.duration} minutes • ₹{service.bookingAmount || service.price || 0}
                           </p>
@@ -196,7 +205,7 @@ export default function PrepaidSessionDetails({
                     <div className="flex-1 text-left">
                       {selectedService ? (
                         <>
-                          <h3 className="font-semibold text-gray-900">{selectedService.name}</h3>
+                          <h3 className="font-semibold text-gray-900">{getServiceName(selectedService)}</h3>
                           <p className="text-sm text-gray-500">{selectedService.duration} minutes • ₹{selectedService.bookingAmount || selectedService.price || 0}</p>
                         </>
                       ) : (
@@ -227,6 +236,7 @@ export default function PrepaidSessionDetails({
         centers={filteredCenters}
         sessionType="in-person"
         onSelect={(center) => {
+          analytics?.trackEvent('center_selected', { centerId: center._id, centerName: center.name });
           setSelectedCenter(center);
           setShowLocationModal(false);
         }}

@@ -16,6 +16,21 @@ const GET_CENTER_AVAILABILITY = gql`
   }
 `;
 
+const GET_REPEAT_USER_SLOTS = gql`
+  query GetRepeatUserSlots($input: RepeatUserSlotsInput!) {
+    getRepeatUserSlots(input: $input) {
+      consultantId
+      consultantName
+      availableSlots {
+        startTime
+        endTime
+        centerId
+        centerName
+      }
+    }
+  }
+`;
+
 interface AvailabilitySlot {
   startTime: number;
   endTime: number;
@@ -38,6 +53,7 @@ interface UseCenterAvailabilityParams {
   designation?: string;
   deliveryMode?: 'ONLINE' | 'OFFLINE';
   enabled?: boolean;
+  isRepeatUser?: boolean;
 }
 
 interface UseCenterAvailabilityReturn {
@@ -58,6 +74,7 @@ export const useCenterAvailability = ({
   designation,
   deliveryMode = 'OFFLINE',
   enabled = true,
+  isRepeatUser = false,
 }: UseCenterAvailabilityParams): UseCenterAvailabilityReturn => {
   const [consultants, setConsultants] = useState<ConsultantAvailability[]>([]);
   const [loading, setLoading] = useState(false);
@@ -69,16 +86,13 @@ export const useCenterAvailability = ({
   const fetchAvailability = async () => {
     if (!enabled || !centerId) return;
 
-    const dateKey = startDate.toDateString();
+    const dateKey = `${isRepeatUser ? 'repeat' : 'new'}-${startDate.toDateString()}-${designation || 'all'}`;
     const cached = cache.get(dateKey);
     
     if (cached) {
-      console.log('📦 Cache HIT for date:', dateKey);
       setConsultants(cached);
       return;
     }
-    
-    console.log('🔍 Cache MISS for date:', dateKey, '- Fetching from API');
 
     // Abort previous request if still pending
     if (abortControllerRef.current) {
@@ -89,19 +103,30 @@ export const useCenterAvailability = ({
     setLoading(true);
     setError(null);
 
+    const queryInput = isRepeatUser
+      ? {
+          centerId,
+          startDate: Math.floor(startDate.getTime() / 1000),
+          endDate: Math.floor(endDate.getTime() / 1000),
+          consultantId: consultantId || null,
+          designation: designation || null,
+          deliveryMode: deliveryMode || null,
+        }
+      : {
+          centerId,
+          startDate: Math.floor(startDate.getTime() / 1000),
+          endDate: Math.floor(endDate.getTime() / 1000),
+          serviceDuration,
+          consultantId: consultantId || null,
+          designation: designation || null,
+          deliveryMode: deliveryMode || null,
+        };
+
     try {
       const { data } = await client.query({
-        query: GET_CENTER_AVAILABILITY,
+        query: isRepeatUser ? GET_REPEAT_USER_SLOTS : GET_CENTER_AVAILABILITY,
         variables: {
-          input: {
-            centerId,
-            startDate: Math.floor(startDate.getTime() / 1000),
-            endDate: Math.floor(endDate.getTime() / 1000),
-            serviceDuration,
-            consultantId: consultantId || null,
-            designation: designation || null,
-            deliveryMode: deliveryMode || null,
-          },
+          input: queryInput,
         },
         fetchPolicy: 'network-only',
         context: {
@@ -111,9 +136,11 @@ export const useCenterAvailability = ({
         },
       });
 
-      const result = data?.getCenterAvailability || [];
+      const result = isRepeatUser
+        ? (data?.getRepeatUserSlots || [])
+        : (data?.getCenterAvailability || []);
+      
       setCache(prev => new Map(prev).set(dateKey, result));
-      console.log('💾 Cached data for date:', dateKey, '- Total cached dates:', cache.size + 1);
       setConsultants(result);
     } catch (err: any) {
       if (err.name === 'AbortError') return;
@@ -133,7 +160,7 @@ export const useCenterAvailability = ({
         abortControllerRef.current.abort();
       }
     };
-  }, [centerId, startDate.getTime(), endDate.getTime(), serviceDuration, consultantId || '', designation || '', deliveryMode, enabled]);
+  }, [centerId, startDate.getTime(), endDate.getTime(), serviceDuration, consultantId || '', designation || '', deliveryMode, enabled, isRepeatUser]);
 
   return {
     consultants,

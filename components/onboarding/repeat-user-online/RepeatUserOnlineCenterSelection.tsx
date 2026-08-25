@@ -24,7 +24,7 @@ export default function RepeatUserOnlineCenterSelection({
   });
 
   const onlineCenters = centersData?.centers?.filter(
-    (center: any) => center.allowOnlineBooking === true || center.isOnline === true
+    (center: any) => center.isOnline === true
   ) || [];
 
   if (loading) {

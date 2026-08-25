@@ -1,0 +1,77 @@
+'use client';
+
+import { useParams, useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import PrepaidOnboarding from '@/components/onboarding/PrepaidOnboarding';
+import { StanceHealthLoader } from '@/components/loader/StanceHealthLoader';
+import { getBookingCookies } from '@/utils/booking-cookies';
+import { useBookingAnalytics } from '@/hooks/useBookingAnalytics';
+import { bookingStorage } from '@/utils/booking-storage';
+
+export default function PrepaidPage() {
+  const params = useParams();
+  const router = useRouter();
+  const orgSlug = params.orgSlug as string;
+  const [organizationId, setOrganizationId] = useState('');
+  const [mounted, setMounted] = useState(false);
+  const analytics = useBookingAnalytics('prepaid-new');
+
+  useEffect(() => {
+    setMounted(true);
+    const cookies = getBookingCookies();
+    analytics.trackFlowStart(cookies.organizationId || '', cookies.centerId || undefined);
+    if (cookies.organizationId) {
+      setOrganizationId(cookies.organizationId);
+    } else {
+      router.push(`/${orgSlug}`);
+    }
+  }, [orgSlug, router, analytics]);
+
+  const handleComplete = (patientId: string, isNewUser: boolean) => {
+    bookingStorage.setItem('patientId', patientId);
+    bookingStorage.setItem('organizationId', organizationId);
+    
+    if (isNewUser) {
+      router.push(`/${orgSlug}/online/prepaid/new`);
+    } else {
+      router.push(`/${orgSlug}/online/prepaid/repeat`);
+    }
+  };
+
+  if (!mounted || !organizationId) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <StanceHealthLoader message="Loading..." />
+      </div>
+    );
+  }
+
+  const BookingContent = () => (
+    <div className="h-full bg-gray-50 flex flex-col">
+      <div className="flex-1 overflow-hidden">
+        <PrepaidOnboarding organizationId={organizationId} onComplete={handleComplete} analytics={analytics} />
+      </div>
+    </div>
+  );
+
+  // Desktop container view
+  if (typeof window !== 'undefined' && window.innerWidth >= 768) {
+    return (
+      <div className="fixed inset-0 z-50">
+        <div className="absolute inset-0 bg-gray-100" />
+        <div className="absolute inset-0 bg-black/20 backdrop-blur-sm" />
+        
+        <div className="absolute inset-0 flex items-center justify-center p-4">
+          <div className="w-full max-w-sm mx-auto bg-white rounded-2xl shadow-2xl overflow-hidden relative" style={{ height: '90vh' }}>
+            <div className="h-full overflow-y-auto">
+              <BookingContent />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Mobile view
+  return <BookingContent />;
+}

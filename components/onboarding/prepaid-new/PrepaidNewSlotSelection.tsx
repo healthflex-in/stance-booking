@@ -5,6 +5,7 @@ import { Clock } from 'lucide-react';
 import { useAvailability } from '@/hooks';
 import { useContainerDetection } from '@/hooks/useContainerDetection';
 import { StanceHealthLoader } from '@/components/loader/StanceHealthLoader';
+import { getBookingCookies } from '@/utils/booking-cookies';
 
 interface PrepaidNewSlotSelectionProps {
   serviceDuration: number;
@@ -45,7 +46,9 @@ export default function PrepaidNewSlotSelection({ serviceDuration, designation, 
   const [dateSlots, setDateSlots] = useState<{ [key: string]: TimeSlot[] }>({});
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  const organizationId = process.env.NEXT_PUBLIC_ORGANIZATION_ID || '67fe35f25e42152fb5185a5e';
+  // Get organization ID from cookies
+  const cookies = getBookingCookies();
+  const organizationId = cookies.organizationId || process.env.NEXT_PUBLIC_ORGANIZATION_ID || '67fe35f25e42152fb5185a5e';
 
   const startOfDay = React.useMemo(() => {
     if (!currentSelectedDate) return new Date();
@@ -209,18 +212,11 @@ export default function PrepaidNewSlotSelection({ serviceDuration, designation, 
                       return (
                         <button key={`slot-${index}-${slot.startTimeRaw}`} onClick={() => setSelectedTimeSlot(slot)} disabled={!slot.isAvailable} className={`p-3 rounded-xl border-2 text-sm font-medium transition-all ${isSelected ? 'border-blue-500 bg-blue-50 text-blue-700' : slot.isAvailable ? 'border-gray-200 bg-white text-gray-900 hover:border-gray-300' : 'border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed'}`}>
                           <div className="text-sm font-semibold">{slot.displayTime}</div>
-                          {process.env.NEXT_PUBLIC_ENVIRONMENT === 'development' && (
+                          {process.env.NODE_ENV !== 'production' && slot.consultantNames && slot.consultantNames.length > 0 && (
                             <div className="text-xs text-gray-500 mt-1">
-                              {slot.consultantNames && slot.consultantNames.length > 0 
-                                ? slot.consultantNames.filter(n => n).join(', ') || `${slot.consultantNames.length} consultants`
-                                : 'No consultant'}
-                            </div>
-                          )}
-                          {process.env.NEXT_PUBLIC_ENVIRONMENT === 'development' && (
-                            <div className="text-xs text-gray-400 mt-1">
-                              {slot.centerNames && slot.centerNames.length > 0
-                                ? slot.centerNames.filter(n => n).join(', ')
-                                : 'No center'}
+                              {slot.consultantNames.length === 1
+                                ? slot.consultantNames[0]
+                                : `${slot.consultantNames.length} consultants`}
                             </div>
                           )}
                         </button>

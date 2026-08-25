@@ -26,7 +26,11 @@ export default function RepeatUserOfflineServiceSelection({
   });
 
   const repeatUserIncenterServices = servicesData?.services?.filter(
-    (service: any) => !service.allowOnlineDelivery && !service.isPrePaid && service.allowOnlineBooking
+    (service: any) => 
+      !service.allowOnlineDelivery && 
+      !service.isPrePaid && 
+      service.allowOnlineBooking &&
+      !service.isNewUserService  // Exclude new user services for repeat users
   ) || [];
 
   if (loading) {
@@ -72,10 +76,7 @@ export default function RepeatUserOfflineServiceSelection({
                             <Flame className="w-5 h-5 text-blue-600" />
                           </div>
                           <div className="flex-1 text-left">
-                            <h3 className="font-semibold text-gray-900">{service.name}</h3>
-                            <p className="text-sm text-gray-500">
-                              {service.duration} minutes • ₹{service.price || service.bookingAmount || 0}
-                            </p>
+                            <h3 className="font-semibold text-gray-900">{service.externalName}</h3>
                           </div>
                         </div>
                         <ChevronRight className="w-5 h-5 text-gray-400" />

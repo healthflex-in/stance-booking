@@ -6,6 +6,23 @@ const GET_ORGANIZATION_AVAILABILITY = gql`
     getOrganizationAvailability(input: $input) {
       consultantId
       consultantName
+      consultantDesignation
+      availableSlots {
+        startTime
+        endTime
+        centerId
+        centerName
+      }
+    }
+  }
+`;
+
+const GET_REPEAT_USER_SLOTS = gql`
+  query GetRepeatUserSlots($input: RepeatUserSlotsInput!) {
+    getRepeatUserSlots(input: $input) {
+      consultantId
+      consultantName
+      consultantDesignation
       availableSlots {
         startTime
         endTime
@@ -31,11 +48,14 @@ interface ConsultantAvailability {
 
 interface UseAvailabilityParams {
   organizationId: string;
+  centerId?: string;
   startDate: Date;
   endDate: Date;
   serviceDuration: number;
   designation?: string;
+  deliveryMode?: 'ONLINE' | 'OFFLINE';
   enabled?: boolean;
+  isRepeatUser?: boolean;
 }
 
 interface UseAvailabilityReturn {
@@ -50,11 +70,14 @@ interface UseAvailabilityReturn {
 
 export const useAvailability = ({
   organizationId,
+  centerId,
   startDate,
   endDate,
   serviceDuration,
   designation,
+  deliveryMode = 'ONLINE',
   enabled = true,
+  isRepeatUser = false,
 }: UseAvailabilityParams): UseAvailabilityReturn => {
   const [consultants, setConsultants] = useState<ConsultantAvailability[]>([]);
   const [loading, setLoading] = useState(false);
@@ -78,9 +101,11 @@ export const useAvailability = ({
   }, [consultants]);
 
   const fetchAvailability = async () => {
-    if (!enabled || !organizationId) return;
+    if (!enabled) return;
+    if (!isRepeatUser && !organizationId) return;
+    if (isRepeatUser && !centerId && !organizationId) return;
 
-    const dateKey = startDate.toDateString();
+    const dateKey = `${isRepeatUser ? 'repeat' : 'new'}-${startDate.toDateString()}-${designation || 'all'}`;
     const cached = cache.get(dateKey);
     
     if (cached) {
@@ -101,29 +126,53 @@ export const useAvailability = ({
     setError(null);
 
     try {
-      const { data } = await client.query({
-        query: GET_ORGANIZATION_AVAILABILITY,
-        variables: {
-          input: {
-            organizationId,
-            startDate: Math.floor(startDate.getTime() / 1000),
-            endDate: Math.floor(endDate.getTime() / 1000),
-            serviceDuration,
-            designation: designation || null,
-          },
-        },
-        fetchPolicy: 'network-only',
-        context: {
-          fetchOptions: {
-            signal: abortControllerRef.current.signal,
-          },
-        },
-      });
+      let data;
 
-      const result = data?.getOrganizationAvailability || [];
-      setCache(prev => new Map(prev).set(dateKey, result));
-      console.log('💾 Cached data for date:', dateKey, '- Total cached dates:', cache.size + 1);
-      setConsultants(result);
+      if (isRepeatUser && centerId) {
+        // Repeat user with centerId → use getRepeatUserSlots
+        const result = await client.query({
+          query: GET_REPEAT_USER_SLOTS,
+          variables: {
+            input: {
+              centerId,
+              startDate: Math.floor(startDate.getTime() / 1000),
+              endDate: Math.floor(endDate.getTime() / 1000),
+              designation: designation || null,
+              deliveryMode: deliveryMode || null,
+            },
+          },
+          fetchPolicy: 'network-only',
+          context: {
+            fetchOptions: { signal: abortControllerRef.current.signal },
+          },
+        });
+        data = result.data?.getRepeatUserSlots || [];
+      } else {
+        // New user or repeat without centerId → use getOrganizationAvailability
+        const result = await client.query({
+          query: GET_ORGANIZATION_AVAILABILITY,
+          variables: {
+            input: {
+              organizationId,
+              startDate: Math.floor(startDate.getTime() / 1000),
+              endDate: Math.floor(endDate.getTime() / 1000),
+              serviceDuration,
+              designation: designation || null,
+            },
+          },
+          fetchPolicy: 'network-only',
+          context: {
+            fetchOptions: { signal: abortControllerRef.current.signal },
+          },
+        });
+        data = result.data?.getOrganizationAvailability || [];
+      }
+
+      if (data.length > 0) {
+        setCache(prev => new Map(prev).set(dateKey, data));
+        console.log('💾 Cached data for date:', dateKey);
+      }
+      setConsultants(data);
     } catch (err: any) {
       if (err.name === 'AbortError') return;
       console.error('Error fetching availability:', err);
@@ -142,7 +191,7 @@ export const useAvailability = ({
         abortControllerRef.current.abort();
       }
     };
-  }, [organizationId, startDate.getTime(), endDate.getTime(), serviceDuration, designation || '', enabled]);
+  }, [organizationId, centerId || '', startDate.getTime(), endDate.getTime(), serviceDuration, designation || '', deliveryMode, enabled, isRepeatUser]);
 
   return {
     consultants,

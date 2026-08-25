@@ -12,3 +12,4 @@ export { default as SessionTypeSelectionModal } from './SessionTypeSelectionModa
 export { default as SimplifiedPatientOnboarding } from './SimplifiedPatientOnboarding';
 export { default as PrepaidPatientOnboarding } from './PrepaidPatientOnboarding';
 export { default as EmailCollectionModal } from './EmailCollectionModal';
+export { default as CrossOrgModal } from './CrossOrgModal';

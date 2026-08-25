@@ -2,9 +2,41 @@
 
 import React, { useEffect } from 'react';
 import { useQuery } from '@apollo/client';
-import { MapPin, X } from 'lucide-react';
+import { MapPin, Navigation, X } from 'lucide-react';
 import { useContainerDetection } from '@/hooks/useContainerDetection';
 import { GET_CENTERS } from '@/gql/queries';
+
+// Known Stance Health center map links. Match by lower-cased substring in
+// center name (and as a fallback, address.street) so renames of the form
+// "Stance Health - HSR" continue to resolve.
+const CENTER_MAP_LINKS: Array<{ keyword: string; url: string }> = [
+  { keyword: 'hsr', url: 'https://maps.app.goo.gl/onY5cxQ6HYQrFn7o6' },
+  { keyword: 'indiranagar', url: 'https://maps.app.goo.gl/JVfhQB6funscA9Hd6' },
+  { keyword: 'whitefield', url: 'https://maps.app.goo.gl/FGpYsK2NZ5a7ywJ29' },
+];
+
+function resolveMapUrl(center: any): string {
+  const haystack = [
+    center?.name,
+    center?.address?.street,
+    center?.address?.city,
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+  const known = CENTER_MAP_LINKS.find((m) => haystack.includes(m.keyword));
+  if (known) return known.url;
+  // Fallback: open a Google Maps search of the address
+  const parts = [
+    center?.name,
+    center?.address?.street,
+    center?.address?.city,
+    center?.address?.state,
+    center?.address?.zipCode,
+  ].filter(Boolean);
+  const query = encodeURIComponent(parts.join(', '));
+  return `https://www.google.com/maps/search/?api=1&query=${query}`;
+}
 
 interface LocationSelectionModalProps {
   isOpen: boolean;
@@ -28,7 +60,8 @@ export default function LocationSelectionModal({
     fetchPolicy: 'cache-first',
   });
 
-  const displayCenters = centers.length > 0 ? centers : (centersData?.centers || []);
+  const allCenters = centers.length > 0 ? centers : (centersData?.centers || []);
+  const displayCenters = allCenters.filter((center: any) => center.isOnline === true);
 
   useEffect(() => {
     if (isOpen) {
@@ -73,29 +106,43 @@ export default function LocationSelectionModal({
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
             </div>
           ) : displayCenters.length > 0 ? (
-            <div className="space-y-2">
-              {displayCenters.map((center: any) => (
-                <button
-                  key={center._id}
-                  onClick={() => onSelect(center)}
-                  className="w-full bg-white rounded-xl border-2 border-gray-200 p-3 text-left hover:border-gray-300 transition-all"
-                  type="button"
-                >
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <MapPin className="w-5 h-5 text-gray-600" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium text-gray-900 mb-0.5">
-                        {center.name}
+            <div className="space-y-2 max-w-sm mx-auto">
+              {displayCenters.map((center: any) => {
+                const mapUrl = resolveMapUrl(center);
+                return (
+                  <button
+                    key={center._id}
+                    onClick={() => onSelect(center)}
+                    className="w-full p-3 border-2 border-gray-200 hover:border-gray-300 rounded-xl transition-all text-left"
+                    type="button"
+                  >
+                    <div className="flex items-start gap-3">
+                      <MapPin className="w-5 h-5 text-gray-600 mt-0.5 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <div className="font-semibold text-gray-900 text-sm">
+                          {center.name}
+                        </div>
+                        <div className="text-xs text-gray-600 mt-0.5">
+                          {[center.address?.street, center.address?.city, center.address?.state]
+                            .filter(Boolean)
+                            .join(', ') || 'Address not available'}
+                        </div>
+                        <a
+                          href={mapUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="inline-flex items-center gap-1 text-[11px] text-emerald-700 hover:text-emerald-800 mt-1.5 font-medium"
+                          aria-label={`Open ${center.name} on Google Maps`}
+                        >
+                          <Navigation className="w-3 h-3" />
+                          View on Maps
+                        </a>
                       </div>
-                      <div className="text-xs text-gray-500 line-clamp-1">
-                        {center.address?.street || 'Address not available'}
-                      </div>
                     </div>
-                  </div>
-                </button>
-              ))}
+                  </button>
+                );
+              })}
             </div>
           ) : (
             <div className="text-center py-12 text-gray-500">
@@ -107,3 +154,4 @@ export default function LocationSelectionModal({
     </div>
   );
 }
+

@@ -168,30 +168,59 @@ export function createApolloClient(initialState = {}) {
       'https://devapi.stance.health/graphql',
     // Ensure fetch works on both client and server
     fetch: fetch,
+    // Disable cache for centers query to ensure fresh data per organization
+    fetchOptions: {
+      cache: 'no-cache',
+    },
   });
 
   // Auth link to add the token and organization headers to requests
   const authLink = setContext(async (operation, { headers }) => {
     // Check if this is a mobile booking route
-    const { isMobileBookingRoute, getMobileCenterId, getMobileOrganizationId, getMobileApiKey } = await import('@/utils/mobile-config');
+    const { isMobileBookingRoute, getMobileApiKey } = await import('@/utils/mobile-config');
     
     if (isMobileBookingRoute()) {
-      const isGetCentersQuery = operation.operationName === 'Centers';
+      // For mobile booking routes, use cookies (not localStorage)
+      const { getBookingCookies } = await import('@/utils/booking-cookies');
+      const cookies = getBookingCookies();
+      
+      const mobileOrgId = cookies.organizationId;
+      const mobileCenterId = cookies.centerId;
 
-      // For mobile booking routes, check localStorage first, then fallback to hardcoded
-      const mobileOrgId = localStorage.getItem('mobile-organizationID') || getMobileOrganizationId();
-      const mobileCenterId = localStorage.getItem('mobile-centreID') || getMobileCenterId();
+      // Extract UTM params and current booking URL from localStorage "stance_tracking"
+      const utmHeaders: Record<string, string> = {};
+      if (typeof window !== 'undefined') {
+        try {
+          const UTM_KEYS = [
+            'utm_source', 'utm_medium', 'utm_campaign', 'utm_id',
+            'utm_term', 'utm_content', 'utm_adgroup', 'utm_matchtype',
+            'utm_device', 'utm_network', 'placement', 'asset_id',
+          ];
+          const raw = window.localStorage.getItem('stance_tracking');
+          const tracking = raw ? JSON.parse(raw) as Record<string, string> : {};
+          const parts: string[] = [];
+          for (const key of UTM_KEYS) {
+            const val = tracking[key];
+            if (val) parts.push(`${key}=${encodeURIComponent(val)}`);
+          }
+          if (parts.length > 0) {
+            utmHeaders['x-utm-params'] = parts.join('&');
+          }
+          const landingUrl = tracking['landing_page'];
+          utmHeaders['x-booking-url'] = (landingUrl && landingUrl.startsWith('http'))
+            ? landingUrl
+            : window.location.href;
+        } catch { /* ignore */ }
+      }
 
       return {
         headers: {
           ...headers,
           'x-api-key': getMobileApiKey(),
-          ...(isGetCentersQuery
-            ? {} // Skip organization ID for GET_CENTERS
-            : {
-              'x-organization-id': mobileOrgId,
-              'x-center-id': mobileCenterId,
-            }),
+          'x-organization-id': mobileOrgId,
+          ...(mobileCenterId && { 'x-center-id': mobileCenterId }),
+          'x-client-source': 'WEBSITE',
+          ...utmHeaders,
         },
       };
     }
@@ -201,15 +230,51 @@ export function createApolloClient(initialState = {}) {
     let centerId = null;
     
     if (typeof window !== 'undefined') {
-      // Use the new center utilities for consistency
-      const { getCenterIdForHeaders } = await import('@/utils/center-utils');
-      centerId = getCenterIdForHeaders();
+      // First, try to get from cookies (new multi-org system)
+      const { getBookingCookies } = await import('@/utils/booking-cookies');
+      const cookieData = getBookingCookies();
+      
+      if (cookieData.organizationId && cookieData.centerId) {
+        organizationId = cookieData.organizationId;
+        centerId = cookieData.centerId;
+      } else {
+        // Fallback to localStorage for backward compatibility
+        const { getCenterIdForHeaders } = await import('@/utils/center-utils');
+        centerId = getCenterIdForHeaders();
+        organizationId = localStorage.getItem('stance-organizationID') || organizationId;
+      }
+      
+      token = localStorage.getItem('token');
     }
 
+    // UTM + booking URL headers — built directly from localStorage "stance_tracking"
+    // (the source of truth written by captureTrackingParams on every page load).
+    // This survives router.replace() stripping the URL and cross-page navigation.
+    const utmHeaders: Record<string, string> = {};
     if (typeof window !== 'undefined') {
-      token = localStorage.getItem('token');
-      organizationId =
-        localStorage.getItem('stance-organizationID') || organizationId;
+      try {
+        const UTM_KEYS = [
+          'utm_source', 'utm_medium', 'utm_campaign', 'utm_id',
+          'utm_term', 'utm_content', 'utm_adgroup', 'utm_matchtype',
+          'utm_device', 'utm_network', 'placement', 'asset_id',
+        ];
+        const raw = window.localStorage.getItem('stance_tracking');
+        const tracking = raw ? JSON.parse(raw) as Record<string, string> : {};
+        const parts: string[] = [];
+        for (const key of UTM_KEYS) {
+          const val = tracking[key];
+          if (val) parts.push(`${key}=${encodeURIComponent(val)}`);
+        }
+        if (parts.length > 0) {
+          utmHeaders['x-utm-params'] = parts.join('&');
+        }
+        // x-booking-url: send the full landing URL (includes UTMs) when available,
+        // otherwise the current page URL
+        const landingUrl = tracking['landing_page'];
+        utmHeaders['x-booking-url'] = (landingUrl && landingUrl.startsWith('http'))
+          ? landingUrl
+          : window.location.href;
+      } catch { /* ignore — tracking must never break requests */ }
     }
 
     return {
@@ -218,6 +283,8 @@ export function createApolloClient(initialState = {}) {
         ...(centerId && { 'x-center-id': centerId }),
         'x-organization-id': organizationId,
         authorization: token ? `Bearer ${token}` : '',
+        'x-client-source': 'BOOKING',
+        ...utmHeaders,
       },
     };
   });
@@ -265,6 +332,12 @@ export function createApolloClient(initialState = {}) {
 
       // Original auth error handling
       if (!graphQLErrors || typeof window === 'undefined') return;
+
+      // Skip auth redirect/refresh if user has no active session (e.g. public booking pages).
+      // Without this guard, OTP errors from the server (which the production backend
+      // returns as GraphQLAuthError) incorrectly trigger handleTokenExpiration() on
+      // unauthenticated users, causing an unexpected full-page redirect to /login.
+      if (!localStorage.getItem('token')) return;
 
       for (const err of graphQLErrors) {
         // Cast to our custom error type

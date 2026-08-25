@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useQuery } from '@apollo/client';
 import { Flame, X } from 'lucide-react';
 import { useContainerDetection } from '@/hooks/useContainerDetection';
-import { GET_SERVICES } from '@/gql/queries';
+import { GET_SERVICES, GET_USER } from '@/gql/queries';
 
 interface ServiceSelectionModalProps {
   isOpen: boolean;
@@ -16,6 +16,7 @@ interface ServiceSelectionModalProps {
   sessionType: 'in-person' | 'online';
   isPrePaid?: boolean;
   designation?: string;
+  preSelectedServiceId?: string;
   onSelect: (service: { id: string; _id: string; name: string; duration: number; price: number; bookingAmount: number }) => void;
 }
 
@@ -29,19 +30,35 @@ export default function ServiceSelectionModal({
   sessionType,
   isPrePaid = false,
   designation,
+  preSelectedServiceId,
   onSelect,
 }: ServiceSelectionModalProps) {
   const [services, setServices] = useState<any[]>([]);
   const { isInDesktopContainer } = useContainerDetection();
 
-  const isValidCenterId = centerId && typeof centerId === 'string' && centerId.trim() !== '';
-  const isOrganizationLevel = !!organizationId && !centerId;
+  const isValidCenterId = !!(centerId && typeof centerId === 'string' && centerId.trim() !== '');
+  const isOrganizationLevel = !!organizationId && !isValidCenterId;
   
   const { data: servicesData, loading: servicesLoading, error: servicesError, refetch } = useQuery(GET_SERVICES, {
-    variables: isValidCenterId ? { centerId: [centerId] } : {},
+    variables: isValidCenterId ? { centerId: [centerId] } : { centerId: null },
     skip: !isValidCenterId && !isOrganizationLevel,
     fetchPolicy: 'network-only',
   });
+
+  // Fetch patient data to check status
+  const { data: patientData } = useQuery(GET_USER, {
+    variables: { userId: patientId },
+    skip: !patientId,
+    fetchPolicy: 'cache-first',
+  });
+
+  // Determine if patient should be treated as new user
+  // New user if: explicitly marked as new OR patient status is LEAD
+  const effectiveIsNewUser = React.useMemo(() => {
+    if (isNewUser) return true;
+    const patientStatus = patientData?.user?.profileData?.status;
+    return patientStatus === 'LEAD';
+  }, [isNewUser, patientData]);
 
   useEffect(() => {
     if (isOpen && (isValidCenterId || isOrganizationLevel)) {
@@ -66,10 +83,12 @@ export default function ServiceSelectionModal({
     }
 
     const filteredServices = servicesData.services.filter((service: any) => {
+      // Must have online booking enabled
       if (!service.allowOnlineBooking) {
         return false;
       }
       
+      // For prepaid services
       if (isPrePaid) {
         if (!service.isPrePaid) {
           return false;
@@ -77,20 +96,26 @@ export default function ServiceSelectionModal({
         if (!service.allowOnlineDelivery) {
           return false;
         }
+        // Filter by new user vs repeat user (including LEAD status check)
+        if (effectiveIsNewUser && !service.isNewUserService) {
+          return false;
+        }
+        if (!effectiveIsNewUser && service.isNewUserService) {
+          return false;
+        }
       } else {
+        // For non-prepaid services
         if (service.isPrePaid) {
           return false;
         }
-      }
-      
-      if (isNewUser && !service.isNewUserService) {
-        return false;
-      }
-      if (!isNewUser && service.isNewUserService) {
-        return false;
-      }
-      
-      if (!isPrePaid) {
+        // Filter by new user vs repeat user (including LEAD status check)
+        if (effectiveIsNewUser && !service.isNewUserService) {
+          return false;
+        }
+        if (!effectiveIsNewUser && service.isNewUserService) {
+          return false;
+        }
+        // Session type filtering for non-prepaid
         if (sessionType === 'online') {
           if (!service.allowOnlineDelivery) {
             return false;
@@ -109,31 +134,41 @@ export default function ServiceSelectionModal({
       id: service._id,
       _id: service._id,
       name: service.name,
+      externalName: service.externalName,
       duration: service.duration,
       price: service.price,
       bookingAmount: service.bookingAmount || service.price,
       description: service.description || 'Professional service',
+      doneBy: service.doneBy || [],
     }));
 
-    // Frontend filtering based on designation
+    // Filter by designation using doneBy field
     if (designation) {
-      const physioKeywords = ['physio', 'physiotherapy', 'msk'];
-      const sncKeywords = ['strength', 's & c', 's&c', 'snc', 'strength and conditioning', 'strength & conditioning'];
+      // Map frontend designation values to backend enum values
+      const designationMap: Record<string, string> = {
+        'Physiotherapist': 'Physiotherapist',
+        'S&C Coach': 'SNC_Coach',
+        'SNC_Coach': 'SNC_Coach',
+        'Orthopaedic Doctor': 'Orthopaedic_Doctor',
+        'Orthopaedic_Doctor': 'Orthopaedic_Doctor',
+        'Sports Massage Therapist': 'Sports_Massage_Therapist',
+        'Sports_Massage_Therapist': 'Sports_Massage_Therapist',
+      };
+      
+      const mappedDesignation = designationMap[designation] || designation;
       
       mappedServices = mappedServices.filter((service: any) => {
-        const serviceName = service.name.toLowerCase();
-        
-        if (designation === 'Physiotherapist') {
-          return physioKeywords.some(keyword => serviceName.includes(keyword));
-        } else if (designation === 'S&C Coach') {
-          return sncKeywords.some(keyword => serviceName.includes(keyword));
+        // If service has no doneBy array or it's empty, show it for all designations
+        if (!service.doneBy || service.doneBy.length === 0) {
+          return true;
         }
-        return true;
+        // Check if the mapped designation is in the doneBy array
+        return service.doneBy.includes(mappedDesignation);
       });
     }
 
     setServices(mappedServices);
-  }, [servicesData, isNewUser, sessionType, isPrePaid, centerId, organizationId, designation]);
+  }, [servicesData, effectiveIsNewUser, sessionType, isPrePaid, centerId, organizationId, designation]);
 
   useEffect(() => {
     if (isOpen) {
@@ -145,6 +180,16 @@ export default function ServiceSelectionModal({
       document.body.style.overflow = '';
     };
   }, [isOpen]);
+
+  // Auto-select service if preSelectedServiceId is provided
+  useEffect(() => {
+    if (preSelectedServiceId && services.length > 0) {
+      const service = services.find(s => s._id === preSelectedServiceId);
+      if (service) {
+        onSelect(service);
+      }
+    }
+  }, [preSelectedServiceId, services]);
 
   if (!isOpen) return null;
 
@@ -192,10 +237,7 @@ export default function ServiceSelectionModal({
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-medium text-gray-900 mb-0.5">
-                        {service.name}
-                      </div>
-                      <div className="text-xs text-gray-500 line-clamp-1">
-                        {service.description}
+                        {service.externalName}
                       </div>
                     </div>
                   </div>

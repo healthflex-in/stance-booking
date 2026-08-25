@@ -4,12 +4,16 @@ import React, { useState } from 'react';
 import { useQuery, useMutation } from '@apollo/client';
 import { useRouter } from 'next/navigation';
 import { MapPin, AlertCircle } from 'lucide-react';
+import { toast } from 'sonner';
 import { GET_CENTERS, GET_SERVICES, GET_USER, CREATE_APPOINTMENT, UPDATE_PATIENT, SEND_APPOINTMENT_EMAIL } from '@/gql/queries';
 import NewUserOnlinePaymentProcessing from './NewUserOnlinePaymentProcessing';
 import { useContainerDetection } from '@/hooks/useContainerDetection';
+import { getWebTrackingForBooking } from '@/utils/web-tracking';
 import { Button } from '@/components/ui-atoms';
 import { StanceHealthLoader } from '@/components/loader/StanceHealthLoader';
 import { EmailCollectionModal } from '@/components/onboarding/shared';
+import { useMobileFlowAnalytics } from '@/services/mobile-analytics';
+import { bookingStorage } from '@/utils/booking-storage';
 
 interface BookingData {
   sessionType: 'online' | 'in-person';
@@ -23,26 +27,37 @@ interface BookingData {
   selectedTimeSlot: { startTime: string; endTime: string; displayTime: string };
 }
 
+import { BookingAnalytics } from '@/services/booking-analytics';
+
 interface NewUserOnlinePaymentConfirmationProps {
   bookingData: BookingData;
   onNext: (appointmentId: string) => void;
+  analytics: BookingAnalytics;
 }
 
 export default function NewUserOnlinePaymentConfirmation({
   bookingData,
   onNext,
+  analytics,
 }: NewUserOnlinePaymentConfirmationProps) {
   const router = useRouter();
   const { isInDesktopContainer } = useContainerDetection();
+  const mobileAnalytics = useMobileFlowAnalytics();
   const [amountError, setAmountError] = useState('');
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [showEmailModal, setShowEmailModal] = useState(false);
+  const [isCreatingAppointment, setIsCreatingAppointment] = useState(false);
+
+  React.useEffect(() => {
+    // Track booking confirmation start
+    mobileAnalytics.trackBookingConfirmationStart(bookingData);
+  }, [bookingData]);
 
   const { data: centersData, loading: centersLoading } = useQuery(GET_CENTERS);
   const { data: servicesData, loading: servicesLoading } = useQuery(GET_SERVICES, {
     variables: { centerId: [bookingData.centerId] },
   });
-  const { data: userData, loading: userLoading } = useQuery(GET_USER, {
+  const { data: userData, loading: userLoading, refetch: refetchUser } = useQuery(GET_USER, {
     variables: { userId: bookingData.patientId },
     skip: !bookingData.patientId,
   });
@@ -74,20 +89,33 @@ export default function NewUserOnlinePaymentConfirmation({
       return;
     }
 
-    setIsProcessingPayment(true);
-    try {
+    analytics.trackProceedToPaymentClicked(
+      bookingData.treatmentPrice,
+      bookingData.treatmentId,
+      bookingData.consultantId
+    );
 
-      if (process.env.NEXT_PUBLIC_ENVIRONMENT === 'development') {
-        console.log('📋 Creating appointment with data:', {
-          patient: bookingData.patientId,
-          consultant: bookingData.consultantId,
-          center: bookingData.centerId,
-          treatment: bookingData.treatmentId,
-          medium: bookingData.sessionType,
-        });
-      }
+    // Track payment method selected (invoice/razorpay)
+    mobileAnalytics.trackPaymentMethodSelected('razorpay', bookingData);
+
+    setIsCreatingAppointment(true);
+    const startTime = Date.now();
+    
+    // Timeout handler
+    const timeoutId = setTimeout(() => {
+      console.warn('⚠️ Appointment creation taking longer than expected...');
+      toast.info('Setting up your online session...', { 
+        duration: 3000,
+        position: 'top-center',
+        className: 'text-sm',
+      });
+    }, 5000);
+    
+    try {
+      console.log('⏱️ Starting appointment creation...');
 
       // Update patient's center to the selected center
+      const updateStart = Date.now();
       await updatePatient({
         variables: {
           patientId: bookingData.patientId,
@@ -96,12 +124,10 @@ export default function NewUserOnlinePaymentConfirmation({
           },
         },
       });
-      
-      if (process.env.NEXT_PUBLIC_ENVIRONMENT === 'development') {
-        console.log('✅ Patient center updated to:', bookingData.centerId);
-      }
+      console.log(`✅ Patient center updated in ${Date.now() - updateStart}ms`);
       
       // Create appointment
+      const appointmentStart = Date.now();
       const appointmentResult = await createAppointment({
         variables: {
           input: {
@@ -111,39 +137,51 @@ export default function NewUserOnlinePaymentConfirmation({
             treatment: bookingData.treatmentId,
             medium: bookingData.sessionType === 'online' ? 'ONLINE' : 'IN_PERSON',
             visitType: 'FIRST_VISIT',
-            status: 'BOOKED',
+            status: 'TOKEN_PENDING',
             category: 'WEBSITE',
             event: {
               startTime: new Date(bookingData.selectedTimeSlot.startTime).getTime(),
               endTime: new Date(bookingData.selectedTimeSlot.endTime).getTime(),
             },
+            webTracking: getWebTrackingForBooking() ?? undefined,
           },
         },
       });
+      console.log(`✅ Appointment created in ${Date.now() - appointmentStart}ms`);
 
       const appointmentId = appointmentResult?.data?.createAppointment?._id;
-      
-      if (process.env.NEXT_PUBLIC_ENVIRONMENT === 'development') {
-        console.log('✅ Appointment created:', appointmentId);
-      }
       
       if (!appointmentId) {
         throw new Error('Failed to create appointment');
       }
 
-      // Store appointment ID for payment
-      sessionStorage.setItem('appointmentId', appointmentId);
-      sessionStorage.setItem('paymentType', 'invoice');
-      sessionStorage.setItem('paymentAmount', bookingData.treatmentPrice.toString());
+      console.log('✅ Appointment ID:', appointmentId);
+      bookingStorage.setItem('appointmentId', appointmentId);
+      bookingStorage.setItem('paymentType', 'invoice');
+      bookingStorage.setItem('paymentAmount', bookingData.treatmentPrice.toString());
       
-      if (process.env.NEXT_PUBLIC_ENVIRONMENT === 'development') {
-        console.log('💾 Stored appointmentId in sessionStorage:', appointmentId);
+      analytics.trackPaymentInitiated(bookingData.treatmentPrice, appointmentId);
+      
+      // Verify storage was written
+      const storedId = bookingStorage.getItem('appointmentId');
+      console.log('✅ Verified stored appointment ID:', storedId);
+      
+      if (!storedId) {
+        throw new Error('Failed to store appointment ID');
       }
+      
+      clearTimeout(timeoutId);
+      console.log(`⏱️ Total time: ${Date.now() - startTime}ms`);
+      
+      // Now show payment processing screen
+      setIsCreatingAppointment(false);
+      setIsProcessingPayment(true);
     } catch (error: any) {
+      clearTimeout(timeoutId);
       console.error('❌ Error creating appointment:', error);
       console.error('❌ Error details:', error.message, error.graphQLErrors);
       setAmountError('Failed to create appointment. Please try again.');
-      setIsProcessingPayment(false);
+      setIsCreatingAppointment(false);
     }
   };
 
@@ -151,6 +189,14 @@ export default function NewUserOnlinePaymentConfirmation({
     return (
       <div className="h-full flex items-center justify-center">
         <StanceHealthLoader message="Loading details..." />
+      </div>
+    );
+  }
+
+  if (isCreatingAppointment) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <StanceHealthLoader message="Creating appointment..." />
       </div>
     );
   }
@@ -171,22 +217,17 @@ export default function NewUserOnlinePaymentConfirmation({
             await updatePatient({
               variables: {
                 patientId: bookingData.patientId,
-                input: {
-                  status: 'ACTIVE',
-                },
+                input: {},
               },
             });
-            if (process.env.NEXT_PUBLIC_ENVIRONMENT === 'development') {
-              console.log('✅ Patient status updated to ACTIVE');
-            }
           } catch (error) {
-            console.error('❌ Failed to update patient status:', error);
+            console.error('❌ Failed to update patient:', error);
           }
           
-          const storedAppointmentId = sessionStorage.getItem('appointmentId');
-          sessionStorage.removeItem('appointmentId');
-          sessionStorage.removeItem('paymentType');
-          sessionStorage.removeItem('paymentAmount');
+          const storedAppointmentId = bookingStorage.getItem('appointmentId');
+          bookingStorage.removeItem('appointmentId');
+          bookingStorage.removeItem('paymentType');
+          bookingStorage.removeItem('paymentAmount');
           setIsProcessingPayment(false);
           if (storedAppointmentId) {
             onNext(storedAppointmentId);
@@ -194,8 +235,8 @@ export default function NewUserOnlinePaymentConfirmation({
         }}
         onPaymentFailure={async (error) => {
           setIsProcessingPayment(false);
-          sessionStorage.removeItem('paymentType');
-          sessionStorage.removeItem('paymentAmount');
+          bookingStorage.removeItem('paymentType');
+          bookingStorage.removeItem('paymentAmount');
           const errorMsg = typeof error === 'string' ? error : error?.description || error?.message || 'Payment failed';
           setAmountError(errorMsg);
         }}
@@ -279,6 +320,19 @@ export default function NewUserOnlinePaymentConfirmation({
               </p>
             </div>
           </div>
+
+          {/* Cancellation Policy */}
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 mb-6">
+            <div className="flex items-start space-x-2">
+              <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-xs font-semibold text-blue-900 mb-1">Cancellation Policy</p>
+                <p className="text-xs text-blue-800">
+                  Cancellations made less than one day prior to the appointment will incur a ₹300 cancellation fee.
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -286,13 +340,13 @@ export default function NewUserOnlinePaymentConfirmation({
       <div className={`${isInDesktopContainer ? 'flex-shrink-0' : 'fixed bottom-0 left-0 right-0'} bg-white border-t border-gray-200 p-4`}>
         <Button
           onClick={handleProceedToPayment}
-          disabled={creatingAppointment}
-          isLoading={creatingAppointment}
+          disabled={creatingAppointment || isProcessingPayment || isCreatingAppointment}
+          isLoading={creatingAppointment || isProcessingPayment || isCreatingAppointment}
           fullWidth
           variant="primary"
           size="lg"
         >
-          Pay ₹{bookingData.treatmentPrice}
+          {creatingAppointment || isProcessingPayment || isCreatingAppointment ? 'Creating Appointment...' : `Pay ₹${bookingData.treatmentPrice}`}
         </Button>
       </div>
 
@@ -300,7 +354,10 @@ export default function NewUserOnlinePaymentConfirmation({
         isOpen={showEmailModal}
         patientId={bookingData.patientId}
         patientName={patientDetails.name}
-        onEmailSaved={() => setShowEmailModal(false)}
+        onEmailSaved={async () => {
+          await refetchUser();
+          setShowEmailModal(false);
+        }}
         onClose={() => setShowEmailModal(false)}
       />
     </div>

@@ -26,6 +26,7 @@ import { useMobileFlowAnalytics } from '@/services/mobile-analytics';
 import WhatsAppButton from './WhatsAppButton';
 import Popup from "./Popup";
 import LeadDetectionModal from './LeadDetectionModal';
+import { getBookingCookies } from '@/utils/booking-cookies';
 
 interface MobilePatientOnboardingProps {
   centerId: string;
@@ -76,7 +77,7 @@ export default function MobilePatientOnboarding({
     category: 'WEBSITE', // This ensures mobile web patients are marked as WEBSITE category
     bio: '',
     cohort: 'SURGICAL',
-    centers: [centerId || '67fe36545e42152fb5185a6c'],
+    centers: [centerId || ''],
     referral: {
       type: '',
       user: '',
@@ -132,10 +133,9 @@ export default function MobilePatientOnboarding({
 
   // Set organization ID when centers data is loaded
   React.useEffect(() => {
-    if (centersData?.centers) {
-      const targetCenterId = centerId || '67fe36545e42152fb5185a6c';
+    if (centersData?.centers && centerId) {
       const defaultCenter = centersData.centers.find(
-        (center: any) => center._id === targetCenterId
+        (center: any) => center._id === centerId
       );
       
       if (defaultCenter?.organization?._id) {
@@ -197,6 +197,9 @@ export default function MobilePatientOnboarding({
         
         // Track patient creation success
         mobileAnalytics.trackPatientCreated(data.createPatient._id, centerId, false);
+        
+        // Track patient profile completed
+        mobileAnalytics.trackPatientProfileCompleted(data.createPatient._id, centerId, false);
         
         // Set organization ID in localStorage from the created patient's center
         const patientCenter = data.createPatient.profileData?.centers?.[0];
@@ -292,14 +295,19 @@ export default function MobilePatientOnboarding({
   const handleBookSlotsForLead = () => {
     // Continue with the booking flow using the lead user's ID
     if (leadUser?.id) {
-      // Set organization ID and center ID for existing users
-      const organizationId = '67fe35f25e42152fb5185a5e';
-      const finalCenterId = '67fe36545e42152fb5185a6c';
+      // Get organization and center IDs from cookies
+      const cookies = getBookingCookies();
+      const organizationId = cookies.organizationId || '';
+      const finalCenterId = cookies.centerId || centerId || '';
       
-      localStorage.setItem('organizationId', organizationId);
-      localStorage.setItem('stance-organizationID', organizationId);
-      localStorage.setItem('centerId', finalCenterId);
-      localStorage.setItem('stance-centreID', finalCenterId);
+      if (organizationId) {
+          localStorage.setItem('organizationId', organizationId);
+        localStorage.setItem('stance-organizationID', organizationId);
+      }
+      if (finalCenterId) {
+        localStorage.setItem('centerId', finalCenterId);
+        localStorage.setItem('stance-centreID', finalCenterId);
+      }
       
       onPatientCreated(leadUser.id, false);
       onNext(); // Continue to the next step in the booking flow
@@ -320,6 +328,13 @@ export default function MobilePatientOnboarding({
     if (!formData.firstName || !formData.firstName.trim()) {
       errors.firstName = 'First name is required';
       mobileAnalytics.trackPatientFormValidationError('firstName', 'required', centerId);
+    } else if (!/^[a-zA-Z\s]+$/.test(formData.firstName)) {
+      errors.firstName = 'First name can only contain letters';
+      mobileAnalytics.trackPatientFormValidationError('firstName', 'invalid_characters', centerId);
+    }
+    if (formData.lastName && !/^[a-zA-Z\s]+$/.test(formData.lastName)) {
+      errors.lastName = 'Last name can only contain letters';
+      mobileAnalytics.trackPatientFormValidationError('lastName', 'invalid_characters', centerId);
     }
     if (!formData.phone || formData.phone.length !== 10) {
       errors.phone = 'Phone number must be 10 digits';
@@ -354,9 +369,15 @@ export default function MobilePatientOnboarding({
       HOME: 'Home_Patient',
     };
 
-    // Use hardcoded values for mobile booking
-    const organizationId = '67fe35f25e42152fb5185a5e';
-    const finalCenterId = '67fe36545e42152fb5185a6c';
+    // Get organization and center IDs from cookies
+    const cookies = getBookingCookies();
+    const organizationId = cookies.organizationId || '';
+    const finalCenterId = cookies.centerId || centerId || '';
+
+    if (!organizationId || !finalCenterId) {
+      toast.error('Organization or center information is missing');
+      return;
+    }
 
     // Set mobile-specific keys in localStorage before mutation
     localStorage.setItem('mobile-organizationID', organizationId);
@@ -432,7 +453,7 @@ export default function MobilePatientOnboarding({
           {formData.phone.length === 10 && !isPhoneVerified && (
             <button
               onClick={() => {
-                mobileAnalytics.trackPhoneVerificationClicked(formData.phone, centerId);
+                mobileAnalytics.trackPhoneVerificationAttempt(formData.phone, centerId);
                 handlePhoneVerification();
               }}
               disabled={isVerifying}
@@ -492,9 +513,14 @@ export default function MobilePatientOnboarding({
               }
             }}
             disabled={!isPhoneVerified}
-            className={`w-full p-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 outline-none ${!isPhoneVerified ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+            className={`w-full p-3 border-2 rounded-xl ${
+              formErrors.lastName ? 'border-red-300' : 'border-gray-200'
+            } focus:border-blue-500 outline-none ${!isPhoneVerified ? 'bg-gray-100 cursor-not-allowed' : ''}`}
             placeholder="Last name"
           />
+          {formErrors.lastName && (
+            <p className="text-red-500 text-xs mt-1">{formErrors.lastName}</p>
+          )}
         </div>
       </div>
 
@@ -532,11 +558,10 @@ export default function MobilePatientOnboarding({
         <label className="block text-sm font-medium text-gray-700 mb-3">
           Gender
         </label>
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 gap-2">
           {[
             { value: 'MALE', label: 'Male' },
             { value: 'FEMALE', label: 'Female' },
-            { value: 'OTHER', label: 'Other' },
           ].map((option) => (
             <button
               key={option.value}
@@ -688,7 +713,7 @@ export default function MobilePatientOnboarding({
           <div className="flex space-x-3">
             <button
               onClick={() => {
-                mobileAnalytics.trackPhoneVerificationClicked(formData.phone, centerId);
+                mobileAnalytics.trackPhoneVerificationAttempt(formData.phone, centerId);
                 handlePhoneVerification();
               }}
               disabled={isVerifying || !formData.phone || formData.phone.length !== 10}
