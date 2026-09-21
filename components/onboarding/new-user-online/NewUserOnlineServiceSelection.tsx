@@ -22,7 +22,7 @@ export default function NewUserOnlineServiceSelection({
   const [emailError, setEmailError] = useState('');
 
   const { data: servicesData, loading } = useQuery(GET_SERVICES, {
-    variables: { centerId: [centerId] },
+    variables: { centerId: [centerId], patientId },
     fetchPolicy: 'network-only',
   });
 
@@ -33,11 +33,11 @@ export default function NewUserOnlineServiceSelection({
 
   const [updatePatient, { loading: updating }] = useMutation(UPDATE_PATIENT);
 
+  // Backend filters isNewUserService via patientId + appointment history.
   const newUserOnlineServices = servicesData?.services?.filter(
     (service: any) =>
       service.allowOnlineBooking &&
       service.allowOnlineDelivery &&
-      service.isNewUserService &&
       !service.isPrePaid
   ) || [];
 

@@ -193,6 +193,33 @@ export type Scalars = {
   Void: { input: any; output: any; }
 };
 
+export type AccountDeletionRequest = {
+  __typename?: 'AccountDeletionRequest';
+  _id: Scalars['ObjectID']['output'];
+  createdAt: Scalars['Timestamp']['output'];
+  patient?: Maybe<User>;
+  reason?: Maybe<Scalars['String']['output']>;
+  rejectionReason?: Maybe<Scalars['String']['output']>;
+  requestedAt: Scalars['Timestamp']['output'];
+  reviewedAt?: Maybe<Scalars['Timestamp']['output']>;
+  reviewedBy?: Maybe<Scalars['ObjectID']['output']>;
+  status: AccountDeletionRequestStatus;
+  updatedAt: Scalars['Timestamp']['output'];
+  user: Scalars['ObjectID']['output'];
+};
+
+export enum AccountDeletionRequestStatus {
+  Approved = 'APPROVED',
+  Pending = 'PENDING',
+  Rejected = 'REJECTED'
+}
+
+export type AccountDeletionRequestsResult = {
+  __typename?: 'AccountDeletionRequestsResult';
+  requests: Array<AccountDeletionRequest>;
+  totalCount: Scalars['Int']['output'];
+};
+
 export enum Action {
   Approve = 'APPROVE',
   Create = 'CREATE',
@@ -204,6 +231,32 @@ export enum Action {
   View = 'VIEW',
   Waive = 'WAIVE'
 }
+
+/**
+ * One active control row for the unified admin Controls page.
+ * Flattens patient identity + control entry for table display.
+ */
+export type ActivePatientControl = {
+  __typename?: 'ActivePatientControl';
+  control: PatientControl;
+  email?: Maybe<Scalars['String']['output']>;
+  firstName?: Maybe<Scalars['String']['output']>;
+  lastName?: Maybe<Scalars['String']['output']>;
+  patientId: Scalars['ObjectID']['output'];
+  phone?: Maybe<Scalars['String']['output']>;
+  seqNo?: Maybe<Scalars['String']['output']>;
+};
+
+/**
+ * Result returned by addRecords / updateRecords.
+ * The report is always saved. Warnings are non-blocking completeness hints
+ * (e.g. "At least 1 short-term goal required") shown as toasts on the frontend.
+ */
+export type AddRecordsResult = {
+  __typename?: 'AddRecordsResult';
+  report: Report;
+  warnings: Array<Scalars['String']['output']>;
+};
 
 /** Patient type for healthcare recipients */
 export type AdditionalOrganization = {
@@ -541,6 +594,28 @@ export type AgentSubjectiveInput = {
   record?: InputMaybe<Scalars['ObjectID']['input']>;
 };
 
+/**
+ * AI-generated patient card saved on the report.
+ * Mirrors the recommendation-data collection:
+ *   top3ActionAreas: the 3 focus areas (from top_3_action_areas)
+ *   nextSessionPlan: plan for the next session (from next_session_plan)
+ *   createdAt / updatedAt: timestamps from the source recommendation-data doc
+ */
+export type AiPatientCard = {
+  __typename?: 'AiPatientCard';
+  createdAt?: Maybe<Scalars['Timestamp']['output']>;
+  nextSessionPlan?: Maybe<Scalars['String']['output']>;
+  top3ActionAreas?: Maybe<Array<Maybe<Scalars['String']['output']>>>;
+  updatedAt?: Maybe<Scalars['Timestamp']['output']>;
+};
+
+export type AiPatientCardInput = {
+  createdAt?: InputMaybe<Scalars['Timestamp']['input']>;
+  nextSessionPlan?: InputMaybe<Scalars['String']['input']>;
+  top3ActionAreas?: InputMaybe<Array<InputMaybe<Scalars['String']['input']>>>;
+  updatedAt?: InputMaybe<Scalars['Timestamp']['input']>;
+};
+
 export type AlertItem = {
   __typename?: 'AlertItem';
   metadata?: Maybe<Scalars['JSON']['output']>;
@@ -571,6 +646,38 @@ export type ApiKeyResponse = {
   key: Scalars['String']['output'];
   name: Scalars['String']['output'];
   permissions: Array<Scalars['String']['output']>;
+};
+
+export enum AppPlatform {
+  Android = 'ANDROID',
+  Ios = 'IOS'
+}
+
+export type AppVersionInfo = {
+  __typename?: 'AppVersionInfo';
+  /**
+   * Most recently published store version. The client can offer a dismissible
+   * "update available" prompt when its installed version is below this but
+   * still >= minimumVersion.
+   */
+  latestVersion: Scalars['String']['output'];
+  /**
+   * Lowest native app version still allowed to use the app. The client should
+   * block usage (force update) if its installed version is below this.
+   */
+  minimumVersion: Scalars['String']['output'];
+  /** App Store / Play Store URL to send the user to in order to update. */
+  updateUrl: Scalars['String']['output'];
+};
+
+export type ApplyPatientControlInput = {
+  /** Optional epoch ms. Omit or null for a permanent control. */
+  expiresAt?: InputMaybe<Scalars['Timestamp']['input']>;
+  /** Required for BLOCK_DATE_RANGE and BLOCK_TIME_SLOTS. */
+  params?: InputMaybe<ControlParamsInput>;
+  patientId: Scalars['ObjectID']['input'];
+  reason: Scalars['String']['input'];
+  type: ControlType;
 };
 
 /** Appointment */
@@ -636,6 +743,8 @@ export type AppointmentEvent = BaseEvent & DataRow & {
 };
 
 export type AppointmentFilter = {
+  /** Filter by cancellationDetails.status (and pending cancellation-fee invoices for FEE_PENDING). */
+  cancellationStatuses?: InputMaybe<Array<CancellationStatus>>;
   category?: InputMaybe<PatientCategory>;
   center?: InputMaybe<Array<Scalars['ObjectID']['input']>>;
   consultant?: InputMaybe<Scalars['ObjectID']['input']>;
@@ -797,7 +906,8 @@ export enum AuditLogType {
   SessionStart = 'SESSION_START',
   StatusChange = 'STATUS_CHANGE',
   Update = 'UPDATE',
-  View = 'VIEW'
+  View = 'VIEW',
+  Waiver = 'WAIVER'
 }
 
 export enum AuditOutcome {
@@ -1048,9 +1158,19 @@ export enum CancellationReason {
 
 export enum CancellationStatus {
   Allowed = 'ALLOWED',
+  CancellationFeePaid = 'CANCELLATION_FEE_PAID',
+  CancellationFeePending = 'CANCELLATION_FEE_PENDING',
+  CancellationFeeWaived = 'CANCELLATION_FEE_WAIVED',
   Complimentary = 'COMPLIMENTARY',
   NotAllowed = 'NOT_ALLOWED'
 }
+
+/** Summary of carryover days available for a patient */
+export type CarryoverSummary = {
+  __typename?: 'CarryoverSummary';
+  pauses: Array<PauseHistory>;
+  totalDays: Scalars['Int']['output'];
+};
 
 export type Center = DataRow & {
   __typename?: 'Center';
@@ -1075,6 +1195,8 @@ export type CenterAvailabilityInput = {
   deliveryMode?: InputMaybe<Scalars['String']['input']>;
   designation?: InputMaybe<Scalars['String']['input']>;
   endDate: Scalars['Timestamp']['input'];
+  /** When set, returns no slots if this patient is blocked from booking. */
+  patientId?: InputMaybe<Scalars['ObjectID']['input']>;
   serviceDuration: Scalars['Int']['input'];
   startDate: Scalars['Timestamp']['input'];
 };
@@ -1162,6 +1284,51 @@ export type ConsultantFilterInput = {
   allowOnlineDelivery?: InputMaybe<Array<DeliveryMode>>;
   centers?: InputMaybe<Array<Scalars['ObjectID']['input']>>;
 };
+
+/**
+ * Union of optional structured params carried by a control entry.
+ * Only BLOCK_DATE_RANGE and BLOCK_TIME_SLOTS use params; all others are parameterless.
+ */
+export type ControlParams = DateRangeParams | TimeSlotParams;
+
+export type ControlParamsInput = {
+  dateRange?: InputMaybe<DateRangeParamsInput>;
+  timeSlot?: InputMaybe<TimeSlotParamsInput>;
+};
+
+/**
+ * All blockable actions in the system.
+ * SUSPEND is the master kill-switch — it implies every other block.
+ */
+export enum ControlType {
+  BlockAppointments = 'BLOCK_APPOINTMENTS',
+  /** Block cancelling existing appointments. */
+  BlockCancel = 'BLOCK_CANCEL',
+  BlockCreditUsage = 'BLOCK_CREDIT_USAGE',
+  /** Block appointments whose start time falls within a specific date range. */
+  BlockDateRange = 'BLOCK_DATE_RANGE',
+  BlockEmail = 'BLOCK_EMAIL',
+  BlockInvoices = 'BLOCK_INVOICES',
+  /** Block Practo / marketplace partner bookings. */
+  BlockMarketplace = 'BLOCK_MARKETPLACE',
+  BlockOnlineBooking = 'BLOCK_ONLINE_BOOKING',
+  BlockPackages = 'BLOCK_PACKAGES',
+  /** Suppress in-app / push notifications to the patient. */
+  BlockPush = 'BLOCK_PUSH',
+  /**
+   * Block saving / updating assessment report records.
+   * Auto-applied when the patient has not yet accepted consent AND submitted the intake form.
+   * Auto-lifted once both prerequisites are satisfied.
+   */
+  BlockReportUpdates = 'BLOCK_REPORT_UPDATES',
+  /** Block rescheduling existing appointments (time change or reschedule flow). */
+  BlockReschedule = 'BLOCK_RESCHEDULE',
+  /** Block appointments in a recurring weekly time window (e.g. every Tuesday 9–12). */
+  BlockTimeSlots = 'BLOCK_TIME_SLOTS',
+  BlockTokenBooking = 'BLOCK_TOKEN_BOOKING',
+  BlockWhatsapp = 'BLOCK_WHATSAPP',
+  Suspend = 'SUSPEND'
+}
 
 export type CreateAdvanceInput = {
   center: Scalars['ObjectID']['input'];
@@ -1467,6 +1634,8 @@ export type CreatePackageInput = {
   description?: InputMaybe<Scalars['String']['input']>;
   externalName: Scalars['String']['input'];
   isMultiUser: Scalars['Boolean']['input'];
+  /** Defaults to true when omitted. */
+  isPurchasable?: InputMaybe<Scalars['Boolean']['input']>;
   maxUsers?: InputMaybe<Scalars['Int']['input']>;
   name: Scalars['String']['input'];
   price: Scalars['Float']['input'];
@@ -1569,9 +1738,20 @@ export type CreateServiceInput = {
   externalName: Scalars['String']['input'];
   isNewUserService?: InputMaybe<Scalars['Boolean']['input']>;
   isPrePaid?: InputMaybe<Scalars['Boolean']['input']>;
+  /** Defaults to true when omitted. */
+  isPurchasable?: InputMaybe<Scalars['Boolean']['input']>;
   name: Scalars['String']['input'];
   price: Scalars['Float']['input'];
   tokenAmount?: InputMaybe<Scalars['Float']['input']>;
+};
+
+export type CreateShortLinkInput = {
+  centerId?: InputMaybe<Scalars['ObjectID']['input']>;
+  /** Optional ISO-8601 expiry. Defaults to 30d (onboarding), 90d (consent), or 365d (advance/invoice receipt). */
+  expiresAt?: InputMaybe<Scalars['Timestamp']['input']>;
+  longUrl: Scalars['String']['input'];
+  patientId?: InputMaybe<Scalars['ObjectID']['input']>;
+  type: ShortLinkType;
 };
 
 export type CreateStaffInput = {
@@ -1683,6 +1863,20 @@ export enum DataType {
   SingleUnit = 'SINGLE_UNIT',
   Unilateral = 'UNILATERAL'
 }
+
+/** Extra params for BLOCK_DATE_RANGE — the window during which appointments are blocked. */
+export type DateRangeParams = {
+  __typename?: 'DateRangeParams';
+  /** Epoch ms — start of the blocked window (inclusive). */
+  fromDate: Scalars['Timestamp']['output'];
+  /** Epoch ms — end of the blocked window (inclusive). */
+  toDate: Scalars['Timestamp']['output'];
+};
+
+export type DateRangeParamsInput = {
+  fromDate: Scalars['Timestamp']['input'];
+  toDate: Scalars['Timestamp']['input'];
+};
 
 export type DecisionChangingMissingData = {
   __typename?: 'DecisionChangingMissingData';
@@ -1994,6 +2188,11 @@ export enum FileOwnerType {
   User = 'USER'
 }
 
+export type FileUpdateInput = {
+  details?: InputMaybe<Scalars['String']['input']>;
+  name?: InputMaybe<Scalars['String']['input']>;
+};
+
 export type FileUploadInput = {
   details?: InputMaybe<Scalars['String']['input']>;
   documentType: DocumentType;
@@ -2174,6 +2373,19 @@ export type GoalsDataStatus = {
   isFilled: Scalars['Boolean']['output'];
   totalGoalSets: Scalars['Int']['output'];
   totalGoals: Scalars['Int']['output'];
+};
+
+export type InAppNotification = {
+  __typename?: 'InAppNotification';
+  _id: Scalars['ObjectID']['output'];
+  body: Scalars['String']['output'];
+  createdAt: Scalars['Timestamp']['output'];
+  data?: Maybe<Scalars['JSON']['output']>;
+  isRead: Scalars['Boolean']['output'];
+  patient: Scalars['ObjectID']['output'];
+  title: Scalars['String']['output'];
+  type: Scalars['String']['output'];
+  updatedAt: Scalars['Timestamp']['output'];
 };
 
 export type Invoice = DataRow & {
@@ -2383,6 +2595,17 @@ export type Ledger = DataRow & {
   version: Scalars['Int']['output'];
 };
 
+export type LiftAllControlsOfTypeInput = {
+  patientId: Scalars['ObjectID']['input'];
+  type: ControlType;
+};
+
+export type LiftPatientControlInput = {
+  /** The _id of the specific control entry to remove. */
+  controlId: Scalars['ObjectID']['input'];
+  patientId: Scalars['ObjectID']['input'];
+};
+
 export type LoginAfterRegistrationInput = {
   /** postVerifyToken issued by verifyEmailOTPForRegistration */
   token: Scalars['String']['input'];
@@ -2533,8 +2756,12 @@ export type Mutation = {
   addRPERecord: RpeRecord;
   addRecommendationRecord?: Maybe<Array<RecommendationRecord>>;
   /** Add records to a report */
-  addRecords: Report;
+  addRecords: AddRecordsResult;
   addSubjectiveRecord: SubjectiveRecord;
+  /** Apply a control restriction to a patient. Admin only. */
+  applyPatientControl: Array<PatientControl>;
+  /** Approve an account deletion request (sets target user isActive: false). */
+  approveAccountDeletionRequest: AccountDeletionRequest;
   /** Create or update permissions for a user in a specific scope */
   assignPermissions: UserPermissions;
   /** Create or update permissions for a user in a specific scope */
@@ -2590,6 +2817,8 @@ export type Mutation = {
   createRule: Rule;
   /** Create a service */
   createService: Service;
+  /** Persist a long URL and return a short redirect URL under /r/:code. */
+  createShortLink: ShortLink;
   /** Create a new staff */
   createStaff: User;
   /** Create token definition */
@@ -2606,6 +2835,8 @@ export type Mutation = {
   deleteCenter: Center;
   /** Delete an event (soft delete or remove permanently). */
   deleteEvent: Scalars['Boolean']['output'];
+  /** Delete a file by id */
+  deleteFile: Scalars['Boolean']['output'];
   /** Delete a goal from a goal set */
   deleteGoal: GoalSet;
   /** Delete a goal set permanently */
@@ -2657,6 +2888,10 @@ export type Mutation = {
    * Public — no auth needed.
    */
   initiateConsentOTP: ConsentOtpChallenge;
+  /** Remove all controls of a given type for a patient. Admin only. */
+  liftAllPatientControlsOfType: Array<PatientControl>;
+  /** Remove a specific control entry by its _id. Admin only. */
+  liftPatientControl: Array<PatientControl>;
   /** Lock a slot to prevent concurrent booking */
   lockSlot: SlotLock;
   /**
@@ -2673,9 +2908,31 @@ export type Mutation = {
    */
   loginAfterRegistration: AuthenticatedSession;
   logout: Session;
+  /** Mark all notifications as read for the authenticated patient. */
+  markAllNotificationsAsRead: Scalars['Boolean']['output'];
+  /** Mark a single notification as read. */
+  markNotificationAsRead: Scalars['Boolean']['output'];
+  /**
+   * Mark a single inbound message as read by advancing lastOpenedAt to that
+   * message's receivedAt (watermark never moves backwards).
+   */
+  markWhatsAppInboundMessageRead: Scalars['Boolean']['output'];
+  /**
+   * Read all — set lastOpenedAt = now for the current user (staff or consultant).
+   * Clears the inbound unread badge.
+   */
+  markWhatsAppMessagesOpened: Scalars['Boolean']['output'];
+  /**
+   * Pause an active package advance. Calculates remaining days and stores
+   * a pause record. The advance must contain a PACKAGE item that has not
+   * yet expired.
+   */
+  pauseAdvance: PauseHistory;
   pong: Ping;
   /** Admin: publish a new or updated policy clause. */
   publishPolicy: Policy;
+  /** Re-activate a deactivated user account (sets target user isActive: true). */
+  reactivateAccount: User;
   /**
    * Record that a patient has accepted all currently active policies.
    * Called at the end of the onboarding consent screen.
@@ -2686,6 +2943,10 @@ export type Mutation = {
   refreshToken: Scalars['String']['output'];
   /** Register or update a device FCM token for the authenticated patient. */
   registerDeviceToken: DeviceToken;
+  /** Reject an account deletion request. */
+  rejectAccountDeletionRequest: AccountDeletionRequest;
+  /** Submit an account deletion request for the authenticated user. */
+  requestAccountDeletion: AccountDeletionRequest;
   /** Reset a user's password (sends OTP and resets password) */
   resetPassword: Scalars['Boolean']['output'];
   /**
@@ -2694,6 +2955,12 @@ export type Mutation = {
    */
   resetPasswordWithOTP: Scalars['Boolean']['output'];
   resolveAlert?: Maybe<PatientAlert>;
+  /**
+   * Resume a paused advance. This marks the pause as ended but does NOT
+   * restore validity on the original advance. The remaining days are still
+   * available as carryover for the next package purchase.
+   */
+  resumeAdvance: PauseHistory;
   /** Log out from all sessions except the current one */
   revokeAllOtherSessions: Scalars['Int']['output'];
   /** Log out from a specific session */
@@ -2706,6 +2973,11 @@ export type Mutation = {
   sendEmailOTPForEmailChange: OtpChallenge;
   /** Send OTP to email for new user registration (doesn't require user to exist) */
   sendEmailOTPForRegistration: OtpChallenge;
+  /**
+   * Send an intake_form_reminder WhatsApp message to the patient via Interakt API.
+   * Returns true if the message was sent successfully.
+   */
+  sendIntakeFormReminder: Scalars['Boolean']['output'];
   /** Send OTP to the given Phone Number and Returns an OtpChallenge as Response */
   sendOTP: OtpChallenge;
   /**
@@ -2737,6 +3009,10 @@ export type Mutation = {
   /** Update a center */
   updateCenter: Center;
   updateConsultant: User;
+  /** Update an existing External user (Admin only). */
+  updateExternalUser: User;
+  /** Update a file by id */
+  updateFile: File;
   /** update a goal-set */
   updateGoalSet: GoalSet;
   updateInvoice: Invoice;
@@ -2762,7 +3038,7 @@ export type Mutation = {
   /** Update an existing preferred timing slot */
   updatePreferredTiming: PreferredTimingSlot;
   /** Update records of a report */
-  updateRecords: Report;
+  updateRecords: AddRecordsResult;
   /** Update isAssessment flag on a report */
   updateReportIsAssessment: Report;
   /** Update a role */
@@ -2774,6 +3050,11 @@ export type Mutation = {
   updateService: Service;
   /** Update staff */
   updateStaff: User;
+  /**
+   * Toggle whether a role can edit patients whose current status is `status`.
+   * Only ADMIN users can call this. ADMIN role itself cannot be modified.
+   */
+  updateStatusEditPermission: StatusEditPermission;
   /** Update token definition */
   updateToken: Token;
   uploadFile: File;
@@ -2852,6 +3133,16 @@ export type MutationAddRecordsArgs = {
 
 export type MutationAddSubjectiveRecordArgs = {
   input: SubjectiveInput;
+};
+
+
+export type MutationApplyPatientControlArgs = {
+  input: ApplyPatientControlInput;
+};
+
+
+export type MutationApproveAccountDeletionRequestArgs = {
+  requestId: Scalars['ObjectID']['input'];
 };
 
 
@@ -3014,6 +3305,11 @@ export type MutationCreateServiceArgs = {
 };
 
 
+export type MutationCreateShortLinkArgs = {
+  input: CreateShortLinkInput;
+};
+
+
 export type MutationCreateStaffArgs = {
   input: CreateStaffInput;
 };
@@ -3055,6 +3351,11 @@ export type MutationDeleteCenterArgs = {
 
 
 export type MutationDeleteEventArgs = {
+  id: Scalars['ObjectID']['input'];
+};
+
+
+export type MutationDeleteFileArgs = {
   id: Scalars['ObjectID']['input'];
 };
 
@@ -3192,6 +3493,16 @@ export type MutationInitiateConsentOtpArgs = {
 };
 
 
+export type MutationLiftAllPatientControlsOfTypeArgs = {
+  input: LiftAllControlsOfTypeInput;
+};
+
+
+export type MutationLiftPatientControlArgs = {
+  input: LiftPatientControlInput;
+};
+
+
 export type MutationLockSlotArgs = {
   center: Scalars['ObjectID']['input'];
   slotEnd: Scalars['Timestamp']['input'];
@@ -3215,6 +3526,27 @@ export type MutationLoginAfterRegistrationArgs = {
 };
 
 
+export type MutationMarkNotificationAsReadArgs = {
+  id: Scalars['ObjectID']['input'];
+};
+
+
+export type MutationMarkWhatsAppInboundMessageReadArgs = {
+  inboundMessageId: Scalars['ObjectID']['input'];
+  patientId: Scalars['ObjectID']['input'];
+};
+
+
+export type MutationMarkWhatsAppMessagesOpenedArgs = {
+  patientId: Scalars['ObjectID']['input'];
+};
+
+
+export type MutationPauseAdvanceArgs = {
+  input: PauseAdvanceInput;
+};
+
+
 export type MutationPongArgs = {
   input: PongInput;
 };
@@ -3222,6 +3554,12 @@ export type MutationPongArgs = {
 
 export type MutationPublishPolicyArgs = {
   input: PublishPolicyInput;
+};
+
+
+export type MutationReactivateAccountArgs = {
+  requestId?: InputMaybe<Scalars['ObjectID']['input']>;
+  userId: Scalars['ObjectID']['input'];
 };
 
 
@@ -3245,6 +3583,17 @@ export type MutationRegisterDeviceTokenArgs = {
 };
 
 
+export type MutationRejectAccountDeletionRequestArgs = {
+  reason?: InputMaybe<Scalars['String']['input']>;
+  requestId: Scalars['ObjectID']['input'];
+};
+
+
+export type MutationRequestAccountDeletionArgs = {
+  reason?: InputMaybe<Scalars['String']['input']>;
+};
+
+
 export type MutationResetPasswordArgs = {
   input: ResetPasswordInput;
 };
@@ -3258,6 +3607,11 @@ export type MutationResetPasswordWithOtpArgs = {
 export type MutationResolveAlertArgs = {
   patientId: Scalars['ObjectID']['input'];
   ruleSeqNo: Scalars['String']['input'];
+};
+
+
+export type MutationResumeAdvanceArgs = {
+  pauseId: Scalars['ObjectID']['input'];
 };
 
 
@@ -3288,6 +3642,11 @@ export type MutationSendEmailOtpForEmailChangeArgs = {
 
 export type MutationSendEmailOtpForRegistrationArgs = {
   email: Scalars['String']['input'];
+};
+
+
+export type MutationSendIntakeFormReminderArgs = {
+  patientId: Scalars['ObjectID']['input'];
 };
 
 
@@ -3356,6 +3715,18 @@ export type MutationUpdateCenterArgs = {
 export type MutationUpdateConsultantArgs = {
   id: Scalars['ObjectID']['input'];
   input: UpdateConsultantInput;
+};
+
+
+export type MutationUpdateExternalUserArgs = {
+  id: Scalars['ObjectID']['input'];
+  input: UpdateExternalUserInput;
+};
+
+
+export type MutationUpdateFileArgs = {
+  id: Scalars['ObjectID']['input'];
+  input: FileUpdateInput;
 };
 
 
@@ -3485,6 +3856,13 @@ export type MutationUpdateStaffArgs = {
 };
 
 
+export type MutationUpdateStatusEditPermissionArgs = {
+  canEdit: Scalars['Boolean']['input'];
+  role: Scalars['String']['input'];
+  status: PatientStatus;
+};
+
+
 export type MutationUpdateTokenArgs = {
   id: Scalars['ObjectID']['input'];
   input: UpdateTokenInput;
@@ -3549,6 +3927,12 @@ export type NewSummary = {
   patientName?: Maybe<Scalars['String']['output']>;
   sections?: Maybe<Scalars['JSON']['output']>;
   updatedAt?: Maybe<Scalars['Timestamp']['output']>;
+};
+
+export type NotificationFeedResponse = {
+  __typename?: 'NotificationFeedResponse';
+  notifications: Array<InAppNotification>;
+  unreadCount: Scalars['Int']['output'];
 };
 
 export enum NotificationStatus {
@@ -3720,6 +4104,8 @@ export type OrganizationAvailabilityInput = {
   designation?: InputMaybe<Scalars['String']['input']>;
   endDate: Scalars['Timestamp']['input'];
   organizationId: Scalars['ObjectID']['input'];
+  /** When set, returns no slots if this patient is blocked from booking. */
+  patientId?: InputMaybe<Scalars['ObjectID']['input']>;
   serviceDuration: Scalars['Int']['input'];
   startDate: Scalars['Timestamp']['input'];
 };
@@ -3780,6 +4166,8 @@ export type Package = DataRow & {
   externalName: Scalars['String']['output'];
   isActive: Scalars['Boolean']['output'];
   isMultiUser: Scalars['Boolean']['output'];
+  /** When false, package stays usable for existing buyers but is hidden from new-sale pickers. Defaults to true when unset. */
+  isPurchasable?: Maybe<Scalars['Boolean']['output']>;
   maxUsers?: Maybe<Scalars['Int']['output']>;
   name?: Maybe<Scalars['String']['output']>;
   organization: Organization;
@@ -3914,10 +4302,14 @@ export type Patient = {
   lastName?: Maybe<Scalars['String']['output']>;
   organization: Organization;
   patientType?: Maybe<PatientType>;
+  /** Epoch ms when this patient was paused */
+  pausedAt?: Maybe<Scalars['Timestamp']['output']>;
   profilePicture?: Maybe<Scalars['String']['output']>;
   /** Latest recommendations synced from the most recent report */
   recommendations?: Maybe<Array<Maybe<RecommendationSnapshot>>>;
   referral?: Maybe<Referral>;
+  /** Epoch ms scheduled resume date — stored when transitioning to PAUSED */
+  scheduledResumeDate?: Maybe<Scalars['Timestamp']['output']>;
   status?: Maybe<PatientStatus>;
   /** Web attribution data stamped at first booking */
   webAnalytics?: Maybe<PatientWebAnalytics>;
@@ -3978,6 +4370,22 @@ export enum PatientCohort {
   ProfessionalAthlete = 'PROFESSIONAL_ATHLETE',
   Surgical = 'SURGICAL'
 }
+
+/** A single active control entry on a patient. */
+export type PatientControl = {
+  __typename?: 'PatientControl';
+  _id: Scalars['ObjectID']['output'];
+  appliedAt: Scalars['Timestamp']['output'];
+  appliedBy: User;
+  /** Null means the control never expires automatically. */
+  expiresAt?: Maybe<Scalars['Timestamp']['output']>;
+  /** Structured params (present for BLOCK_DATE_RANGE and BLOCK_TIME_SLOTS). */
+  params?: Maybe<ControlParams>;
+  reason: Scalars['String']['output'];
+  /** Set when the control was applied by an automation rule. */
+  sourceRuleId?: Maybe<Scalars['ObjectID']['output']>;
+  type: ControlType;
+};
 
 export type PatientExistsResult = {
   __typename?: 'PatientExistsResult';
@@ -4062,11 +4470,35 @@ export type PatientStats = {
   visitedReportIds: Array<Scalars['String']['output']>;
 };
 
+/**
+ * Patient lifecycle status (system codes).
+ * ACTIVE is legacy — kept for existing documents until backfill to BOOKED_*.
+ */
 export enum PatientStatus {
   Active = 'ACTIVE',
+  BookedWithoutToken = 'BOOKED_WITHOUT_TOKEN',
+  BookedWithToken = 'BOOKED_WITH_TOKEN',
+  Discharged = 'DISCHARGED',
+  Inactive = 'INACTIVE',
   Lead = 'LEAD',
-  Package = 'PACKAGE'
+  Package = 'PACKAGE',
+  PackageExpired = 'PACKAGE_EXPIRED',
+  Paused = 'PAUSED'
 }
+
+/** DB catalog row for a patient status code (label, priority, UI flags). */
+export type PatientStatusDefinition = {
+  __typename?: 'PatientStatusDefinition';
+  allowsManualSet: Scalars['Boolean']['output'];
+  code: PatientStatus;
+  color?: Maybe<Scalars['String']['output']>;
+  description?: Maybe<Scalars['String']['output']>;
+  isActive: Scalars['Boolean']['output'];
+  isSystem: Scalars['Boolean']['output'];
+  label: Scalars['String']['output'];
+  priority: Scalars['Int']['output'];
+  sortOrder: Scalars['Int']['output'];
+};
 
 export type PatientSummary = {
   __typename?: 'PatientSummary';
@@ -4141,6 +4573,34 @@ export type PatientWebAnalytics = {
   utmTerm?: Maybe<Scalars['String']['output']>;
 };
 
+export type PauseAdvanceInput = {
+  /** The advance to pause */
+  advanceId: Scalars['ObjectID']['input'];
+  /**
+   * Optional scheduled date for auto-resume (epoch ms).
+   * If not set, the patient must be manually resumed.
+   */
+  scheduledResumeDate?: InputMaybe<Scalars['Timestamp']['input']>;
+};
+
+export type PauseHistory = {
+  __typename?: 'PauseHistory';
+  _id: Scalars['ObjectID']['output'];
+  advance: Advance;
+  carriedOverTo?: Maybe<Advance>;
+  center: Center;
+  createdAt: Scalars['Timestamp']['output'];
+  isActive: Scalars['Boolean']['output'];
+  organization: Organization;
+  patient: User;
+  pausedAt: Scalars['Timestamp']['output'];
+  remainingDaysAtPause: Scalars['Int']['output'];
+  resumedAt?: Maybe<Scalars['Timestamp']['output']>;
+  scheduledResumeDate?: Maybe<Scalars['Timestamp']['output']>;
+  updatedAt: Scalars['Timestamp']['output'];
+  version: Scalars['Int']['output'];
+};
+
 export type Payment = DataRow & {
   __typename?: 'Payment';
   _id: Scalars['ObjectID']['output'];
@@ -4184,6 +4644,7 @@ export enum PaymentMode {
   Paylater = 'PAYLATER',
   Paypal = 'PAYPAL',
   Razorpay = 'RAZORPAY',
+  Token = 'TOKEN',
   Upi = 'UPI',
   UpiQr = 'UPI_QR',
   Wallet = 'WALLET'
@@ -4325,6 +4786,23 @@ export enum PositiveNegativeValue {
   Positive = 'POSITIVE'
 }
 
+export type PreferredTimingHistoryItem = {
+  __typename?: 'PreferredTimingHistoryItem';
+  _id?: Maybe<Scalars['ObjectID']['output']>;
+  centers?: Maybe<Array<Center>>;
+  consultant?: Maybe<User>;
+  createdAt: Scalars['Timestamp']['output'];
+  designation?: Maybe<Scalars['String']['output']>;
+  endTime: Scalars['Time']['output'];
+  expiresAt?: Maybe<Scalars['Timestamp']['output']>;
+  isActive: Scalars['Boolean']['output'];
+  isRecurring: Scalars['Boolean']['output'];
+  priority: PreferredTimingPriority;
+  recurrenceRule?: Maybe<Recurrence>;
+  startTime: Scalars['Time']['output'];
+  updatedAt: Scalars['Timestamp']['output'];
+};
+
 export enum PreferredTimingPriority {
   High = 'HIGH',
   Low = 'LOW',
@@ -4349,6 +4827,11 @@ export type PreferredTimingSlot = DataRow & {
    * Recurring: expire via recurrenceRule.endDate
    */
   expiresAt?: Maybe<Scalars['Timestamp']['output']>;
+  /**
+   * History array of preferred timing slots for this user.
+   * Index 0 is the newest slot, older slots increase in index (1, 2, ...).
+   */
+  history?: Maybe<Array<PreferredTimingHistoryItem>>;
   isActive: Scalars['Boolean']['output'];
   /** Quick flag indicating if this is a recurring preference */
   isRecurring: Scalars['Boolean']['output'];
@@ -4430,6 +4913,8 @@ export enum PushPlatform {
 export type Query = {
   __typename?: 'Query';
   _empty?: Maybe<Scalars['String']['output']>;
+  /** Fetch account deletion requests for admin review. */
+  accountDeletionRequests: AccountDeletionRequestsResult;
   /** Get all 6 active policy clauses — used to render the onboarding consent form */
   activePolicies: Array<Policy>;
   /** Get all active sessions for the current user */
@@ -4437,8 +4922,20 @@ export type Query = {
   advance: Advance;
   advances: PaginatedAdvances;
   agentReport: AgentReport;
+  /**
+   * Unified admin view — every active control across all patients.
+   * Optional filters: control type and patient name/phone/seqNo search.
+   */
+  allActivePatientControls: Array<ActivePatientControl>;
   /** Get all matches with optional filtering */
   allMatches: Array<Match>;
+  /**
+   * Public (no auth) — used by the mobile app on launch to decide whether to
+   * show a native update prompt (App Store / Play Store) for the installed
+   * binary. Independent of OTA/JS updates, which are handled client-side via
+   * expo-updates and don't need server involvement.
+   */
+  appVersionInfo: AppVersionInfo;
   /** Get appointment by id */
   appointment: Appointment;
   /** Get appointments by patient id */
@@ -4481,28 +4978,46 @@ export type Query = {
   exercise: Exercise;
   /** Get list of all exercises */
   exercises: Array<Exercise>;
+  /** List and search external users under the organization (Admin only). */
+  externalUsers: Array<User>;
   /** Get a file by id */
   file: File;
   /** Get all files */
   files: Array<File>;
+  generateAdvancePDFOnDemand: Scalars['String']['output'];
   generateInvoicePDFOnDemand: Scalars['String']['output'];
+  /** Regenerate a fresh report PDF on download (same pattern as invoice). */
+  generateReportPDFOnDemand: Scalars['String']['output'];
   getActiveCreditsForPatient: Array<Credit>;
+  /**
+   * Get the active (unresumed, unredeemed) pause for a specific advance.
+   * Returns null if the advance is not currently paused.
+   */
+  getActivePauseForAdvance?: Maybe<PauseHistory>;
   /** Get all tests for dropdown */
   getAllTests: Array<ObjectiveCollectionEntry>;
   getAutomationRule?: Maybe<AutomationRule>;
   getAutomationRules: Array<AutomationRule>;
+  /** Get the total carryover days available for a patient (unredeemed pauses). */
+  getCarryoverSummary: CarryoverSummary;
   /** Get center-level availability for consultants */
   getCenterAvailability: Array<ConsultantAvailability>;
   getCredit?: Maybe<Credit>;
   getCreditBalance: Scalars['Float']['output'];
   getCredits: Array<Credit>;
   getFilteredConsultants: Array<User>;
+  /** Fetch in-app notifications for the authenticated patient. */
+  getNotifications: NotificationFeedResponse;
   /** Get an ObjectiveAssessmentRecord by ID */
   getObjectiveAssessmentRecord?: Maybe<ObjectiveAssessmentRecord>;
   /** Get ObjectiveAssessmentRecord by report ID */
   getObjectiveAssessmentRecordByReportId?: Maybe<ObjectiveAssessmentRecord>;
   /** Get organization-level availability for online consultants */
   getOrganizationAvailability: Array<ConsultantAvailability>;
+  /** Get all pause history records for a specific advance. */
+  getPauseHistoryForAdvance: Array<PauseHistory>;
+  /** Get all pause records for a patient in the current organization. */
+  getPauseHistoryForPatient: Array<PauseHistory>;
   /** Get hardcoded repeat-user slots filtered by breaks/bookings */
   getRepeatUserSlots: Array<ConsultantAvailability>;
   getRule?: Maybe<Rule>;
@@ -4512,6 +5027,8 @@ export type Query = {
   getTestById?: Maybe<ObjectiveCollectionEntry>;
   /** Get test by name */
   getTestByName?: Maybe<ObjectiveCollectionEntry>;
+  /** Fetch only the unread count for badge indicators. */
+  getUnreadNotificationCount: Scalars['Int']['output'];
   getUserFlags: Array<UserFlag>;
   /** get a goal */
   goal: Goal;
@@ -4527,6 +5044,12 @@ export type Query = {
   hasUserAcceptedPolicies: Scalars['Boolean']['output'];
   invoice: Invoice;
   invoices: PaginatedInvoices;
+  /**
+   * Soft check for staff UIs (WhatsApp share, slot pickers).
+   * Returns true when the patient is blocked for the given ACTION_BLOCKED_BY key
+   * (e.g. APPOINTMENT, WHATSAPP, ONLINE_BOOKING, MARKETPLACE).
+   */
+  isPatientActionBlocked: Scalars['Boolean']['output'];
   /** Get the most recent consent record for a user */
   latestConsentRecord?: Maybe<ConsentRecord>;
   /** Get a specific match by ID */
@@ -4541,6 +5064,8 @@ export type Query = {
   messageTemplateByType?: Maybe<MessageTemplate>;
   /** Get all message templates */
   messageTemplates: Array<MessageTemplate>;
+  /** Fetch current account deletion request status for the authenticated user. */
+  myAccountDeletionRequest?: Maybe<AccountDeletionRequest>;
   newSummaries?: Maybe<Array<NewSummary>>;
   /** Get organization by id */
   organization: Organization;
@@ -4555,13 +5080,19 @@ export type Query = {
   packageLedgerForPatient?: Maybe<PackageLedger>;
   /** Current session balance for a patient on a specific advance. */
   packageSessionBalance: Scalars['Int']['output'];
-  /** Get list of packages */
+  /**
+   * Get list of packages.
+   * purchasableOnly defaults to true (create-advance / sale pickers).
+   * Pass false on admin listing pages to include retired SKUs.
+   */
   packages: Array<Package>;
   patientAdvanceSummaries: PaginatedPatientAdvanceSummaries;
   patientAlert?: Maybe<PatientAlert>;
   patientAlerts: Array<PatientAlert>;
   patientAppointmentCount: Scalars['Int']['output'];
   patientByPhone?: Maybe<User>;
+  /** List all active (non-expired) controls for a patient. Admin only. */
+  patientControls: Array<PatientControl>;
   patientExists: Scalars['Boolean']['output'];
   /** Get a single form by ID */
   patientForm?: Maybe<PatientForm>;
@@ -4571,6 +5102,8 @@ export type Query = {
   patientFormsByType: Array<PatientForm>;
   patientPhaseAnalyses?: Maybe<Array<PatientPhaseAnalysis>>;
   patientStats: PatientStats;
+  /** System patient status catalog (labels, priorities, UI flags). */
+  patientStatusDefinitions: Array<PatientStatusDefinition>;
   patientSummaries?: Maybe<Array<PatientSummary>>;
   /** Get all permissions of the logged in user */
   permissions: Array<Maybe<UserPermissions>>;
@@ -4606,9 +5139,19 @@ export type Query = {
   service: Service;
   /** Get a single package */
   servicePackage: Package;
-  /** Get list of services */
+  /**
+   * Get list of services.
+   * purchasableOnly is currently ignored (isPurchasable filter disabled).
+   * Pass false/true either way — all active services are returned.
+   * Re-enable filtering later when sales-only service lists are needed.
+   */
   services: Array<Service>;
   stats: Stats;
+  /**
+   * Get all status edit permissions for a specific role.
+   * ADMIN always returns canEdit=true for all statuses.
+   */
+  statusEditPermissions: Array<StatusEditPermission>;
   /** Get token by ID */
   token: Token;
   /** Get all tokens for centers */
@@ -4634,6 +5177,30 @@ export type Query = {
   waitlistNotificationHistory: Array<WaitlistNotificationLog>;
   /** Get waitlist queue for a specific slot */
   waitlistQueue: WaitlistQueueEntry;
+  /**
+   * This viewer's lastOpenedAt cursor for the patient (null if never read).
+   * Used by the Messages page to highlight unread inbound rows.
+   */
+  whatsappConversationLastOpenedAt?: Maybe<Scalars['Timestamp']['output']>;
+  /** All inbound WhatsApp messages received from a patient, newest first. */
+  whatsappInboundMessages: Array<WhatsAppInboundMessage>;
+  /**
+   * Inbound-only unread count for the Messages tab badge (per logged-in user —
+   * staff or consultant). Messages with receivedAt after lastOpenedAt.
+   * Returns 0 if this user has never marked messages read for this patient.
+   */
+  whatsappInboundUnreadCount: Scalars['Int']['output'];
+  /** Batch unread counts for the patients list dashboard. */
+  whatsappInboundUnreadCounts: Array<WhatsAppInboundUnreadCountItem>;
+  /** All outbound WhatsApp messages sent to a patient, newest first. */
+  whatsappOutboundMessages: Array<WhatsAppOutboundMessage>;
+};
+
+
+export type QueryAccountDeletionRequestsArgs = {
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  status?: InputMaybe<AccountDeletionRequestStatus>;
 };
 
 
@@ -4655,8 +5222,19 @@ export type QueryAgentReportArgs = {
 };
 
 
+export type QueryAllActivePatientControlsArgs = {
+  search?: InputMaybe<Scalars['String']['input']>;
+  type?: InputMaybe<ControlType>;
+};
+
+
 export type QueryAllMatchesArgs = {
   filter?: InputMaybe<MatchFilter>;
+};
+
+
+export type QueryAppVersionInfoArgs = {
+  platform: AppPlatform;
 };
 
 
@@ -4762,6 +5340,12 @@ export type QueryExercisesArgs = {
 };
 
 
+export type QueryExternalUsersArgs = {
+  externalType?: InputMaybe<ExternalType>;
+  search?: InputMaybe<Scalars['String']['input']>;
+};
+
+
 export type QueryFileArgs = {
   fileId: Scalars['ObjectID']['input'];
 };
@@ -4772,8 +5356,18 @@ export type QueryFilesArgs = {
 };
 
 
+export type QueryGenerateAdvancePdfOnDemandArgs = {
+  advanceId: Scalars['ObjectID']['input'];
+};
+
+
 export type QueryGenerateInvoicePdfOnDemandArgs = {
   invoiceId: Scalars['ObjectID']['input'];
+};
+
+
+export type QueryGenerateReportPdfOnDemandArgs = {
+  reportId: Scalars['ObjectID']['input'];
 };
 
 
@@ -4782,8 +5376,18 @@ export type QueryGetActiveCreditsForPatientArgs = {
 };
 
 
+export type QueryGetActivePauseForAdvanceArgs = {
+  advanceId: Scalars['ObjectID']['input'];
+};
+
+
 export type QueryGetAutomationRuleArgs = {
   id: Scalars['ObjectID']['input'];
+};
+
+
+export type QueryGetCarryoverSummaryArgs = {
+  patientId: Scalars['ObjectID']['input'];
 };
 
 
@@ -4813,6 +5417,12 @@ export type QueryGetFilteredConsultantsArgs = {
 };
 
 
+export type QueryGetNotificationsArgs = {
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+};
+
+
 export type QueryGetObjectiveAssessmentRecordArgs = {
   id: Scalars['ObjectID']['input'];
 };
@@ -4825,6 +5435,16 @@ export type QueryGetObjectiveAssessmentRecordByReportIdArgs = {
 
 export type QueryGetOrganizationAvailabilityArgs = {
   input: OrganizationAvailabilityInput;
+};
+
+
+export type QueryGetPauseHistoryForAdvanceArgs = {
+  advanceId: Scalars['ObjectID']['input'];
+};
+
+
+export type QueryGetPauseHistoryForPatientArgs = {
+  patientId: Scalars['ObjectID']['input'];
 };
 
 
@@ -4903,6 +5523,13 @@ export type QueryInvoicesArgs = {
 };
 
 
+export type QueryIsPatientActionBlockedArgs = {
+  action: Scalars['String']['input'];
+  appointmentDate?: InputMaybe<Scalars['Timestamp']['input']>;
+  patientId: Scalars['ObjectID']['input'];
+};
+
+
 export type QueryLatestConsentRecordArgs = {
   userId: Scalars['ObjectID']['input'];
 };
@@ -4969,6 +5596,7 @@ export type QueryPackageSessionBalanceArgs = {
 
 export type QueryPackagesArgs = {
   centerId?: InputMaybe<Array<Scalars['ObjectID']['input']>>;
+  purchasableOnly?: InputMaybe<Scalars['Boolean']['input']>;
 };
 
 
@@ -4995,6 +5623,11 @@ export type QueryPatientAppointmentCountArgs = {
 
 export type QueryPatientByPhoneArgs = {
   phone: Scalars['String']['input'];
+};
+
+
+export type QueryPatientControlsArgs = {
+  patientId: Scalars['ObjectID']['input'];
 };
 
 
@@ -5110,11 +5743,17 @@ export type QueryServicePackageArgs = {
 export type QueryServicesArgs = {
   advanceId?: InputMaybe<Scalars['ObjectID']['input']>;
   centerId?: InputMaybe<Array<Scalars['ObjectID']['input']>>;
+  purchasableOnly?: InputMaybe<Scalars['Boolean']['input']>;
 };
 
 
 export type QueryStatsArgs = {
   input: GetStatsInput;
+};
+
+
+export type QueryStatusEditPermissionsArgs = {
+  role: Scalars['String']['input'];
 };
 
 
@@ -5190,6 +5829,31 @@ export type QueryWaitlistQueueArgs = {
   designation?: InputMaybe<Scalars['String']['input']>;
   slotEnd: Scalars['Time']['input'];
   slotStart: Scalars['Time']['input'];
+};
+
+
+export type QueryWhatsappConversationLastOpenedAtArgs = {
+  patientId: Scalars['ObjectID']['input'];
+};
+
+
+export type QueryWhatsappInboundMessagesArgs = {
+  patientId: Scalars['ObjectID']['input'];
+};
+
+
+export type QueryWhatsappInboundUnreadCountArgs = {
+  patientId: Scalars['ObjectID']['input'];
+};
+
+
+export type QueryWhatsappInboundUnreadCountsArgs = {
+  patientIds: Array<Scalars['ObjectID']['input']>;
+};
+
+
+export type QueryWhatsappOutboundMessagesArgs = {
+  patientId: Scalars['ObjectID']['input'];
 };
 
 export type RpeInput = {
@@ -5271,6 +5935,11 @@ export enum RecordType {
 export type Records = {
   __typename?: 'Records';
   advice?: Maybe<AdviceRecord>;
+  /**
+   * AI-generated patient card — 3 focus priorities + next-session plan.
+   * Saved when the clinician accepts or generates the retention card summary.
+   */
+  aiPatientCard?: Maybe<AiPatientCard>;
   clinicalDetails?: Maybe<ClinicalRecord>;
   doctorsNote?: Maybe<Scalars['String']['output']>;
   document?: Maybe<Array<Maybe<DocumentRecord>>>;
@@ -5287,6 +5956,7 @@ export type Records = {
 
 export type RecordsInput = {
   advice?: InputMaybe<AdviceRecordInput>;
+  aiPatientCard?: InputMaybe<AiPatientCardInput>;
   clinicalDetails?: InputMaybe<ClinicalRecordInput>;
   doctorsNote?: InputMaybe<Scalars['String']['input']>;
   document?: InputMaybe<Array<InputMaybe<DocumentRecordInput>>>;
@@ -5396,6 +6066,8 @@ export type RepeatUserSlotsInput = {
   deliveryMode?: InputMaybe<Scalars['String']['input']>;
   designation?: InputMaybe<Scalars['String']['input']>;
   endDate: Scalars['Timestamp']['input'];
+  /** When set, returns no slots if this patient is blocked from booking. */
+  patientId?: InputMaybe<Scalars['ObjectID']['input']>;
   startDate: Scalars['Timestamp']['input'];
 };
 
@@ -5459,6 +6131,7 @@ export enum Resource {
   PatientGoals = 'PATIENT_GOALS',
   PatientProfile = 'PATIENT_PROFILE',
   PatientReports = 'PATIENT_REPORTS',
+  PatientStatus = 'PATIENT_STATUS',
   PatientTimeline = 'PATIENT_TIMELINE',
   PatientVald = 'PATIENT_VALD',
   Payment = 'PAYMENT',
@@ -5513,9 +6186,13 @@ export type Rule = {
 };
 
 export enum RuleActionType {
+  /** Apply a patient control restriction. params: { type: ControlType, reason: String, expiresAt?: Timestamp } */
+  ApplyPatientControl = 'APPLY_PATIENT_CONTROL',
   CreateAdvance = 'CREATE_ADVANCE',
   CreateCancellationFeeInvoice = 'CREATE_CANCELLATION_FEE_INVOICE',
   CreateCredit = 'CREATE_CREDIT',
+  /** Lift all controls of a given type. params: { type: ControlType } */
+  LiftPatientControl = 'LIFT_PATIENT_CONTROL',
   SendNotification = 'SEND_NOTIFICATION'
 }
 
@@ -5526,16 +6203,26 @@ export enum RuleConditionType {
   CenterIs = 'CENTER_IS',
   IsFirstAssessment = 'IS_FIRST_ASSESSMENT',
   PatientCategoryIs = 'PATIENT_CATEGORY_IS',
+  /** True when the patient has NOT yet accepted the active policy consent. */
+  PatientHasNotAcceptedConsent = 'PATIENT_HAS_NOT_ACCEPTED_CONSENT',
+  /** True when the patient has NOT yet submitted the intake form (FRM-01). */
+  PatientHasNotSubmittedIntakeForm = 'PATIENT_HAS_NOT_SUBMITTED_INTAKE_FORM',
   PatientHasPackage = 'PATIENT_HAS_PACKAGE',
   PatientIsReferral = 'PATIENT_IS_REFERRAL',
-  PaymentPaidByPackage = 'PAYMENT_PAID_BY_PACKAGE'
+  PaymentPaidByPackage = 'PAYMENT_PAID_BY_PACKAGE',
+  /** True when the report being saved was created on or after a cutoff date. params: { afterDate: String } e.g. "2026-08-01". Use with APPLY_PATIENT_CONTROL + BLOCK_REPORT_UPDATES to lock reports from a specific date onwards. */
+  ReportCreatedAfter = 'REPORT_CREATED_AFTER',
+  /** True when the report being saved matches a specific type. params: { type: "FIRST_ASSESSMENT" | "FOLLOW_UP" }. Use to scope BLOCK_REPORT_UPDATES to only first assessments or only follow-ups. */
+  ReportTypeIs = 'REPORT_TYPE_IS'
 }
 
 export enum RuleEvent {
   AppointmentBooked = 'APPOINTMENT_BOOKED',
   AppointmentCancelled = 'APPOINTMENT_CANCELLED',
   PatientCreated = 'PATIENT_CREATED',
-  PaymentCompleted = 'PAYMENT_COMPLETED'
+  PaymentCompleted = 'PAYMENT_COMPLETED',
+  /** Fired when a consultant saves or updates a report record. */
+  ReportUpdated = 'REPORT_UPDATED'
 }
 
 export type RuleExecutionAction = {
@@ -5625,6 +6312,8 @@ export type Service = DataRow & {
   isActive: Scalars['Boolean']['output'];
   isNewUserService: Scalars['Boolean']['output'];
   isPrePaid: Scalars['Boolean']['output'];
+  /** When false, service stays usable for billing/packages but is hidden from new-sale pickers. Defaults to true when unset. */
+  isPurchasable?: Maybe<Scalars['Boolean']['output']>;
   name: Scalars['String']['output'];
   organization: Organization;
   price: Scalars['Float']['output'];
@@ -5691,6 +6380,24 @@ export enum SessionType {
   Physiotherapy = 'PHYSIOTHERAPY',
   SportsMassageTherapy = 'SPORTS_MASSAGE_THERAPY',
   StrengthAndConditioning = 'STRENGTH_AND_CONDITIONING'
+}
+
+export type ShortLink = {
+  __typename?: 'ShortLink';
+  code: Scalars['String']['output'];
+  expiresAt?: Maybe<Scalars['Timestamp']['output']>;
+  longUrl: Scalars['String']['output'];
+  url: Scalars['String']['output'];
+};
+
+export enum ShortLinkType {
+  AdvanceReceipt = 'advance_receipt',
+  AppointmentConfirmation = 'appointment_confirmation',
+  /** Assessment report PDF — public URL is stance.health/a/{code}. */
+  AssessmentReport = 'assessment_report',
+  Consent = 'consent',
+  InvoiceReceipt = 'invoice_receipt',
+  Onboarding = 'onboarding'
 }
 
 export type SignUpInput = {
@@ -5762,6 +6469,17 @@ export type Stats = {
   totalPatients: Scalars['Int']['output'];
 };
 
+/**
+ * Controls whether a role can edit (change status of) a patient
+ * whose current status is `status`.
+ */
+export type StatusEditPermission = {
+  __typename?: 'StatusEditPermission';
+  canEdit: Scalars['Boolean']['output'];
+  role: Scalars['String']['output'];
+  status: PatientStatus;
+};
+
 export type StrengthAsymmetry = {
   __typename?: 'StrengthAsymmetry';
   deficit_percentage?: Maybe<Scalars['Float']['output']>;
@@ -5811,6 +6529,24 @@ export type TimeSlot = {
   __typename?: 'TimeSlot';
   endTime: Scalars['Time']['output'];
   startTime: Scalars['Time']['output'];
+};
+
+/** Extra params for BLOCK_TIME_SLOTS — a recurring weekly window. */
+export type TimeSlotParams = {
+  __typename?: 'TimeSlotParams';
+  /** 0 = Sunday … 6 = Saturday */
+  dayOfWeek: Scalars['Int']['output'];
+  /** 24-hour hour at which the block ends (exclusive, 1-24). */
+  endHour: Scalars['Int']['output'];
+  /** 24-hour hour at which the block starts (0-23). */
+  startHour: Scalars['Int']['output'];
+};
+
+export type TimeSlotParamsInput = {
+  /** 0 = Sunday … 6 = Saturday */
+  dayOfWeek: Scalars['Int']['input'];
+  endHour: Scalars['Int']['input'];
+  startHour: Scalars['Int']['input'];
 };
 
 export type Token = DataRow & {
@@ -5939,6 +6675,27 @@ export type UpdateEventInput = {
   title?: InputMaybe<Scalars['String']['input']>;
 };
 
+export type UpdateExternalUserInput = {
+  address?: InputMaybe<Scalars['String']['input']>;
+  centers?: InputMaybe<Array<Scalars['ObjectID']['input']>>;
+  city?: InputMaybe<Scalars['String']['input']>;
+  dob?: InputMaybe<Scalars['Timestamp']['input']>;
+  email?: InputMaybe<Scalars['String']['input']>;
+  externalType?: InputMaybe<ExternalType>;
+  firstName?: InputMaybe<Scalars['String']['input']>;
+  gender?: InputMaybe<Gender>;
+  internalNotes?: InputMaybe<Scalars['String']['input']>;
+  isActive?: InputMaybe<Scalars['Boolean']['input']>;
+  lastName?: InputMaybe<Scalars['String']['input']>;
+  licenseNo?: InputMaybe<Scalars['String']['input']>;
+  linkedPatients?: InputMaybe<Array<Scalars['ObjectID']['input']>>;
+  organisationName?: InputMaybe<Scalars['String']['input']>;
+  phone?: InputMaybe<Scalars['String']['input']>;
+  profilePicture?: InputMaybe<Scalars['String']['input']>;
+  specialisation?: InputMaybe<Scalars['String']['input']>;
+  yearsOfExperience?: InputMaybe<Scalars['Int']['input']>;
+};
+
 export type UpdateGoalInput = {
   achievements?: InputMaybe<Array<CreateGoalAchievementInput>>;
   category?: InputMaybe<GoalCategory>;
@@ -5995,6 +6752,7 @@ export type UpdatePackageInput = {
   description?: InputMaybe<Scalars['String']['input']>;
   externalName?: InputMaybe<Scalars['String']['input']>;
   isMultiUser?: InputMaybe<Scalars['Boolean']['input']>;
+  isPurchasable?: InputMaybe<Scalars['Boolean']['input']>;
   maxUsers?: InputMaybe<Scalars['Int']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;
   organization?: InputMaybe<Scalars['ObjectID']['input']>;
@@ -6026,6 +6784,10 @@ export type UpdatePatient = {
   lastName?: InputMaybe<Scalars['String']['input']>;
   organization?: InputMaybe<Scalars['ObjectID']['input']>;
   patientType?: InputMaybe<PatientType>;
+  /** Epoch ms scheduled resume date — stored when pausing a patient (status=PAUSED) */
+  pauseEndDate?: InputMaybe<Scalars['Timestamp']['input']>;
+  /** Epoch ms pause start date — stored when pausing a patient (status=PAUSED) */
+  pauseStartDate?: InputMaybe<Scalars['Timestamp']['input']>;
   phone?: InputMaybe<Scalars['String']['input']>;
   profilePicture?: InputMaybe<Scalars['String']['input']>;
   referral?: InputMaybe<ReferralInput>;
@@ -6090,6 +6852,7 @@ export type UpdateServiceInput = {
   externalName?: InputMaybe<Scalars['String']['input']>;
   isNewUserService?: InputMaybe<Scalars['Boolean']['input']>;
   isPrePaid?: InputMaybe<Scalars['Boolean']['input']>;
+  isPurchasable?: InputMaybe<Scalars['Boolean']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;
   price?: InputMaybe<Scalars['Float']['input']>;
   tokenAmount?: InputMaybe<Scalars['Float']['input']>;
@@ -6100,7 +6863,7 @@ export type UpdateStaffInput = {
   email?: InputMaybe<Scalars['String']['input']>;
   firstName?: InputMaybe<Scalars['String']['input']>;
   lastName?: InputMaybe<Scalars['String']['input']>;
-  phone: Scalars['String']['input'];
+  phone?: InputMaybe<Scalars['String']['input']>;
   profilePicture?: InputMaybe<Scalars['String']['input']>;
 };
 
@@ -6464,6 +7227,101 @@ export type WebhookResponse = {
   __typename?: 'WebhookResponse';
   message?: Maybe<Scalars['String']['output']>;
   success: Scalars['Boolean']['output'];
+};
+
+/**
+ * A single inbound WhatsApp message from a patient — a button tap,
+ * free-text reply, or WhatsApp Flow / Form submission.
+ */
+export type WhatsAppInboundMessage = {
+  __typename?: 'WhatsAppInboundMessage';
+  _id: Scalars['ObjectID']['output'];
+  /** For button_reply: text of the button the patient tapped */
+  buttonText?: Maybe<Scalars['String']['output']>;
+  createdAt: Scalars['Timestamp']['output'];
+  /** Parsed WhatsApp Flow response, when present */
+  flowResponse?: Maybe<Scalars['JSON']['output']>;
+  /** Interakt ID of the outbound message this inbound message replied to */
+  inReplyToInteraktMessageId?: Maybe<Scalars['String']['output']>;
+  /** Interakt ID of the inbound patient message */
+  interaktMessageId?: Maybe<Scalars['String']['output']>;
+  /** For text: the free text the patient typed */
+  messageText?: Maybe<Scalars['String']['output']>;
+  /** Mongo outbound message ID matched from Interakt message_context.id */
+  outboundMessageId?: Maybe<Scalars['ObjectID']['output']>;
+  /** Purpose of the outbound message this is a reply to */
+  outboundPurpose?: Maybe<Scalars['String']['output']>;
+  /** Template name of the outbound message this is a reply to */
+  outboundTemplateName?: Maybe<Scalars['String']['output']>;
+  phone: Scalars['String']['output'];
+  /** Raw Interakt webhook payload */
+  rawPayload?: Maybe<Scalars['JSON']['output']>;
+  receivedAt: Scalars['Timestamp']['output'];
+  /** Message type: button_reply | text | flow_response | unknown */
+  type: Scalars['String']['output'];
+};
+
+export type WhatsAppInboundUnreadCountItem = {
+  __typename?: 'WhatsAppInboundUnreadCountItem';
+  count: Scalars['Int']['output'];
+  patientId: Scalars['ObjectID']['output'];
+};
+
+/** Snapshot of the retention card content at the time of send. */
+export type WhatsAppOutboundCardData = {
+  __typename?: 'WhatsAppOutboundCardData';
+  diagnosis?: Maybe<Scalars['String']['output']>;
+  goals?: Maybe<Array<Scalars['String']['output']>>;
+  headerImageUrl?: Maybe<Scalars['String']['output']>;
+  nextSessionPlan?: Maybe<Scalars['String']['output']>;
+  recommendedPlan?: Maybe<Scalars['String']['output']>;
+  reportId?: Maybe<Scalars['String']['output']>;
+  top3ActionAreas?: Maybe<Array<Scalars['String']['output']>>;
+};
+
+/**
+ * A single outbound WhatsApp message sent to a patient.
+ * Covers appointment reminders, confirmations, retention campaigns (D0–D7),
+ * invoice/advance receipts, and any other template send.
+ */
+export type WhatsAppOutboundMessage = {
+  __typename?: 'WhatsAppOutboundMessage';
+  _id: Scalars['ObjectID']['output'];
+  /** Substitution values used in the template body — [patientName, consultantName, ...] */
+  bodyValues?: Maybe<Array<Scalars['String']['output']>>;
+  /** Retention card data snapshot — only set for D0/D1/D3 retention messages */
+  cardData?: Maybe<WhatsAppOutboundCardData>;
+  /** UTC timestamp when the patient clicked a CTA button */
+  clickedAt?: Maybe<Scalars['Timestamp']['output']>;
+  createdAt: Scalars['Timestamp']['output'];
+  /** UTC timestamp when Interakt confirmed delivery to the device */
+  deliveredAt?: Maybe<Scalars['Timestamp']['output']>;
+  /** Error detail when status is FAILED */
+  error?: Maybe<Scalars['String']['output']>;
+  /** Interakt message ID — used to match delivery status webhooks */
+  interaktMessageId?: Maybe<Scalars['String']['output']>;
+  /** Digits-only phone number the message was sent to */
+  phone: Scalars['String']['output'];
+  /**
+   * Stable logical purpose — used to categorise messages across template renames.
+   * Examples: APPOINTMENT_REMINDER, RETENTION_DAY0, APPOINTMENT_CONFIRMATION
+   */
+  purpose: Scalars['String']['output'];
+  /** UTC timestamp when the patient read / opened the message */
+  readAt?: Maybe<Scalars['Timestamp']['output']>;
+  /** Full Interakt request payload without authorization headers */
+  requestPayload?: Maybe<Scalars['JSON']['output']>;
+  /** Raw parsed Interakt response */
+  response?: Maybe<Scalars['JSON']['output']>;
+  /** UTC timestamp when the message was sent / claimed */
+  sentAt: Scalars['Timestamp']['output'];
+  /** Human-readable IST send time, e.g. "11 Sep 2026, 01:05:30 pm IST"  */
+  sentAtIst: Scalars['String']['output'];
+  /** Current delivery status */
+  status: Scalars['String']['output'];
+  /** Interakt template name, e.g. retention_day0_v1 */
+  templateName: Scalars['String']['output'];
+  updatedAt: Scalars['Timestamp']['output'];
 };
 
 export type CreateOrderMutationVariables = Exact<{

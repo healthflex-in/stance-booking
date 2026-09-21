@@ -330,8 +330,8 @@ export const CREATE_CONSULTANT = gql`
 `;
 
 export const GET_SERVICES = gql`
-  query Services($centerId: [ObjectID!], $advanceId: ObjectID) {
-    services(centerId: $centerId, advanceId: $advanceId) {
+  query Services($centerId: [ObjectID!], $advanceId: ObjectID, $patientId: ObjectID) {
+    services(centerId: $centerId, advanceId: $advanceId, patientId: $patientId) {
       _id
       seqNo
       name

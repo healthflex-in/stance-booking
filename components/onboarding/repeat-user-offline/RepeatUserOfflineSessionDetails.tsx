@@ -54,7 +54,7 @@ export default function RepeatUserOfflineSessionDetails({
   });
 
   const { data: servicesData } = useQuery(GET_SERVICES, {
-    variables: { centerId: centerId ? [centerId] : [] },
+    variables: { centerId: centerId ? [centerId] : [], patientId },
     skip: !centerId,
     fetchPolicy: 'network-only',
   });

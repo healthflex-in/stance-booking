@@ -29,15 +29,15 @@ export default function NewUserOnlineSessionDetails({
   const [selectedService, setSelectedService] = useState<any>(null);
 
   const { data: servicesData, loading: servicesLoading } = useQuery(GET_SERVICES, {
-    variables: { centerId: centerId ? [centerId] : null },
+    variables: { centerId: centerId ? [centerId] : null, patientId },
     fetchPolicy: 'network-only',
   });
 
   const onlineServices = React.useMemo(() => {
     if (!servicesData?.services) return [];
+    // Backend filters isNewUserService via patientId + appointment history.
     return servicesData.services.filter((service: any) =>
       service.allowOnlineBooking === true &&
-      service.isNewUserService === true &&
       service.allowOnlineDelivery === true &&
       service.isPrePaid === false &&
       (!service.doneBy || service.doneBy.length === 0 || service.doneBy.includes('Physiotherapist'))

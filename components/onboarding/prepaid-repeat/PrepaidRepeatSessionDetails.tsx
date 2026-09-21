@@ -28,15 +28,15 @@ export default function PrepaidRepeatSessionDetails({ patientId, organizationId,
   });
 
   const { data: servicesData, loading: servicesLoading } = useQuery(GET_SERVICES, {
-    variables: { centerId: null },
+    variables: { centerId: null, patientId },
     fetchPolicy: 'network-only',
   });
 
   const prepaidServices = React.useMemo(() => {
     if (!servicesData?.services) return [];
+    // Backend filters isNewUserService via patientId + appointment history.
     return servicesData.services.filter((service: any) => 
       service.allowOnlineBooking === true && 
-      service.isNewUserService === false &&
       service.allowOnlineDelivery === true &&
       service.isPrePaid === true
     );

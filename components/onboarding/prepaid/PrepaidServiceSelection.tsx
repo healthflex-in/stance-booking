@@ -26,7 +26,7 @@ export default function PrepaidServiceSelection({
   const [emailError, setEmailError] = useState('');
 
   const { data: servicesData, loading } = useQuery(GET_SERVICES, {
-    variables: { centerId: [centerId] },
+    variables: { centerId: [centerId], patientId },
     fetchPolicy: 'network-only',
   });
 
@@ -37,13 +37,12 @@ export default function PrepaidServiceSelection({
 
   const [updatePatient, { loading: updating }] = useMutation(UPDATE_PATIENT);
 
-  // Filter services for prepaid online booking based on user type
+  // Backend filters isNewUserService via patientId + appointment history.
   const prepaidServices = servicesData?.services?.filter(
     (service: any) =>
       service.allowOnlineBooking &&
       service.allowOnlineDelivery &&
-      service.isPrePaid &&
-      (isNewUser ? service.isNewUserService : !service.isNewUserService)
+      service.isPrePaid
   ) || [];
 
   if (loading) {
