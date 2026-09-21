@@ -2620,6 +2620,27 @@ export const VERIFY_EMAIL_OTP = gql`
   }
 `;
 
+export const SEND_PHONE_OTP_FOR_REGISTRATION = gql`
+  mutation SendPhoneOTPForRegistration($phone: String!) {
+    sendPhoneOTPForRegistration(phone: $phone) {
+      token
+      expiresAt
+      expiresIn
+    }
+  }
+`;
+
+export const VERIFY_PHONE_OTP_FOR_REGISTRATION = gql`
+  mutation VerifyPhoneOTPForRegistration($input: VerifyOTPInput!) {
+    verifyPhoneOTPForRegistration(input: $input) {
+      phone
+      verified
+      postVerifyToken
+      postVerifyExpiresAt
+    }
+  }
+`;
+
 export const GET_TOKENS = gql`
   query Tokens($centerId: [ObjectID!]) {
     tokens(centerId: $centerId) {

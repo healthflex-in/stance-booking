@@ -228,6 +228,16 @@ export class MobileFlowAnalytics {
     });
   }
 
+  trackOPUserCreated(patientId: string, centerId: string, parameters: Record<string, any> = {}) {
+    console.log('Tracking OP_GA4_UserCreated:', { patientId, centerId, ...parameters });
+    trackEvent('OP_GA4_UserCreated', {
+      patient_id: patientId,
+      center_id: centerId,
+      user_id: patientId,
+      ...parameters
+    });
+  }
+
   // Center Selection Events
   trackCenterSelectionStart(patientId: string) {
     this.trackEvent('center_selection_start', {

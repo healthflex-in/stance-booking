@@ -5,7 +5,7 @@ import { useMutation, useLazyQuery, useQuery } from '@apollo/client';
 import { toast } from 'sonner';
 import { User } from 'lucide-react';
 import { StanceHealthLoader } from '@/components/loader/StanceHealthLoader';
-import { CREATE_PATIENT, PATIENT_EXISTS, PATIENT_BY_PHONE, GET_CENTERS, CHECK_PATIENT_BY_PHONE, ADD_PATIENT_TO_ORGANIZATION, SEND_EMAIL_OTP, VERIFY_EMAIL_OTP, UPDATE_PATIENT } from '@/gql/queries';
+import { CREATE_PATIENT, PATIENT_EXISTS, PATIENT_BY_PHONE, GET_CENTERS, CHECK_PATIENT_BY_PHONE, ADD_PATIENT_TO_ORGANIZATION, SEND_EMAIL_OTP, VERIFY_EMAIL_OTP, UPDATE_PATIENT, SEND_PHONE_OTP_FOR_REGISTRATION, VERIFY_PHONE_OTP_FOR_REGISTRATION } from '@/gql/queries';
 import { useContainerDetection } from '@/hooks/useContainerDetection';
 import { useMobileFlowAnalytics } from '@/services/mobile-analytics';
 import { getBookingCookies } from '@/utils/booking-cookies';
@@ -15,6 +15,7 @@ import SessionTypeSelectionModal from './SessionTypeSelectionModal';
 import CrossOrgModal from './CrossOrgModal';
 import NewUserServiceModal from './NewUserServiceModal';
 import EmailOTPModal from './EmailOTPModal';
+import PhoneOTPModal from './PhoneOTPModal';
 import { tabStorage } from '@/utils/tab-storage';
 
 interface SimplifiedPatientOnboardingProps {
@@ -131,6 +132,16 @@ export default function SimplifiedPatientOnboarding({
   const [sendEmailOTPMutation] = useMutation(SEND_EMAIL_OTP);
   const [verifyEmailOTPMutation] = useMutation(VERIFY_EMAIL_OTP);
   const [updatePatientMutation] = useMutation(UPDATE_PATIENT);
+  const [sendPhoneOTPForRegistration] = useMutation(SEND_PHONE_OTP_FOR_REGISTRATION);
+  const [verifyPhoneOTPForRegistration] = useMutation(VERIFY_PHONE_OTP_FOR_REGISTRATION);
+
+  // Phone OTP state & created patient ID state
+  const [createdPatientId, setCreatedPatientId] = useState<string | null>(null);
+  const [showPhoneOTPModal, setShowPhoneOTPModal] = useState(false);
+  const [phoneOtpToken, setPhoneOtpToken] = useState<string | null>(null);
+  const [phoneOtpError, setPhoneOtpError] = useState<string | null>(null);
+  const [isSendingPhoneOTP, setIsSendingPhoneOTP] = useState(false);
+  const [isVerifyingPhoneOTP, setIsVerifyingPhoneOTP] = useState(false);
 
   useEffect(() => {
     try {
@@ -417,16 +428,88 @@ export default function SimplifiedPatientOnboarding({
           setShowOTPModal(true);
         }
       } else {
-        // New patient - show form
-        setIsNewUser(true);
-        setIsPhoneVerified(true);
-        toast.success('Phone number verified! Please fill in your details.');
+        // New patient - send Phone OTP for registration
+        openPhoneOTPModal(formData.phone);
       }
     } catch (error) {
       console.error('Error checking patient existence:', error);
       toast.error('Error verifying phone number. Please try again.');
     } finally {
       setIsVerifying(false);
+    }
+  };
+
+  const openPhoneOTPModal = async (phone: string) => {
+    setPhoneOtpError(null);
+    setShowPhoneOTPModal(true);
+    setIsSendingPhoneOTP(true);
+    try {
+      const { data } = await sendPhoneOTPForRegistration({ variables: { phone } });
+      setPhoneOtpToken(data.sendPhoneOTPForRegistration.token);
+    } catch (err: any) {
+      setPhoneOtpError(err?.message || 'Failed to send OTP. Please try again.');
+      toast.error(err?.message || 'Failed to send OTP. Please try again.');
+    } finally {
+      setIsSendingPhoneOTP(false);
+    }
+  };
+
+  const handleVerifyPhoneOTP = async (code: string) => {
+    if (!phoneOtpToken) {
+      setPhoneOtpError('OTP token missing. Please resend.');
+      return;
+    }
+    setIsVerifyingPhoneOTP(true);
+    setPhoneOtpError(null);
+    try {
+      const { data } = await verifyPhoneOTPForRegistration({
+        variables: { input: { phone: formData.phone, otp: code, token: phoneOtpToken } },
+      });
+
+      if (data?.verifyPhoneOTPForRegistration?.verified) {
+        // Immediately create patient in DB as a LEAD with verified phone number & web tracking
+        const webTracking = getWebTrackingForBooking();
+        const input = {
+          phone: formData.phone,
+          firstName: 'Lead',
+          centers: [centerId],
+          category: 'WEBSITE',
+          patientType: 'OP_Patient',
+          cohort: 'SURGICAL',
+          ...(webTracking && { webTracking }),
+        };
+
+        const createRes = await createPatient({ variables: { input } });
+        const newPatientId = createRes.data?.createPatient?._id;
+        if (newPatientId) {
+          setCreatedPatientId(newPatientId);
+        }
+
+        setIsNewUser(true);
+        setIsPhoneVerified(true);
+        setShowPhoneOTPModal(false);
+        toast.success('Phone number verified! Please fill in your details.');
+      }
+    } catch (err: any) {
+      setPhoneOtpError(err?.message || 'Incorrect OTP. Please try again.');
+      toast.error('Incorrect OTP. Please check and try again.');
+    } finally {
+      setIsVerifyingPhoneOTP(false);
+    }
+  };
+
+  const handleResendPhoneOTP = async () => {
+    setIsSendingPhoneOTP(true);
+    setPhoneOtpError(null);
+    try {
+      const { data } = await sendPhoneOTPForRegistration({ variables: { phone: formData.phone } });
+      setPhoneOtpToken(data.sendPhoneOTPForRegistration.token);
+      toast.success('Verification code resent!');
+    } catch (err: any) {
+      setPhoneOtpError(err?.message || 'Failed to resend OTP. Please try again.');
+      toast.error('Failed to resend OTP. Please try again.');
+    } finally {
+      setIsSendingPhoneOTP(false);
     }
   };
 
@@ -559,6 +642,42 @@ export default function SimplifiedPatientOnboarding({
 
     const webTracking = getWebTrackingForBooking();
 
+    if (createdPatientId) {
+      // Patient already created in DB on OTP verify -> update details
+      const updateInput = {
+        firstName: formData.firstName,
+        lastName: formData.lastName || undefined,
+        email: formData.email || undefined,
+        gender: formData.gender,
+        bio: formData.bio || '',
+        dob: dobTimestamp,
+        referral: formData.referral.type ? formData.referral : undefined,
+      };
+
+      try {
+        await updatePatientMutation({
+          variables: {
+            patientId: createdPatientId,
+            input: updateInput,
+          },
+        });
+        toast.success('Profile updated successfully');
+        mobileAnalytics.trackOPUserCreated(createdPatientId, centerId, {
+          phone: formData.phone,
+          email: formData.email,
+          session_type: sessionType,
+        });
+        if (sessionType) {
+          onComplete(createdPatientId, true, sessionType);
+        }
+      } catch (error: any) {
+        console.error('Error updating patient:', error);
+        toast.error(error.message || 'Failed to update profile. Please try again.');
+      }
+      return;
+    }
+
+    // Fallback if createdPatientId wasn't set
     const input = {
       phone: formData.phone,
       firstName: formData.firstName,
@@ -609,6 +728,7 @@ export default function SimplifiedPatientOnboarding({
             if (isPhoneVerified) {
               setIsPhoneVerified(false);
               setIsNewUser(false);
+              setCreatedPatientId(null);
             }
           }}
           disabled={isPhoneVerified}
@@ -1032,6 +1152,21 @@ export default function SimplifiedPatientOnboarding({
         onClose={() => setShowNewUserServiceModal(false)}
         onCallNow={handleCallNow}
         isInDesktopContainer={isInDesktopContainer}
+      />
+
+      {/* Phone OTP Modal — for new user phone verification */}
+      <PhoneOTPModal
+        isOpen={showPhoneOTPModal}
+        phone={formData.phone}
+        isSending={isSendingPhoneOTP}
+        isVerifying={isVerifyingPhoneOTP}
+        error={phoneOtpError}
+        onVerify={handleVerifyPhoneOTP}
+        onResend={handleResendPhoneOTP}
+        onClose={() => {
+          setShowPhoneOTPModal(false);
+          setPhoneOtpError(null);
+        }}
       />
     </div>
   );
