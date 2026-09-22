@@ -4,8 +4,10 @@ import React, { useState } from 'react';
 import { useLazyQuery, useMutation } from '@apollo/client';
 import { toast } from 'sonner';
 import { User } from 'lucide-react';
-import { CHECK_PATIENT_BY_PHONE, ADD_PATIENT_TO_ORGANIZATION, CREATE_PATIENT } from '@/gql/queries';
+import { CHECK_PATIENT_BY_PHONE, ADD_PATIENT_TO_ORGANIZATION, CREATE_PATIENT, UPDATE_PATIENT } from '@/gql/queries';
 import { getBookingCookies } from '@/utils/booking-cookies';
+import { getWebTrackingForBooking } from '@/utils/web-tracking';
+import { useMobileFlowAnalytics } from '@/services/mobile-analytics';
 import { StanceHealthLoader } from '@/components/loader/StanceHealthLoader';
 import CrossOrgModal from './shared/CrossOrgModal';
 import { useContainerDetection } from '@/hooks/useContainerDetection';
@@ -29,6 +31,7 @@ interface FormData {
 
 export default function PrepaidOnboarding({ organizationId, onComplete, analytics }: PrepaidOnboardingProps) {
   const { isInDesktopContainer } = useContainerDetection();
+  const mobileAnalytics = useMobileFlowAnalytics();
   const [isPhoneVerified, setIsPhoneVerified] = useState(false);
   const [isNewUser, setIsNewUser] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
@@ -44,6 +47,8 @@ export default function PrepaidOnboarding({ organizationId, onComplete, analytic
     bio: '',
   });
   const [formErrors, setFormErrors] = useState<any>({});
+
+  const [createdPatientId, setCreatedPatientId] = useState<string | null>(null);
 
   const [checkPatientByPhone] = useLazyQuery(CHECK_PATIENT_BY_PHONE, {
     fetchPolicy: 'network-only',
@@ -63,15 +68,8 @@ export default function PrepaidOnboarding({ organizationId, onComplete, analytic
     },
   });
 
-  const [createPatient, { loading: creating }] = useMutation(CREATE_PATIENT, {
-    onCompleted: (data) => {
-      toast.success('Patient created successfully');
-      onComplete(data.createPatient._id, true);
-    },
-    onError: (error) => {
-      toast.error(error.message || 'Failed to create patient');
-    },
-  });
+  const [createPatient, { loading: creating }] = useMutation(CREATE_PATIENT);
+  const [updatePatientMutation] = useMutation(UPDATE_PATIENT);
 
   const handlePhoneVerification = async () => {
     if (!formData.phone || formData.phone.length !== 10) {
@@ -83,9 +81,9 @@ export default function PrepaidOnboarding({ organizationId, onComplete, analytic
     setIsVerifying(true);
     try {
       const { data: checkData } = await checkPatientByPhone({
-        variables: { 
+        variables: {
           phone: formData.phone,
-          organizationId 
+          organizationId
         },
       });
 
@@ -105,6 +103,28 @@ export default function PrepaidOnboarding({ organizationId, onComplete, analytic
         onComplete(patient._id, false);
       } else {
         analytics?.trackEvent('new_user_identified', { phone: formData.phone });
+
+        // Create user on phone verify
+        const cookies = getBookingCookies();
+        const centerId = cookies.centerId;
+        const webTracking = getWebTrackingForBooking();
+
+        const input = {
+          phone: formData.phone,
+          firstName: 'Lead',
+          centers: centerId ? [centerId] : [],
+          category: 'WEBSITE',
+          patientType: 'OP_Patient',
+          cohort: 'SURGICAL',
+          ...(webTracking && { webTracking }),
+        };
+
+        const createRes = await createPatient({ variables: { input } });
+        const newPatientId = createRes.data?.createPatient?._id;
+        if (newPatientId) {
+          setCreatedPatientId(newPatientId);
+        }
+
         setIsNewUser(true);
         setIsPhoneVerified(true);
         toast.success('Phone number verified! Please fill in your details.');
@@ -159,7 +179,7 @@ export default function PrepaidOnboarding({ organizationId, onComplete, analytic
   const handleSubmit = async () => {
     if (!validateForm()) return;
 
-    analytics?.trackEvent('continue_button_clicked', { 
+    analytics?.trackEvent('continue_button_clicked', {
       current_step: 'patient_onboarding',
       center_id: organizationId,
       patient_id: formData.phone,
@@ -167,28 +187,56 @@ export default function PrepaidOnboarding({ organizationId, onComplete, analytic
 
     const dobDate = formData.dob ? new Date(formData.dob) : null;
     const dobTimestamp = dobDate ? Math.floor(dobDate.getTime() / 1000) : null;
-
     const cookies = getBookingCookies();
-    const centerId = cookies.centerId;
-
-    const input = {
-      phone: formData.phone,
-      firstName: formData.firstName,
-      lastName: formData.lastName,
-      email: formData.email || undefined,
-      gender: formData.gender,
-      bio: formData.bio || '',
-      dob: dobTimestamp,
-      centers: centerId ? [centerId] : [],
-      category: 'WEBSITE',
-      patientType: 'OP_Patient',
-      cohort: 'SURGICAL',
-    };
+    const centerId = cookies.centerId || organizationId;
 
     try {
-      await createPatient({ variables: { input } });
+      let finalPatientId = createdPatientId;
+
+      if (createdPatientId) {
+        // Patient already created in DB on phone verify -> update profile details
+        await updatePatientMutation({
+          variables: {
+            id: createdPatientId,
+            input: {
+              firstName: formData.firstName,
+              lastName: formData.lastName || undefined,
+              email: formData.email || undefined,
+              gender: formData.gender,
+              bio: formData.bio || '',
+              dob: dobTimestamp,
+            },
+          },
+        });
+      } else {
+        const webTracking = getWebTrackingForBooking();
+        const input = {
+          phone: formData.phone,
+          firstName: formData.firstName,
+          lastName: formData.lastName || undefined,
+          email: formData.email || undefined,
+          gender: formData.gender,
+          bio: formData.bio || '',
+          dob: dobTimestamp,
+          centers: centerId ? [centerId] : [],
+          category: 'WEBSITE',
+          patientType: 'OP_Patient',
+          cohort: 'SURGICAL',
+          ...(webTracking && { webTracking }),
+        };
+
+        const createRes = await createPatient({ variables: { input } });
+        finalPatientId = createRes.data?.createPatient?._id;
+      }
+
+      if (finalPatientId) {
+        // Fire OP_GA4_UserCreated to GA4 & GTM
+        mobileAnalytics.trackOPUserCreated(finalPatientId, centerId || '');
+        onComplete(finalPatientId, true);
+      }
     } catch (error) {
-      console.error('Error creating patient:', error);
+      console.error('Error submitting patient details:', error);
+      toast.error('Failed to submit patient details.');
     }
   };
 
@@ -201,7 +249,7 @@ export default function PrepaidOnboarding({ organizationId, onComplete, analytic
 
   return (
     <div className={`${isInDesktopContainer ? 'h-full' : 'min-h-screen'} bg-gray-50 flex flex-col`}>
-      <div 
+      <div
         className="relative h-36 w-full flex-shrink-0"
         style={{
           backgroundImage: 'url(/indra.webp)',
@@ -212,7 +260,7 @@ export default function PrepaidOnboarding({ organizationId, onComplete, analytic
       >
         <div className="absolute inset-0 bg-blue-500 bg-opacity-20"></div>
       </div>
-      
+
       <div className="flex-shrink-0 bg-gray-50 p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
@@ -223,9 +271,9 @@ export default function PrepaidOnboarding({ organizationId, onComplete, analytic
               Book Your Prepaid Appointment
             </h6>
           </div>
-          <img 
-            src="/stance-logo.png" 
-            alt="Stance Health" 
+          <img
+            src="/stance-logo.png"
+            alt="Stance Health"
             className="h-16 w-auto"
           />
         </div>
@@ -234,12 +282,12 @@ export default function PrepaidOnboarding({ organizationId, onComplete, analytic
       <div className="flex-1 overflow-y-auto">
         <div className={`p-4 ${isInDesktopContainer ? 'pb-6' : 'pb-32'}`}>
           <p className="text-gray-600 text-sm mb-6">
-            {!isPhoneVerified 
+            {!isPhoneVerified
               ? 'Enter your phone number to get started'
               : 'Complete your profile details'
             }
           </p>
-          
+
           <div className="space-y-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Phone Number *</label>
@@ -256,9 +304,8 @@ export default function PrepaidOnboarding({ organizationId, onComplete, analytic
                     }
                   }}
                   disabled={isPhoneVerified}
-                  className={`w-full p-3 pr-20 border-2 rounded-xl ${
-                    formErrors.phone ? 'border-red-300' : isPhoneVerified ? 'border-green-300 bg-green-50' : 'border-gray-200'
-                  } focus:border-blue-500 outline-none ${isPhoneVerified ? 'cursor-not-allowed' : ''}`}
+                  className={`w-full p-3 pr-20 border-2 rounded-xl ${formErrors.phone ? 'border-red-300' : isPhoneVerified ? 'border-green-300 bg-green-50' : 'border-gray-200'
+                    } focus:border-blue-500 outline-none ${isPhoneVerified ? 'cursor-not-allowed' : ''}`}
                   placeholder="10-digit mobile number"
                   maxLength={10}
                 />
@@ -285,9 +332,8 @@ export default function PrepaidOnboarding({ organizationId, onComplete, analytic
                   value={formData.firstName}
                   onChange={(e) => updateFormData('firstName', e.target.value)}
                   disabled={!isPhoneVerified}
-                  className={`w-full p-3 border-2 rounded-xl ${
-                    formErrors.firstName ? 'border-red-300' : 'border-gray-200'
-                  } focus:border-blue-500 outline-none ${!isPhoneVerified ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                  className={`w-full p-3 border-2 rounded-xl ${formErrors.firstName ? 'border-red-300' : 'border-gray-200'
+                    } focus:border-blue-500 outline-none ${!isPhoneVerified ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                   placeholder="First name"
                 />
                 {formErrors.firstName && <p className="text-red-500 text-xs mt-1">{formErrors.firstName}</p>}
@@ -312,9 +358,8 @@ export default function PrepaidOnboarding({ organizationId, onComplete, analytic
                 value={formData.email}
                 onChange={(e) => updateFormData('email', e.target.value)}
                 disabled={!isPhoneVerified}
-                className={`w-full p-3 border-2 rounded-xl ${
-                  formErrors.email ? 'border-red-300' : 'border-gray-200'
-                } focus:border-blue-500 outline-none ${!isPhoneVerified ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                className={`w-full p-3 border-2 rounded-xl ${formErrors.email ? 'border-red-300' : 'border-gray-200'
+                  } focus:border-blue-500 outline-none ${!isPhoneVerified ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                 placeholder="your.email@example.com"
               />
               {formErrors.email && <p className="text-red-500 text-xs mt-1">{formErrors.email}</p>}
@@ -333,11 +378,10 @@ export default function PrepaidOnboarding({ organizationId, onComplete, analytic
                     type="button"
                     onClick={() => updateFormData('gender', option.value)}
                     disabled={!isPhoneVerified}
-                    className={`p-3 border-2 rounded-xl transition-all ${
-                      formData.gender === option.value
+                    className={`p-3 border-2 rounded-xl transition-all ${formData.gender === option.value
                         ? 'border-blue-500 bg-blue-50 text-blue-700'
                         : 'border-gray-200 text-gray-700 hover:border-gray-300'
-                    } ${!isPhoneVerified ? 'bg-gray-100 cursor-not-allowed opacity-50' : ''}`}
+                      } ${!isPhoneVerified ? 'bg-gray-100 cursor-not-allowed opacity-50' : ''}`}
                   >
                     {option.label}
                   </button>

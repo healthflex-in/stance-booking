@@ -11,8 +11,6 @@ import {
   SEND_EMAIL_OTP,
   VERIFY_EMAIL_OTP,
   UPDATE_PATIENT,
-  SEND_PHONE_OTP_FOR_REGISTRATION,
-  VERIFY_PHONE_OTP_FOR_REGISTRATION,
 } from '@/gql/queries';
 import { getBookingCookies } from '@/utils/booking-cookies';
 import { getWebTrackingForBooking } from '@/utils/web-tracking';
@@ -20,7 +18,6 @@ import { StanceHealthLoader } from '@/components/loader/StanceHealthLoader';
 import CrossOrgModal from './shared/CrossOrgModal';
 import NewUserServiceModal from './shared/NewUserServiceModal';
 import EmailOTPModal from './shared/EmailOTPModal';
-import PhoneOTPModal from './shared/PhoneOTPModal';
 import { useContainerDetection } from '@/hooks/useContainerDetection';
 import { useMobileFlowAnalytics } from '@/services/mobile-analytics';
 
@@ -97,16 +94,9 @@ export default function OfflineOnboarding({ centerId, onComplete }: OfflineOnboa
   const [sendEmailOTPMutation] = useMutation(SEND_EMAIL_OTP);
   const [verifyEmailOTPMutation] = useMutation(VERIFY_EMAIL_OTP);
   const [updatePatientMutation] = useMutation(UPDATE_PATIENT);
-  const [sendPhoneOTPForRegistration] = useMutation(SEND_PHONE_OTP_FOR_REGISTRATION);
-  const [verifyPhoneOTPForRegistration] = useMutation(VERIFY_PHONE_OTP_FOR_REGISTRATION);
 
-  // Phone OTP state & created patient ID state
+  // Created patient ID state
   const [createdPatientId, setCreatedPatientId] = useState<string | null>(null);
-  const [showPhoneOTPModal, setShowPhoneOTPModal] = useState(false);
-  const [phoneOtpToken, setPhoneOtpToken] = useState<string | null>(null);
-  const [phoneOtpError, setPhoneOtpError] = useState<string | null>(null);
-  const [isSendingPhoneOTP, setIsSendingPhoneOTP] = useState(false);
-  const [isVerifyingPhoneOTP, setIsVerifyingPhoneOTP] = useState(false);
 
   const openOTPModal = async (email: string) => {
     setOtpEmail(email);
@@ -217,88 +207,32 @@ export default function OfflineOnboarding({ centerId, onComplete }: OfflineOnboa
         return;
       }
 
-      // New user — trigger Phone OTP verification
-      openPhoneOTPModal(formData.phone);
+      // New user — create patient immediately in DB as a LEAD with phone & web tracking
+      const webTracking = getWebTrackingForBooking();
+      const input = {
+        phone: formData.phone,
+        firstName: 'Lead',
+        centers: [centerId],
+        category: 'WEBSITE',
+        patientType: 'OP_Patient',
+        cohort: 'SURGICAL',
+        ...(webTracking && { webTracking }),
+      };
+
+      const createRes = await createPatient({ variables: { input } });
+      const newPatientId = createRes.data?.createPatient?._id;
+      if (newPatientId) {
+        setCreatedPatientId(newPatientId);
+      }
+
+      setIsNewUser(true);
+      setIsPhoneVerified(true);
+      toast.success('Phone number verified! Please fill in your details.');
     } catch (error) {
       console.error('Error checking patient existence:', error);
       toast.error('Error verifying phone number. Please try again.');
     } finally {
       setIsVerifying(false);
-    }
-  };
-
-  const openPhoneOTPModal = async (phone: string) => {
-    setPhoneOtpError(null);
-    setShowPhoneOTPModal(true);
-    setIsSendingPhoneOTP(true);
-    try {
-      const { data } = await sendPhoneOTPForRegistration({ variables: { phone } });
-      setOtpToken(data.sendPhoneOTPForRegistration.token);
-      setPhoneOtpToken(data.sendPhoneOTPForRegistration.token);
-    } catch (err: any) {
-      setPhoneOtpError(err?.message || 'Failed to send OTP. Please try again.');
-      toast.error(err?.message || 'Failed to send OTP. Please try again.');
-    } finally {
-      setIsSendingPhoneOTP(false);
-    }
-  };
-
-  const handleVerifyPhoneOTP = async (code: string) => {
-    if (!phoneOtpToken) {
-      setPhoneOtpError('OTP token missing. Please resend.');
-      return;
-    }
-    setIsVerifyingPhoneOTP(true);
-    setPhoneOtpError(null);
-    try {
-      const { data } = await verifyPhoneOTPForRegistration({
-        variables: { input: { phone: formData.phone, otp: code, token: phoneOtpToken } },
-      });
-
-      if (data?.verifyPhoneOTPForRegistration?.verified) {
-        // Immediately create patient in DB as a LEAD with verified phone number & web tracking
-        const webTracking = getWebTrackingForBooking();
-        const input = {
-          phone: formData.phone,
-          firstName: 'Lead',
-          centers: [centerId],
-          category: 'WEBSITE',
-          patientType: 'OP_Patient',
-          cohort: 'SURGICAL',
-          ...(webTracking && { webTracking }),
-        };
-
-        const createRes = await createPatient({ variables: { input } });
-        const newPatientId = createRes.data?.createPatient?._id;
-        if (newPatientId) {
-          setCreatedPatientId(newPatientId);
-        }
-
-        setIsNewUser(true);
-        setIsPhoneVerified(true);
-        setShowPhoneOTPModal(false);
-        toast.success('Phone number verified! Please fill in your details.');
-      }
-    } catch (err: any) {
-      setPhoneOtpError(err?.message || 'Incorrect OTP. Please try again.');
-      toast.error('Incorrect OTP. Please check and try again.');
-    } finally {
-      setIsVerifyingPhoneOTP(false);
-    }
-  };
-
-  const handleResendPhoneOTP = async () => {
-    setIsSendingPhoneOTP(true);
-    setPhoneOtpError(null);
-    try {
-      const { data } = await sendPhoneOTPForRegistration({ variables: { phone: formData.phone } });
-      setPhoneOtpToken(data.sendPhoneOTPForRegistration.token);
-      toast.success('Verification code resent!');
-    } catch (err: any) {
-      setPhoneOtpError(err?.message || 'Failed to resend OTP. Please try again.');
-      toast.error('Failed to resend OTP. Please try again.');
-    } finally {
-      setIsSendingPhoneOTP(false);
     }
   };
 
@@ -461,9 +395,8 @@ export default function OfflineOnboarding({ centerId, onComplete }: OfflineOnboa
                     }
                   }}
                   disabled={isPhoneVerified}
-                  className={`w-full p-3 pr-20 border-2 rounded-xl ${
-                    formErrors.phone ? 'border-red-300' : isPhoneVerified ? 'border-green-300 bg-green-50' : 'border-gray-200'
-                  } focus:border-blue-500 outline-none ${isPhoneVerified ? 'cursor-not-allowed' : ''}`}
+                  className={`w-full p-3 pr-20 border-2 rounded-xl ${formErrors.phone ? 'border-red-300' : isPhoneVerified ? 'border-green-300 bg-green-50' : 'border-gray-200'
+                    } focus:border-blue-500 outline-none ${isPhoneVerified ? 'cursor-not-allowed' : ''}`}
                   placeholder="10-digit mobile number"
                   maxLength={10}
                 />
@@ -539,9 +472,8 @@ export default function OfflineOnboarding({ centerId, onComplete }: OfflineOnboa
                           setTrackedFields(prev => ({ ...prev, email: true }));
                         }
                       }}
-                      className={`w-full p-3 pr-20 border-2 rounded-xl ${
-                        formErrors.email ? 'border-red-300' : emailVerified ? 'border-green-300 bg-green-50' : 'border-gray-200'
-                      } focus:border-blue-500 outline-none`}
+                      className={`w-full p-3 pr-20 border-2 rounded-xl ${formErrors.email ? 'border-red-300' : emailVerified ? 'border-green-300 bg-green-50' : 'border-gray-200'
+                        } focus:border-blue-500 outline-none`}
                       placeholder="your.email@example.com"
                     />
                     {!emailVerified && formData.email && EMAIL_REGEX.test(formData.email) && (
@@ -569,9 +501,8 @@ export default function OfflineOnboarding({ centerId, onComplete }: OfflineOnboa
                           updateFormData('gender', option.value);
                           mobileAnalytics.trackGenderSelected(option.value, centerId);
                         }}
-                        className={`p-3 border-2 rounded-xl transition-all ${
-                          formData.gender === option.value ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-700 hover:border-gray-300'
-                        }`}
+                        className={`p-3 border-2 rounded-xl transition-all ${formData.gender === option.value ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-700 hover:border-gray-300'
+                          }`}
                       >
                         {option.label}
                       </button>
@@ -691,20 +622,6 @@ export default function OfflineOnboarding({ centerId, onComplete }: OfflineOnboa
         onClose={() => setShowNewUserServiceModal(false)}
         onCallNow={() => { window.location.href = 'tel:+919019410049'; }}
         isInDesktopContainer={isInDesktopContainer}
-      />
-
-      <PhoneOTPModal
-        isOpen={showPhoneOTPModal}
-        phone={formData.phone}
-        isSending={isSendingPhoneOTP}
-        isVerifying={isVerifyingPhoneOTP}
-        error={phoneOtpError}
-        onVerify={handleVerifyPhoneOTP}
-        onResend={handleResendPhoneOTP}
-        onClose={() => {
-          setShowPhoneOTPModal(false);
-          setPhoneOtpError(null);
-        }}
       />
     </div>
   );
