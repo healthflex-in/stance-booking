@@ -10,6 +10,7 @@ import {
   CREATE_PATIENT,
   SEND_EMAIL_OTP,
   VERIFY_EMAIL_OTP,
+  UPDATE_PATIENT,
 } from '@/gql/queries';
 import { getBookingCookies } from '@/utils/booking-cookies';
 import { getWebTrackingForBooking } from '@/utils/web-tracking';
@@ -92,6 +93,10 @@ export default function OfflineOnboarding({ centerId, onComplete }: OfflineOnboa
 
   const [sendEmailOTPMutation] = useMutation(SEND_EMAIL_OTP);
   const [verifyEmailOTPMutation] = useMutation(VERIFY_EMAIL_OTP);
+  const [updatePatientMutation] = useMutation(UPDATE_PATIENT);
+
+  // Created patient ID state
+  const [createdPatientId, setCreatedPatientId] = useState<string | null>(null);
 
   const openOTPModal = async (email: string) => {
     setOtpEmail(email);
@@ -202,6 +207,24 @@ export default function OfflineOnboarding({ centerId, onComplete }: OfflineOnboa
         return;
       }
 
+      // New user — create patient immediately in DB as a LEAD with phone & web tracking
+      const webTracking = getWebTrackingForBooking();
+      const input = {
+        phone: formData.phone,
+        firstName: 'Lead',
+        centers: [centerId],
+        category: 'WEBSITE',
+        patientType: 'OP_Patient',
+        cohort: 'SURGICAL',
+        ...(webTracking && { webTracking }),
+      };
+
+      const createRes = await createPatient({ variables: { input } });
+      const newPatientId = createRes.data?.createPatient?._id;
+      if (newPatientId) {
+        setCreatedPatientId(newPatientId);
+      }
+
       setIsNewUser(true);
       setIsPhoneVerified(true);
       toast.success('Phone number verified! Please fill in your details.');
@@ -252,6 +275,39 @@ export default function OfflineOnboarding({ centerId, onComplete }: OfflineOnboa
     const dobDate = formData.dob ? new Date(formData.dob) : null;
     const dobTimestamp = dobDate ? Math.floor(dobDate.getTime() / 1000) : null;
     const webTracking = getWebTrackingForBooking();
+
+    if (createdPatientId) {
+      // Patient already created in DB on OTP verify -> update details
+      const updateInput = {
+        firstName: formData.firstName,
+        lastName: formData.lastName || undefined,
+        email: formData.email || undefined,
+        gender: formData.gender,
+        bio: formData.bio || '',
+        dob: dobTimestamp,
+      };
+
+      try {
+        await updatePatientMutation({
+          variables: {
+            patientId: createdPatientId,
+            input: updateInput,
+          },
+        });
+        toast.success('Profile updated successfully');
+        mobileAnalytics.trackPatientCreated(createdPatientId, centerId, false);
+        mobileAnalytics.trackOPUserCreated(createdPatientId, centerId, {
+          phone: formData.phone,
+          email: formData.email,
+        });
+        onComplete(createdPatientId, true);
+      } catch (error: any) {
+        console.error('Error updating patient:', error);
+        toast.error(error.message || 'Failed to update profile. Please try again.');
+      }
+      return;
+    }
+
     const input = {
       phone: formData.phone,
       firstName: formData.firstName,
@@ -335,12 +391,12 @@ export default function OfflineOnboarding({ centerId, onComplete }: OfflineOnboa
                       setIsNewUser(false);
                       setRepeatPatientId(null);
                       setEmailVerified(false);
+                      setCreatedPatientId(null);
                     }
                   }}
                   disabled={isPhoneVerified}
-                  className={`w-full p-3 pr-20 border-2 rounded-xl ${
-                    formErrors.phone ? 'border-red-300' : isPhoneVerified ? 'border-green-300 bg-green-50' : 'border-gray-200'
-                  } focus:border-blue-500 outline-none ${isPhoneVerified ? 'cursor-not-allowed' : ''}`}
+                  className={`w-full p-3 pr-20 border-2 rounded-xl ${formErrors.phone ? 'border-red-300' : isPhoneVerified ? 'border-green-300 bg-green-50' : 'border-gray-200'
+                    } focus:border-blue-500 outline-none ${isPhoneVerified ? 'cursor-not-allowed' : ''}`}
                   placeholder="10-digit mobile number"
                   maxLength={10}
                 />
@@ -416,9 +472,8 @@ export default function OfflineOnboarding({ centerId, onComplete }: OfflineOnboa
                           setTrackedFields(prev => ({ ...prev, email: true }));
                         }
                       }}
-                      className={`w-full p-3 pr-20 border-2 rounded-xl ${
-                        formErrors.email ? 'border-red-300' : emailVerified ? 'border-green-300 bg-green-50' : 'border-gray-200'
-                      } focus:border-blue-500 outline-none`}
+                      className={`w-full p-3 pr-20 border-2 rounded-xl ${formErrors.email ? 'border-red-300' : emailVerified ? 'border-green-300 bg-green-50' : 'border-gray-200'
+                        } focus:border-blue-500 outline-none`}
                       placeholder="your.email@example.com"
                     />
                     {!emailVerified && formData.email && EMAIL_REGEX.test(formData.email) && (
@@ -446,9 +501,8 @@ export default function OfflineOnboarding({ centerId, onComplete }: OfflineOnboa
                           updateFormData('gender', option.value);
                           mobileAnalytics.trackGenderSelected(option.value, centerId);
                         }}
-                        className={`p-3 border-2 rounded-xl transition-all ${
-                          formData.gender === option.value ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-700 hover:border-gray-300'
-                        }`}
+                        className={`p-3 border-2 rounded-xl transition-all ${formData.gender === option.value ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-700 hover:border-gray-300'
+                          }`}
                       >
                         {option.label}
                       </button>
