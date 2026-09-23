@@ -40,20 +40,23 @@ export default function ServiceSelectionModal({
   const isOrganizationLevel = !!organizationId && !isValidCenterId;
   
   const { data: servicesData, loading: servicesLoading, error: servicesError, refetch } = useQuery(GET_SERVICES, {
-    variables: isValidCenterId ? { centerId: [centerId] } : { centerId: null },
+    variables: {
+      ...(isValidCenterId ? { centerId: [centerId] } : { centerId: null }),
+      ...(patientId ? { patientId } : {}),
+    },
     skip: !isValidCenterId && !isOrganizationLevel,
     fetchPolicy: 'network-only',
   });
 
-  // Fetch patient data to check status
+  // Fetch patient data to check status (fallback when patientId not sent to services)
   const { data: patientData } = useQuery(GET_USER, {
     variables: { userId: patientId },
     skip: !patientId,
     fetchPolicy: 'cache-first',
   });
 
-  // Determine if patient should be treated as new user
-  // New user if: explicitly marked as new OR patient status is LEAD
+  // Backend filters new/repeat via patientId + appointment history (new-user-filter).
+  // Client isNewUserService filter is only a fallback when patientId is missing.
   const effectiveIsNewUser = React.useMemo(() => {
     if (isNewUser) return true;
     const patientStatus = patientData?.user?.profileData?.status;
@@ -64,7 +67,7 @@ export default function ServiceSelectionModal({
     if (isOpen && (isValidCenterId || isOrganizationLevel)) {
       refetch();
     }
-  }, [isOpen, isValidCenterId, isOrganizationLevel, refetch]);
+  }, [isOpen, isValidCenterId, isOrganizationLevel, refetch, patientId]);
 
   useEffect(() => {
     if (servicesError) {
@@ -96,24 +99,27 @@ export default function ServiceSelectionModal({
         if (!service.allowOnlineDelivery) {
           return false;
         }
-        // Filter by new user vs repeat user (including LEAD status check)
-        if (effectiveIsNewUser && !service.isNewUserService) {
-          return false;
-        }
-        if (!effectiveIsNewUser && service.isNewUserService) {
-          return false;
+        // Backend already filtered isNewUserService when patientId was passed
+        if (!patientId) {
+          if (effectiveIsNewUser && !service.isNewUserService) {
+            return false;
+          }
+          if (!effectiveIsNewUser && service.isNewUserService) {
+            return false;
+          }
         }
       } else {
         // For non-prepaid services
         if (service.isPrePaid) {
           return false;
         }
-        // Filter by new user vs repeat user (including LEAD status check)
-        if (effectiveIsNewUser && !service.isNewUserService) {
-          return false;
-        }
-        if (!effectiveIsNewUser && service.isNewUserService) {
-          return false;
+        if (!patientId) {
+          if (effectiveIsNewUser && !service.isNewUserService) {
+            return false;
+          }
+          if (!effectiveIsNewUser && service.isNewUserService) {
+            return false;
+          }
         }
         // Session type filtering for non-prepaid
         if (sessionType === 'online') {
@@ -168,7 +174,7 @@ export default function ServiceSelectionModal({
     }
 
     setServices(mappedServices);
-  }, [servicesData, effectiveIsNewUser, sessionType, isPrePaid, centerId, organizationId, designation]);
+  }, [servicesData, effectiveIsNewUser, patientId, sessionType, isPrePaid, centerId, organizationId, designation]);
 
   useEffect(() => {
     if (isOpen) {

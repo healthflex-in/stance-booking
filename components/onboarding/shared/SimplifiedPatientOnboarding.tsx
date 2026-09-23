@@ -132,6 +132,9 @@ export default function SimplifiedPatientOnboarding({
   const [verifyEmailOTPMutation] = useMutation(VERIFY_EMAIL_OTP);
   const [updatePatientMutation] = useMutation(UPDATE_PATIENT);
 
+  // Created patient ID state
+  const [createdPatientId, setCreatedPatientId] = useState<string | null>(null);
+
   useEffect(() => {
     try {
       const stored = sessionStorage.getItem('assessmentType');
@@ -147,7 +150,7 @@ export default function SimplifiedPatientOnboarding({
   useEffect(() => {
     mobileAnalytics.trackPatientOnboardingStart(centerId);
     mobileAnalytics.trackPatientDetailsStart('', centerId);
-    
+
     // Persist UTM params to tab storage before any navigation cleans up the URL
     captureUTMParams();
 
@@ -155,15 +158,15 @@ export default function SimplifiedPatientOnboarding({
     const source = urlParams.get('utm_source') || urlParams.get('source') || 'direct';
     const campaign = urlParams.get('utm_campaign');
     const medium = urlParams.get('utm_medium');
-    
+
     if (source !== 'direct') {
       mobileAnalytics.trackReferralSource(source, campaign || '', medium || '', '', centerId);
     }
-    
+
     const screenSize = `${window.innerWidth}x${window.innerHeight}`;
     const deviceType = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ? 'mobile' : 'desktop';
     const optimizationScore = window.innerWidth < 768 ? 85 : 95;
-    
+
     mobileAnalytics.trackMobileOptimization(optimizationScore, deviceType, screenSize);
   }, [centerId]);
 
@@ -172,12 +175,12 @@ export default function SimplifiedPatientOnboarding({
       const defaultCenter = centersData.centers.find(
         (center: any) => center._id === centerId
       );
-      
+
       if (defaultCenter?.organization?._id) {
         localStorage.setItem('organizationId', defaultCenter.organization._id);
         localStorage.setItem('stance-organizationID', defaultCenter.organization._id);
       }
-      
+
       if (defaultCenter?._id) {
         localStorage.setItem('centerId', defaultCenter._id);
         localStorage.setItem('stance-centreID', defaultCenter._id);
@@ -190,18 +193,18 @@ export default function SimplifiedPatientOnboarding({
       toast.success('Patient created successfully');
       mobileAnalytics.trackPatientCreated(data.createPatient._id, centerId, false);
       mobileAnalytics.trackPatientProfileCompleted(data.createPatient._id, centerId, false);
-      
+
       const patientCenter = data.createPatient.profileData?.centers?.[0];
       if (patientCenter?.organization?._id) {
         localStorage.setItem('organizationId', patientCenter.organization._id);
         localStorage.setItem('stance-organizationID', patientCenter.organization._id);
       }
-      
+
       if (patientCenter?._id) {
         localStorage.setItem('centerId', patientCenter._id);
         localStorage.setItem('stance-centreID', patientCenter._id);
       }
-      
+
       if (sessionType) {
         onComplete(data.createPatient._id, true, sessionType);
       }
@@ -244,11 +247,11 @@ export default function SimplifiedPatientOnboarding({
         localStorage.setItem('token', session.token);
         localStorage.setItem('refreshToken', session.refreshToken);
         localStorage.setItem('user', JSON.stringify(session.user));
-        
+
         toast.success('Email verified and updated successfully!');
-        
+
         setShowOTPModal(false);
-        
+
         // Check if session type was pre-stored from URL params
         if (pendingSessionType) {
           // Session type already determined, proceed directly
@@ -296,7 +299,7 @@ export default function SimplifiedPatientOnboarding({
 
   const handleUpdateEmail = async (newEmail: string) => {
     console.log('📧 handleUpdateEmail called with:', newEmail);
-    
+
     if (!pendingRepeatPatientId) {
       console.error('❌ No patient ID found');
       setOtpError('Patient ID not found. Please try again.');
@@ -306,11 +309,11 @@ export default function SimplifiedPatientOnboarding({
 
     setIsSendingOTP(true);
     setOtpError(null);
-    
+
     try {
       // Send OTP to new email for verification
       console.log('📧 Sending OTP to new email:', newEmail);
-      
+
       // First update email in database so OTP can be sent
       await updatePatientMutation({
         variables: {
@@ -319,11 +322,11 @@ export default function SimplifiedPatientOnboarding({
         }
       });
       console.log('✅ Email updated in database (temporarily)');
-      
+
       // Now send OTP to verify
       const { data } = await sendEmailOTPMutation({ variables: { email: newEmail } });
       console.log('✅ OTP sent to new email successfully:', data);
-      
+
       setOtpToken(data.sendEmailOTP.token);
       setOtpEmail(newEmail);
       toast.success(`Verification code sent to ${newEmail}`);
@@ -364,9 +367,9 @@ export default function SimplifiedPatientOnboarding({
 
       // Check if patient exists and in which organization
       const { data: checkData } = await checkPatientByPhone({
-        variables: { 
+        variables: {
           phone: formData.phone,
-          organizationId: currentOrgId 
+          organizationId: currentOrgId
         },
       });
 
@@ -417,7 +420,24 @@ export default function SimplifiedPatientOnboarding({
           setShowOTPModal(true);
         }
       } else {
-        // New patient - show form
+        // New patient - create patient immediately in DB as a LEAD with phone & web tracking
+        const webTracking = getWebTrackingForBooking();
+        const input = {
+          phone: formData.phone,
+          firstName: 'Lead',
+          centers: [centerId],
+          category: 'WEBSITE',
+          patientType: 'OP_Patient',
+          cohort: 'SURGICAL',
+          ...(webTracking && { webTracking }),
+        };
+
+        const createRes = await createPatient({ variables: { input } });
+        const newPatientId = createRes.data?.createPatient?._id;
+        if (newPatientId) {
+          setCreatedPatientId(newPatientId);
+        }
+
         setIsNewUser(true);
         setIsPhoneVerified(true);
         toast.success('Phone number verified! Please fill in your details.');
@@ -444,12 +464,12 @@ export default function SimplifiedPatientOnboarding({
         onComplete(patientId, isNew, selectedSessionType);
         return;
       }
-      
+
       // Otherwise, fetch patient by phone
       const { data: patientData } = await getPatientByPhone({
         variables: { phone: formData.phone },
       });
-      
+
       const patient = patientData?.patientByPhone;
       if (patient) {
         setSessionType(selectedSessionType);
@@ -559,6 +579,42 @@ export default function SimplifiedPatientOnboarding({
 
     const webTracking = getWebTrackingForBooking();
 
+    if (createdPatientId) {
+      // Patient already created in DB on OTP verify -> update details
+      const updateInput = {
+        firstName: formData.firstName,
+        lastName: formData.lastName || undefined,
+        email: formData.email || undefined,
+        gender: formData.gender,
+        bio: formData.bio || '',
+        dob: dobTimestamp,
+        referral: formData.referral.type ? formData.referral : undefined,
+      };
+
+      try {
+        await updatePatientMutation({
+          variables: {
+            patientId: createdPatientId,
+            input: updateInput,
+          },
+        });
+        toast.success('Profile updated successfully');
+        mobileAnalytics.trackOPUserCreated(createdPatientId, centerId, {
+          phone: formData.phone,
+          email: formData.email,
+          session_type: sessionType,
+        });
+        if (sessionType) {
+          onComplete(createdPatientId, true, sessionType);
+        }
+      } catch (error: any) {
+        console.error('Error updating patient:', error);
+        toast.error(error.message || 'Failed to update profile. Please try again.');
+      }
+      return;
+    }
+
+    // Fallback if createdPatientId wasn't set
     const input = {
       phone: formData.phone,
       firstName: formData.firstName,
@@ -609,12 +665,12 @@ export default function SimplifiedPatientOnboarding({
             if (isPhoneVerified) {
               setIsPhoneVerified(false);
               setIsNewUser(false);
+              setCreatedPatientId(null);
             }
           }}
           disabled={isPhoneVerified}
-          className={`w-full p-3 pr-20 border-2 rounded-xl ${
-            formErrors.phone ? 'border-red-300' : isPhoneVerified ? 'border-green-300 bg-green-50' : 'border-gray-200'
-          } focus:border-blue-500 outline-none ${isPhoneVerified ? 'cursor-not-allowed' : ''}`}
+          className={`w-full p-3 pr-20 border-2 rounded-xl ${formErrors.phone ? 'border-red-300' : isPhoneVerified ? 'border-green-300 bg-green-50' : 'border-gray-200'
+            } focus:border-blue-500 outline-none ${isPhoneVerified ? 'cursor-not-allowed' : ''}`}
           placeholder="10-digit mobile number"
           maxLength={10}
         />
@@ -659,9 +715,8 @@ export default function SimplifiedPatientOnboarding({
               }
             }}
             disabled={!isPhoneVerified}
-            className={`w-full p-3 border-2 rounded-xl ${
-              formErrors.firstName ? 'border-red-300' : 'border-gray-200'
-            } focus:border-blue-500 outline-none ${!isPhoneVerified ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+            className={`w-full p-3 border-2 rounded-xl ${formErrors.firstName ? 'border-red-300' : 'border-gray-200'
+              } focus:border-blue-500 outline-none ${!isPhoneVerified ? 'bg-gray-100 cursor-not-allowed' : ''}`}
             placeholder="First name"
           />
           {formErrors.firstName && (
@@ -683,9 +738,8 @@ export default function SimplifiedPatientOnboarding({
               }
             }}
             disabled={!isPhoneVerified}
-            className={`w-full p-3 border-2 rounded-xl ${
-              formErrors.lastName ? 'border-red-300' : 'border-gray-200'
-            } focus:border-blue-500 outline-none ${!isPhoneVerified ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+            className={`w-full p-3 border-2 rounded-xl ${formErrors.lastName ? 'border-red-300' : 'border-gray-200'
+              } focus:border-blue-500 outline-none ${!isPhoneVerified ? 'bg-gray-100 cursor-not-allowed' : ''}`}
             placeholder="Last name"
           />
           {formErrors.lastName && (
@@ -710,9 +764,8 @@ export default function SimplifiedPatientOnboarding({
               }
             }}
             disabled={!isPhoneVerified}
-            className={`w-full p-3 border-2 rounded-xl ${
-              formErrors.email ? 'border-red-300' : 'border-gray-200'
-            } focus:border-blue-500 outline-none ${!isPhoneVerified ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+            className={`w-full p-3 border-2 rounded-xl ${formErrors.email ? 'border-red-300' : 'border-gray-200'
+              } focus:border-blue-500 outline-none ${!isPhoneVerified ? 'bg-gray-100 cursor-not-allowed' : ''}`}
             placeholder="your.email@example.com"
           />
         </div>
@@ -738,11 +791,10 @@ export default function SimplifiedPatientOnboarding({
                 mobileAnalytics.trackGenderSelected(option.value, centerId);
               }}
               disabled={!isPhoneVerified}
-              className={`p-3 border-2 rounded-xl transition-all ${
-                formData.gender === option.value
+              className={`p-3 border-2 rounded-xl transition-all ${formData.gender === option.value
                   ? 'border-blue-500 bg-blue-50 text-blue-700'
                   : 'border-gray-200 text-gray-700 hover:border-gray-300'
-              } ${!isPhoneVerified ? 'bg-gray-100 cursor-not-allowed opacity-50' : ''}`}
+                } ${!isPhoneVerified ? 'bg-gray-100 cursor-not-allowed opacity-50' : ''}`}
             >
               {option.label}
             </button>
@@ -773,7 +825,7 @@ export default function SimplifiedPatientOnboarding({
             Age:{' '}
             {Math.floor(
               (Date.now() - new Date(formData.dob).getTime()) /
-                (365.25 * 24 * 60 * 60 * 1000)
+              (365.25 * 24 * 60 * 60 * 1000)
             )}{' '}
             years
           </p>
@@ -803,7 +855,7 @@ export default function SimplifiedPatientOnboarding({
 
   return (
     <div className={`${isInDesktopContainer ? 'h-full' : 'min-h-screen'} bg-gray-50 flex flex-col`}>
-      <div 
+      <div
         className="relative h-36 w-full flex-shrink-0"
         style={{
           backgroundImage: 'url(/indra.webp)',
@@ -814,7 +866,7 @@ export default function SimplifiedPatientOnboarding({
       >
         <div className="absolute inset-0 bg-blue-500 bg-opacity-20"></div>
       </div>
-      
+
       <div className="flex-shrink-0 bg-gray-50 p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
@@ -825,9 +877,9 @@ export default function SimplifiedPatientOnboarding({
               Book Your Appointment
             </h6>
           </div>
-          <img 
-            src="/stance-logo.png" 
-            alt="Stance Health" 
+          <img
+            src="/stance-logo.png"
+            alt="Stance Health"
             className="h-16 w-auto"
           />
         </div>
@@ -836,7 +888,7 @@ export default function SimplifiedPatientOnboarding({
       <div className="flex-1 overflow-y-auto">
         <div className={`p-4 ${isInDesktopContainer ? 'pb-6' : 'pb-32'}`}>
           <p className="text-gray-600 text-sm mb-6">
-            {!isPhoneVerified 
+            {!isPhoneVerified
               ? 'Enter your phone number to get started'
               : 'Complete your profile details'
             }
@@ -844,13 +896,13 @@ export default function SimplifiedPatientOnboarding({
           <div className="mb-6">
             <div className="space-y-6">
               {renderPhoneInput()}
-              
+
               {/* Repeat user — OTP modal is handled separately */}
 
               {isPhoneVerified && isNewUser && !preStoredAssessmentType && (() => {
                 const cookies = getBookingCookies();
                 const isHyfit = cookies.orgSlug === 'hyfit' || cookies.orgSlug === 'devhyfit';
-                
+
                 return (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -863,11 +915,10 @@ export default function SimplifiedPatientOnboarding({
                           setSessionType('in-person');
                           mobileAnalytics.trackEvent('session_type_clicked', { session_type: 'in-person', center_id: centerId });
                         }}
-                        className={`flex-1 py-2 px-3 rounded-lg font-medium text-xs transition-all ${
-                          sessionType === 'in-person'
+                        className={`flex-1 py-2 px-3 rounded-lg font-medium text-xs transition-all ${sessionType === 'in-person'
                             ? 'text-black shadow-sm'
                             : 'text-gray-600 hover:text-gray-900'
-                        }`}
+                          }`}
                         style={{
                           backgroundColor: sessionType === 'in-person' ? '#DDFE71' : 'transparent'
                         }}
@@ -883,11 +934,10 @@ export default function SimplifiedPatientOnboarding({
                               setSessionType('online');
                               mobileAnalytics.trackEvent('session_type_clicked', { session_type: 'online', center_id: centerId });
                             }}
-                            className={`flex-1 py-2 px-3 rounded-lg font-medium text-xs transition-all ${
-                              sessionType === 'online'
+                            className={`flex-1 py-2 px-3 rounded-lg font-medium text-xs transition-all ${sessionType === 'online'
                                 ? 'text-black shadow-sm'
                                 : 'text-gray-600 hover:text-gray-900'
-                            }`}
+                              }`}
                             style={{
                               backgroundColor: sessionType === 'online' ? '#DDFE71' : 'transparent'
                             }}
@@ -900,7 +950,7 @@ export default function SimplifiedPatientOnboarding({
                   </div>
                 );
               })()}
-              
+
               {renderForm()}
             </div>
           </div>
