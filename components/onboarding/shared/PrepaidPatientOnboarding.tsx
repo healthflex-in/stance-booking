@@ -113,8 +113,18 @@ export default function PrepaidPatientOnboarding({
         });
         
         const patient = patientData?.patientByPhone;
+        const isLead = patient?.profileData?.firstName === 'Lead' || !patient?.profileData?.firstName;
+
         if (patient) {
-          // Existing user - show welcome back modal
+          if (isLead) {
+            setCreatedPatientId(patient._id);
+            setIsNewUser(true);
+            setIsPhoneVerified(true);
+            setIsVerifying(false);
+            toast.success('Phone number verified! Please fill in your details.');
+            return;
+          }
+          // Existing user with completed profile - show welcome back modal
           setIsNewUser(false);
           setIsPhoneVerified(true);
           setShowWelcomeBackModal(true);

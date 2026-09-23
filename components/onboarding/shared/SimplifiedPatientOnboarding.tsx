@@ -374,6 +374,7 @@ export default function SimplifiedPatientOnboarding({
       });
 
       const { exists, patient, isInDifferentOrg } = checkData?.checkPatientByPhone || {};
+      const isLeadWithoutDetails = patient?.profileData?.firstName === 'Lead' || !patient?.profileData?.firstName;
 
       // A patient with LEAD status never completed their first booking (abandoned payment)
       // — treat them as a new user so they go through the new user flow again
@@ -385,6 +386,12 @@ export default function SimplifiedPatientOnboarding({
         setCrossOrgPatient(patient);
         setShowCrossOrgModal(true);
         setIsPhoneVerified(true);
+      } else if (exists && !isInDifferentOrg && isLeadWithoutDetails) {
+        // LEAD patient whose details form has NOT been filled out yet
+        setCreatedPatientId(patient._id);
+        setIsNewUser(true);
+        setIsPhoneVerified(true);
+        toast.success('Phone number verified! Please fill in your details.');
       } else if (isAbandonedNewUser) {
         // LEAD patient — profile already exists, skip form and go to new user session details
         setIsPhoneVerified(true);
@@ -425,6 +432,7 @@ export default function SimplifiedPatientOnboarding({
         const input = {
           phone: formData.phone,
           firstName: 'Lead',
+          gender: 'MALE',
           centers: [centerId],
           category: 'WEBSITE',
           patientType: 'OP_Patient',
