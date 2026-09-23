@@ -5,7 +5,7 @@ import { useMutation, useLazyQuery, useQuery } from '@apollo/client';
 import { toast } from 'sonner';
 import { User, X } from 'lucide-react';
 import { StanceHealthLoader } from '@/components/loader/StanceHealthLoader';
-import { CREATE_PATIENT, PATIENT_EXISTS, PATIENT_BY_PHONE, GET_CENTERS } from '@/gql/queries';
+import { CREATE_PATIENT, PATIENT_EXISTS, PATIENT_BY_PHONE, GET_CENTERS, UPDATE_PATIENT } from '@/gql/queries';
 import { useContainerDetection } from '@/hooks/useContainerDetection';
 
 interface PrepaidPatientOnboardingProps {
@@ -31,6 +31,7 @@ export default function PrepaidPatientOnboarding({
 }: PrepaidPatientOnboardingProps) {
   const { isInDesktopContainer } = useContainerDetection();
   const [isPhoneVerified, setIsPhoneVerified] = useState(false);
+  const [createdPatientId, setCreatedPatientId] = useState<string | null>(null);
   const [isNewUser, setIsNewUser] = useState(false);
   const [isNavigating, setIsNavigating] = useState(false);
   const [showWelcomeBackModal, setShowWelcomeBackModal] = useState(false);
@@ -84,6 +85,8 @@ export default function PrepaidPatientOnboarding({
       document.body.style.overflow = '';
     };
   }, [showWelcomeBackModal]);
+
+  const [updatePatientMutation] = useMutation(UPDATE_PATIENT);
 
   const [createPatient, { loading: creating }] = useMutation(CREATE_PATIENT, {
     onCompleted: (data) => {
@@ -229,10 +232,28 @@ export default function PrepaidPatientOnboarding({
     };
 
     try {
-      await createPatient({ variables: { input } });
+      if (createdPatientId) {
+        await updatePatientMutation({
+          variables: {
+            id: createdPatientId,
+            input: {
+              firstName: formData.firstName,
+              lastName: formData.lastName,
+              email: formData.email || undefined,
+              gender: formData.gender,
+              bio: formData.bio || '',
+              dob: dobTimestamp,
+            },
+          },
+        });
+        toast.success('Patient details updated successfully');
+        onComplete(createdPatientId, true);
+      } else {
+        await createPatient({ variables: { input } });
+      }
     } catch (error) {
-      console.error('Error creating patient:', error);
-      toast.error('Failed to create patient. Please try again.');
+      console.error('Error creating/updating patient:', error);
+      toast.error('Failed to save patient details. Please try again.');
     }
   };
 

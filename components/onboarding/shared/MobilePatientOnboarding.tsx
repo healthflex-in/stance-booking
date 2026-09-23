@@ -16,6 +16,7 @@ import {
   GET_CENTERS,
   GET_PATIENTS,
   CREATE_PATIENT,
+  UPDATE_PATIENT,
   GET_CONSULTANTS,
   PATIENT_EXISTS,
   PATIENT_BY_PHONE,
@@ -62,6 +63,7 @@ export default function MobilePatientOnboarding({
   const router = useRouter();
   const mobileAnalytics = useMobileFlowAnalytics();
   const [isPhoneVerified, setIsPhoneVerified] = useState(false);
+  const [createdPatientId, setCreatedPatientId] = useState<string | null>(null);
   const [isUserExists, setIsUserExists] = useState(false);
   const [leadUser, setLeadUser] = useState<any>(null);
   const [showLeadModal, setShowLeadModal] = useState(false);
@@ -188,19 +190,15 @@ export default function MobilePatientOnboarding({
     }
   );
 
-  // Mutation
+  // Mutations
+  const [updatePatientMutation] = useMutation(UPDATE_PATIENT);
+
   const [createPatientMutation, { loading: creating }] = useMutation(
     CREATE_PATIENT,
     {
       onCompleted: (data) => {
-        toast.success('Patient created successfully');
-        
-        // Track patient creation success
-        mobileAnalytics.trackPatientCreated(data.createPatient._id, centerId, false);
-        
-        // Track patient profile completed
-        mobileAnalytics.trackPatientProfileCompleted(data.createPatient._id, centerId, false);
-        
+        const isLead = data.createPatient?.profileData?.firstName === 'Lead';
+
         // Set organization ID in localStorage from the created patient's center
         const patientCenter = data.createPatient.profileData?.centers?.[0];
         if (patientCenter?.organization?._id) {
@@ -214,8 +212,13 @@ export default function MobilePatientOnboarding({
           localStorage.setItem('stance-centreID', patientCenter._id);
         }
         
-        onPatientCreated(data.createPatient._id, true);
-        onNext();
+        if (!isLead) {
+          toast.success('Patient created successfully');
+          mobileAnalytics.trackPatientCreated(data.createPatient._id, centerId, false);
+          mobileAnalytics.trackPatientProfileCompleted(data.createPatient._id, centerId, false);
+          onPatientCreated(data.createPatient._id, true);
+          onNext();
+        }
       },
       onError: (error) => {
         toast.error("Error: " + (error?.message || "Failed to create patient"));
@@ -251,7 +254,7 @@ export default function MobilePatientOnboarding({
         if (patient) {
           if (isLead) {
             setCreatedPatientId(patient._id);
-            setIsNewUser(true);
+            setIsUserExists(false);
             setIsPhoneVerified(true);
             toast.success('Phone number verified! Please fill in your details.');
             return;
