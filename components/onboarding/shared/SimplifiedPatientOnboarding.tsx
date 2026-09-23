@@ -190,9 +190,7 @@ export default function SimplifiedPatientOnboarding({
 
   const [createPatient, { loading: creating }] = useMutation(CREATE_PATIENT, {
     onCompleted: (data) => {
-      toast.success('Patient created successfully');
-      mobileAnalytics.trackPatientCreated(data.createPatient._id, centerId, false);
-      mobileAnalytics.trackPatientProfileCompleted(data.createPatient._id, centerId, false);
+      const isLead = data.createPatient?.profileData?.firstName === 'Lead';
 
       const patientCenter = data.createPatient.profileData?.centers?.[0];
       if (patientCenter?.organization?._id) {
@@ -205,7 +203,10 @@ export default function SimplifiedPatientOnboarding({
         localStorage.setItem('stance-centreID', patientCenter._id);
       }
 
-      if (sessionType) {
+      if (!isLead && sessionType) {
+        toast.success('Patient created successfully');
+        mobileAnalytics.trackPatientCreated(data.createPatient._id, centerId, false);
+        mobileAnalytics.trackPatientProfileCompleted(data.createPatient._id, centerId, false);
         onComplete(data.createPatient._id, true, sessionType);
       }
     },
@@ -640,7 +641,18 @@ export default function SimplifiedPatientOnboarding({
     };
 
     try {
-      await createPatient({ variables: { input } });
+      const createRes = await createPatient({ variables: { input } });
+      const newPatientId = createRes.data?.createPatient?._id;
+      if (newPatientId) {
+        mobileAnalytics.trackOPUserCreated(newPatientId, centerId, {
+          phone: formData.phone,
+          email: formData.email,
+          session_type: sessionType,
+        });
+        if (sessionType) {
+          onComplete(newPatientId, true, sessionType);
+        }
+      }
     } catch (error) {
       console.error('Error creating patient:', error);
       toast.error('Failed to create patient. Please try again.');
@@ -800,8 +812,8 @@ export default function SimplifiedPatientOnboarding({
               }}
               disabled={!isPhoneVerified}
               className={`p-3 border-2 rounded-xl transition-all ${formData.gender === option.value
-                  ? 'border-blue-500 bg-blue-50 text-blue-700'
-                  : 'border-gray-200 text-gray-700 hover:border-gray-300'
+                ? 'border-blue-500 bg-blue-50 text-blue-700'
+                : 'border-gray-200 text-gray-700 hover:border-gray-300'
                 } ${!isPhoneVerified ? 'bg-gray-100 cursor-not-allowed opacity-50' : ''}`}
             >
               {option.label}
@@ -924,8 +936,8 @@ export default function SimplifiedPatientOnboarding({
                           mobileAnalytics.trackEvent('session_type_clicked', { session_type: 'in-person', center_id: centerId });
                         }}
                         className={`flex-1 py-2 px-3 rounded-lg font-medium text-xs transition-all ${sessionType === 'in-person'
-                            ? 'text-black shadow-sm'
-                            : 'text-gray-600 hover:text-gray-900'
+                          ? 'text-black shadow-sm'
+                          : 'text-gray-600 hover:text-gray-900'
                           }`}
                         style={{
                           backgroundColor: sessionType === 'in-person' ? '#DDFE71' : 'transparent'
@@ -943,8 +955,8 @@ export default function SimplifiedPatientOnboarding({
                               mobileAnalytics.trackEvent('session_type_clicked', { session_type: 'online', center_id: centerId });
                             }}
                             className={`flex-1 py-2 px-3 rounded-lg font-medium text-xs transition-all ${sessionType === 'online'
-                                ? 'text-black shadow-sm'
-                                : 'text-gray-600 hover:text-gray-900'
+                              ? 'text-black shadow-sm'
+                              : 'text-gray-600 hover:text-gray-900'
                               }`}
                             style={{
                               backgroundColor: sessionType === 'online' ? '#DDFE71' : 'transparent'

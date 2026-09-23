@@ -87,8 +87,11 @@ export default function PrepaidPatientOnboarding({
 
   const [createPatient, { loading: creating }] = useMutation(CREATE_PATIENT, {
     onCompleted: (data) => {
-      toast.success('Patient created successfully');
-      onComplete(data.createPatient._id, true);
+      const isLead = data.createPatient?.profileData?.firstName === 'Lead';
+      if (!isLead) {
+        toast.success('Patient created successfully');
+        onComplete(data.createPatient._id, true);
+      }
     },
     onError: (error) => {
       toast.error(error.message || 'Failed to create patient');

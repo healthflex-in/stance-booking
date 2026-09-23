@@ -82,9 +82,12 @@ export default function OfflineOnboarding({ centerId, onComplete }: OfflineOnboa
 
   const [createPatient, { loading: creating }] = useMutation(CREATE_PATIENT, {
     onCompleted: (data) => {
-      toast.success('Patient created successfully');
-      mobileAnalytics.trackPatientCreated(data.createPatient._id, centerId, false);
-      onComplete(data.createPatient._id, true);
+      const isLead = data.createPatient?.profileData?.firstName === 'Lead';
+      if (!isLead) {
+        toast.success('Patient created successfully');
+        mobileAnalytics.trackPatientCreated(data.createPatient._id, centerId, false);
+        onComplete(data.createPatient._id, true);
+      }
     },
     onError: (error) => {
       toast.error(error.message || 'Failed to create patient');
@@ -333,9 +336,19 @@ export default function OfflineOnboarding({ centerId, onComplete }: OfflineOnboa
       ...(webTracking && { webTracking }),
     };
     try {
-      await createPatient({ variables: { input } });
+      const createRes = await createPatient({ variables: { input } });
+      const newPatientId = createRes.data?.createPatient?._id;
+      if (newPatientId) {
+        mobileAnalytics.trackPatientCreated(newPatientId, centerId, false);
+        mobileAnalytics.trackOPUserCreated(newPatientId, centerId, {
+          phone: formData.phone,
+          email: formData.email,
+        });
+        onComplete(newPatientId, true);
+      }
     } catch (error) {
       console.error('Error creating patient:', error);
+      toast.error('Failed to create patient. Please try again.');
     }
   };
 
