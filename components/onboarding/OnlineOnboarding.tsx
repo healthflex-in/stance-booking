@@ -86,9 +86,12 @@ export default function OnlineOnboarding({ organizationId, onComplete }: OnlineO
 
   const [createPatient, { loading: creating }] = useMutation(CREATE_PATIENT, {
     onCompleted: (data) => {
-      toast.success('Patient created successfully');
-      mobileAnalytics.trackPatientCreated(data.createPatient._id, organizationId, false);
-      onComplete(data.createPatient._id, true);
+      const isLead = data.createPatient?.profileData?.firstName === 'Lead';
+      if (!isLead) {
+        toast.success('Patient created successfully');
+        mobileAnalytics.trackPatientCreated(data.createPatient._id, organizationId, false);
+        onComplete(data.createPatient._id, true);
+      }
     },
     onError: (error) => {
       toast.error(error.message || 'Failed to create patient');
@@ -192,6 +195,7 @@ export default function OnlineOnboarding({ organizationId, onComplete }: OnlineO
         variables: { phone: formData.phone, organizationId },
       });
       const { exists, patient, isInDifferentOrg } = checkData?.checkPatientByPhone || {};
+      const isLead = patient?.profileData?.firstName === 'Lead' || !patient?.profileData?.firstName;
 
       if (exists && isInDifferentOrg) {
         setCrossOrgPatient(patient);
@@ -201,13 +205,21 @@ export default function OnlineOnboarding({ organizationId, onComplete }: OnlineO
       }
 
       if (exists && !isInDifferentOrg) {
+        if (isLead) {
+          setCreatedPatientId(patient._id);
+          setIsNewUser(true);
+          setIsPhoneVerified(true);
+          toast.success('Phone number verified! Please fill in your details.');
+          return;
+        }
+
         const isNewUserService = sessionStorage.getItem('isNewUserService') === 'true';
         if (isNewUserService) {
           setShowNewUserServiceModal(true);
           setFormData(prev => ({ ...prev, phone: '' }));
           return;
         }
-        // Repeat user — open OTP modal immediately (don't await)
+        // Repeat user with existing profile — open OTP modal immediately
         setRepeatPatientId(patient._id);
         setIsPhoneVerified(true);
         setIsNewUser(false);
@@ -222,6 +234,7 @@ export default function OnlineOnboarding({ organizationId, onComplete }: OnlineO
       const input = {
         phone: formData.phone,
         firstName: 'Lead',
+        gender: 'MALE',
         centers: cookies.centerId ? [cookies.centerId] : [],
         category: 'WEBSITE',
         patientType: 'OP_Patient',
@@ -335,9 +348,19 @@ export default function OnlineOnboarding({ organizationId, onComplete }: OnlineO
       ...(webTracking && { webTracking }),
     };
     try {
-      await createPatient({ variables: { input } });
+      const createRes = await createPatient({ variables: { input } });
+      const newPatientId = createRes.data?.createPatient?._id;
+      if (newPatientId) {
+        mobileAnalytics.trackPatientCreated(newPatientId, organizationId, false);
+        mobileAnalytics.trackOPUserCreated(newPatientId, organizationId, {
+          phone: formData.phone,
+          email: formData.email,
+        });
+        onComplete(newPatientId, true);
+      }
     } catch (error) {
       console.error('Error creating patient:', error);
+      toast.error('Failed to create patient. Please try again.');
     }
   };
 
