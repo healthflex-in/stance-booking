@@ -88,6 +88,7 @@ export default function PrepaidOnboarding({ organizationId, onComplete, analytic
       });
 
       const { exists, patient, isInDifferentOrg } = checkData?.checkPatientByPhone || {};
+      const isLead = patient?.profileData?.firstName === 'Lead' || !patient?.profileData?.firstName;
 
       if (exists && isInDifferentOrg) {
         analytics?.trackEvent('cross_org_user_detected', { phone: formData.phone });
@@ -95,6 +96,13 @@ export default function PrepaidOnboarding({ organizationId, onComplete, analytic
         setShowCrossOrgModal(true);
         setIsPhoneVerified(true);
       } else if (exists && !isInDifferentOrg) {
+        if (isLead) {
+          setCreatedPatientId(patient._id);
+          setIsNewUser(true);
+          setIsPhoneVerified(true);
+          toast.success('Phone number verified! Please fill in your details.');
+          return;
+        }
         analytics?.trackEvent('repeat_user_identified', { patientId: patient._id });
         setIsNewUser(false);
         setIsPhoneVerified(true);
@@ -112,6 +120,7 @@ export default function PrepaidOnboarding({ organizationId, onComplete, analytic
         const input = {
           phone: formData.phone,
           firstName: 'Lead',
+          gender: 'MALE',
           centers: centerId ? [centerId] : [],
           category: 'WEBSITE',
           patientType: 'OP_Patient',
