@@ -67,7 +67,11 @@ export default function RepeatOnlinePage() {
     
     // Get organization ID from cookies
     if (cookies.organizationId) {
-      updateBookingData({ organizationId: cookies.organizationId });
+      const initialCenterId = cookies.centerId || bookingStorage.getItem('centerId') || undefined;
+      updateBookingData({
+        organizationId: cookies.organizationId,
+        ...(initialCenterId && { centerId: initialCenterId }),
+      });
       // Track flow start
       analytics.trackFlowStart(cookies.organizationId, cookies.centerId || undefined);
     }

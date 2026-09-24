@@ -149,13 +149,22 @@ export default function PrepaidRepeatPage() {
       const existingCenters = patientData?.user?.profileData?.centers || [];
       const centerIds = existingCenters.map((c: any) => c._id);
       
-      if (!centerIds.includes(bookingData.centerId)) {
+      const resolvedCenterId =
+        bookingData.centerId ||
+        getBookingCookies().centerId ||
+        bookingStorage.getItem('centerId');
+
+      if (!resolvedCenterId) {
+        throw new Error('Center ID is required to create an appointment');
+      }
+
+      if (!centerIds.includes(resolvedCenterId)) {
         try {
           await updatePatient({
             variables: {
               patientId: bookingData.patientId,
               input: {
-                centers: [...centerIds, bookingData.centerId],
+                centers: [...centerIds, resolvedCenterId],
               },
             },
           });
@@ -170,7 +179,7 @@ export default function PrepaidRepeatPage() {
         treatment: bookingData.treatmentId,
         medium: 'ONLINE',
         notes: 'Prepaid appointment',
-        center: bookingData.centerId,
+        center: resolvedCenterId,
         category: 'WEBSITE',
         status: 'PRE_PAID',
         visitType: 'FOLLOW_UP',

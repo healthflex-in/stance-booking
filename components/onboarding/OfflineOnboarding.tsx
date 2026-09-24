@@ -362,10 +362,8 @@ export default function OfflineOnboarding({ centerId, onComplete }: OfflineOnboa
   };
 
   const handleEmailBlur = () => {
-    if (!isNewUser || !isPhoneVerified) return;
-    if (!formData.email || !EMAIL_REGEX.test(formData.email)) return;
-    if (emailVerified) return;
-    openOTPModal(formData.email);
+    // Email OTP disabled: email is updated directly on patient record without second OTP
+    return;
   };
 
   return (

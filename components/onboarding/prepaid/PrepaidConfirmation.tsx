@@ -29,7 +29,7 @@ export default function PrepaidConfirmation({
   const { data: servicesData, loading: servicesLoading } = useQuery(GET_SERVICES, {
     variables: { centerId: [bookingData.centerId] },
   });
-  const { data: userData, loading: userLoading } = useQuery(GET_USER, {
+  const { data: userData, loading: userLoading, refetch: refetchUser } = useQuery(GET_USER, {
     variables: { userId: bookingData.patientId },
   });
 
@@ -45,8 +45,9 @@ export default function PrepaidConfirmation({
 
   const isLoading = centersLoading || servicesLoading || userLoading;
 
-  const handleConfirm = async () => {
-    if (!patient?.email) {
+  const handleConfirm = async (overrideEmail?: string) => {
+    const effectiveEmail = overrideEmail || patient?.email;
+    if (!effectiveEmail) {
       setShowEmailModal(true);
       return;
     }
@@ -124,7 +125,7 @@ export default function PrepaidConfirmation({
 
       <div className={`${isInDesktopContainer ? 'flex-shrink-0' : 'fixed bottom-0 left-0 right-0'} bg-white border-t border-gray-200 p-4`}>
         <Button
-          onClick={handleConfirm}
+          onClick={() => handleConfirm()}
           disabled={isCreating}
           isLoading={isCreating}
           fullWidth
@@ -139,7 +140,11 @@ export default function PrepaidConfirmation({
         isOpen={showEmailModal}
         patientId={bookingData.patientId}
         patientName={patientDetails.name}
-        onEmailSaved={() => setShowEmailModal(false)}
+        onEmailSaved={async (savedEmail: string) => {
+          setShowEmailModal(false);
+          await refetchUser();
+          handleConfirm(savedEmail);
+        }}
         onClose={() => setShowEmailModal(false)}
       />
     </div>
