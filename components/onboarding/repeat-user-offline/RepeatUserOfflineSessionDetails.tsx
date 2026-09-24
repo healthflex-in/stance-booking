@@ -174,14 +174,13 @@ export default function RepeatUserOfflineSessionDetails({
               Location
             </h2>
             <p className="text-gray-600 text-sm mb-4">
-              {isCenterFromParams ? 'Pre-selected location' : 'Select your preferred location'}
+              Select your preferred location
             </p>
             <button
-              onClick={() => { if (!isCenterFromParams) setShowLocationModal(true); }}
-              disabled={isCenterFromParams}
+              onClick={() => setShowLocationModal(true)}
               className="w-full"
             >
-              <div className="bg-white rounded-2xl p-4 border-2 transition-all" style={{ borderColor: selectedCenter ? '#DDFE71' : '#e5e7eb', opacity: isCenterFromParams ? 0.7 : 1, cursor: isCenterFromParams ? 'not-allowed' : 'pointer' }}>
+              <div className="bg-white rounded-2xl p-4 border-2 transition-all cursor-pointer hover:border-lime-400" style={{ borderColor: selectedCenter ? '#DDFE71' : '#e5e7eb' }}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
                     <div className="w-10 h-10 bg-green-50 rounded-xl flex items-center justify-center">
@@ -308,6 +307,8 @@ export default function RepeatUserOfflineSessionDetails({
         onSelect={(center) => {
           analytics?.trackEvent('center_selected', { centerId: center._id, centerName: center.name });
           setSelectedCenter(center);
+          setIsCenterFromParams(false);
+          setIsServiceFromParams(false);
           setShowLocationModal(false);
         }}
       />
