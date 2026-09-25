@@ -14,6 +14,7 @@ import { StanceHealthLoader } from '@/components/loader/StanceHealthLoader';
 import { EmailCollectionModal } from '@/components/onboarding/shared';
 import { useMobileFlowAnalytics } from '@/services/mobile-analytics';
 import { bookingStorage } from '@/utils/booking-storage';
+import { getBookingCookies } from '@/utils/booking-cookies';
 
 interface BookingData {
   sessionType: 'online' | 'in-person';
@@ -78,13 +79,14 @@ export default function NewUserOnlinePaymentConfirmation({
 
   const isLoading = centersLoading || servicesLoading || userLoading;
 
-  const handleProceedToPayment = async () => {
+  const handleProceedToPayment = async (overrideEmail?: string) => {
     if (!bookingData.patientId) {
       setAmountError('Patient ID is missing. Please start over.');
       return;
     }
 
-    if (!patient?.email) {
+    const effectiveEmail = overrideEmail || patient?.email;
+    if (!effectiveEmail) {
       setShowEmailModal(true);
       return;
     }
@@ -114,13 +116,23 @@ export default function NewUserOnlinePaymentConfirmation({
     try {
       console.log('⏱️ Starting appointment creation...');
 
+      const resolvedCenterId =
+        bookingData.centerId ||
+        getBookingCookies().centerId ||
+        bookingStorage.getItem('centerId') ||
+        centersData?.centers?.[0]?._id;
+
+      if (!resolvedCenterId) {
+        throw new Error('Center ID is required to create an appointment');
+      }
+
       // Update patient's center to the selected center
       const updateStart = Date.now();
       await updatePatient({
         variables: {
           patientId: bookingData.patientId,
           input: {
-            centers: [bookingData.centerId],
+            centers: [resolvedCenterId],
           },
         },
       });
@@ -133,7 +145,7 @@ export default function NewUserOnlinePaymentConfirmation({
           input: {
             patient: bookingData.patientId,
             consultant: bookingData.consultantId,
-            center: bookingData.centerId,
+            center: resolvedCenterId,
             treatment: bookingData.treatmentId,
             medium: bookingData.sessionType === 'online' ? 'ONLINE' : 'IN_PERSON',
             visitType: 'FIRST_VISIT',
@@ -339,7 +351,7 @@ export default function NewUserOnlinePaymentConfirmation({
       {/* Proceed Button */}
       <div className={`${isInDesktopContainer ? 'flex-shrink-0' : 'fixed bottom-0 left-0 right-0'} bg-white border-t border-gray-200 p-4`}>
         <Button
-          onClick={handleProceedToPayment}
+          onClick={() => handleProceedToPayment()}
           disabled={creatingAppointment || isProcessingPayment || isCreatingAppointment}
           isLoading={creatingAppointment || isProcessingPayment || isCreatingAppointment}
           fullWidth
@@ -354,9 +366,10 @@ export default function NewUserOnlinePaymentConfirmation({
         isOpen={showEmailModal}
         patientId={bookingData.patientId}
         patientName={patientDetails.name}
-        onEmailSaved={async () => {
-          await refetchUser();
+        onEmailSaved={async (savedEmail: string) => {
           setShowEmailModal(false);
+          await refetchUser();
+          handleProceedToPayment(savedEmail);
         }}
         onClose={() => setShowEmailModal(false)}
       />

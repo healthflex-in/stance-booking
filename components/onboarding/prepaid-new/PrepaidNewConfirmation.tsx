@@ -36,7 +36,7 @@ export default function PrepaidNewConfirmation({ bookingData, onConfirm, isCreat
   const { data: servicesData, loading: servicesLoading } = useQuery(GET_SERVICES, {
     variables: { centerId: [bookingData.centerId] },
   });
-  const { data: userData, loading: userLoading } = useQuery(GET_USER, {
+  const { data: userData, loading: userLoading, refetch: refetchUser } = useQuery(GET_USER, {
     variables: { userId: bookingData.patientId },
     skip: !bookingData.patientId,
   });
@@ -54,14 +54,15 @@ export default function PrepaidNewConfirmation({ bookingData, onConfirm, isCreat
 
   const isLoading = servicesLoading || userLoading;
 
-  const handleConfirmBooking = async () => {
+  const handleConfirmBooking = async (overrideEmail?: string) => {
     try {
       if (!bookingData.patientId) {
         setError('Patient ID is missing. Please start over.');
         return;
       }
 
-      if (!patient?.email) {
+      const effectiveEmail = overrideEmail || patient?.email;
+      if (!effectiveEmail) {
         setShowEmailModal(true);
         return;
       }
@@ -182,7 +183,7 @@ export default function PrepaidNewConfirmation({ bookingData, onConfirm, isCreat
       {/* Confirm Button */}
       <div className={`${isInDesktopContainer ? 'flex-shrink-0' : 'fixed bottom-0 left-0 right-0'} bg-white border-t border-gray-200 p-4`}>
         <Button
-          onClick={handleConfirmBooking}
+          onClick={() => handleConfirmBooking()}
           disabled={updatingPatient || isCreating}
           isLoading={updatingPatient || isCreating}
           fullWidth
@@ -197,7 +198,11 @@ export default function PrepaidNewConfirmation({ bookingData, onConfirm, isCreat
         isOpen={showEmailModal}
         patientId={bookingData.patientId}
         patientName={patientDetails.name}
-        onEmailSaved={() => setShowEmailModal(false)}
+        onEmailSaved={async (savedEmail: string) => {
+          setShowEmailModal(false);
+          await refetchUser();
+          handleConfirmBooking(savedEmail);
+        }}
         onClose={() => setShowEmailModal(false)}
       />
     </div>

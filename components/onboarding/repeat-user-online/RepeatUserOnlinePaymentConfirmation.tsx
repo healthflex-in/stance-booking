@@ -14,6 +14,7 @@ import { StanceHealthLoader } from '@/components/loader/StanceHealthLoader';
 import { EmailCollectionModal } from '@/components/onboarding/shared';
 import { BookingAnalytics } from '@/services/booking-analytics';
 import { bookingStorage } from '@/utils/booking-storage';
+import { getBookingCookies } from '@/utils/booking-cookies';
 
 interface BookingData {
   sessionType: 'online';
@@ -71,8 +72,9 @@ export default function RepeatUserOnlinePaymentConfirmation({
 
   const isLoading = centersLoading || servicesLoading || userLoading;
 
-  const handleProceedToPayment = async () => {
-    if (!patient?.email) {
+  const handleProceedToPayment = async (overrideEmail?: string) => {
+    const effectiveEmail = overrideEmail || patient?.email;
+    if (!effectiveEmail) {
       toast.error('Please add your email address to continue');
       setShowEmailModal(true);
       return;
@@ -100,18 +102,29 @@ export default function RepeatUserOnlinePaymentConfirmation({
     try {
       console.log('⏱️ Starting appointment creation...');
       
+      // Resolve centerId safely with fallbacks
+      const resolvedCenterId =
+        bookingData.centerId ||
+        getBookingCookies().centerId ||
+        bookingStorage.getItem('centerId') ||
+        centersData?.centers?.[0]?._id;
+
+      if (!resolvedCenterId) {
+        throw new Error('Center ID is required to create an appointment');
+      }
+
       // Add center to patient's centers array if not already present (non-blocking)
       const existingCenters = patient?.profileData?.centers || [];
       const centerIds = existingCenters.map((c: any) => c._id);
       
-      if (bookingData.centerId && !centerIds.includes(bookingData.centerId)) {
+      if (resolvedCenterId && !centerIds.includes(resolvedCenterId)) {
         try {
           const updateStart = Date.now();
           await updatePatient({
             variables: {
               patientId: bookingData.patientId,
               input: {
-                centers: [...centerIds, bookingData.centerId],
+                centers: [...centerIds, resolvedCenterId],
               },
             },
           });
@@ -129,7 +142,7 @@ export default function RepeatUserOnlinePaymentConfirmation({
           input: {
             patient: bookingData.patientId,
             consultant: bookingData.consultantId,
-            center: bookingData.centerId,
+            center: resolvedCenterId,
             treatment: bookingData.treatmentId,
             medium: 'ONLINE',
             visitType: 'FOLLOW_UP',
@@ -353,7 +366,7 @@ export default function RepeatUserOnlinePaymentConfirmation({
       {/* Proceed Button */}
       <div className={`${isInDesktopContainer ? 'flex-shrink-0' : 'fixed bottom-0 left-0 right-0'} bg-white border-t border-gray-200 p-4`}>
         <Button
-          onClick={handleProceedToPayment}
+          onClick={() => handleProceedToPayment()}
           disabled={creatingAppointment || isProcessingPayment || isCreatingAppointment}
           isLoading={creatingAppointment || isProcessingPayment || isCreatingAppointment}
           fullWidth
@@ -371,8 +384,9 @@ export default function RepeatUserOnlinePaymentConfirmation({
         currentEmail={patientDetails.email}
         onEmailSaved={async (newEmail) => {
           console.log('📧 Email saved callback:', newEmail);
-          await refetchUser();
           setShowEmailModal(false);
+          await refetchUser();
+          handleProceedToPayment(newEmail);
         }}
         onClose={() => {
           console.log('📧 Modal closed');

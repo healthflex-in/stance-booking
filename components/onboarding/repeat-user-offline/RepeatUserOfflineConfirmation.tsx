@@ -63,7 +63,12 @@ export default function RepeatUserOfflineConfirmation({
 
   const isLoading = centersLoading || servicesLoading || userLoading || consultantLoading;
 
-  const handleConfirm = async () => {
+  const handleConfirm = async (overrideEmail?: string) => {
+    const effectiveEmail = overrideEmail || patient?.email;
+    if (!effectiveEmail) {
+      setShowEmailModal(true);
+      return;
+    }
     analytics?.trackConfirmBookingClicked(
       '',
       bookingData.treatmentPrice,
@@ -172,7 +177,7 @@ export default function RepeatUserOfflineConfirmation({
 
       <div className={`${isInDesktopContainer ? 'flex-shrink-0' : 'fixed bottom-0 left-0 right-0'} bg-white border-t border-gray-200 p-4`}>
         <Button
-          onClick={handleConfirm}
+          onClick={() => handleConfirm()}
           disabled={isCreating}
           isLoading={isCreating}
           fullWidth
@@ -190,8 +195,9 @@ export default function RepeatUserOfflineConfirmation({
         currentEmail={patientDetails.email}
         onEmailSaved={async (newEmail) => {
           console.log('📧 Email saved callback (offline):', newEmail);
-          await refetchUser();
           setShowEmailModal(false);
+          await refetchUser();
+          handleConfirm(newEmail);
         }}
         onClose={() => {
           console.log('📧 Modal closed (offline)');
