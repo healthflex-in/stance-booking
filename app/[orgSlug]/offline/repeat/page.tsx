@@ -267,13 +267,22 @@ export default function RepeatOfflinePage() {
       const existingCenters = patientData?.user?.profileData?.centers || [];
       const centerIds = existingCenters.map((c: any) => c._id);
       
-      if (!centerIds.includes(bookingData.centerId)) {
+      const resolvedCenterId =
+        bookingData.centerId ||
+        getBookingCookies().centerId ||
+        bookingStorage.getItem('centerId');
+
+      if (!resolvedCenterId) {
+        throw new Error('Center ID is required to create an appointment');
+      }
+
+      if (!centerIds.includes(resolvedCenterId)) {
         try {
           await updatePatient({
             variables: {
               patientId: bookingData.patientId,
               input: {
-                centers: [...centerIds, bookingData.centerId],
+                centers: [...centerIds, resolvedCenterId],
               },
             },
           });
@@ -288,7 +297,7 @@ export default function RepeatOfflinePage() {
         treatment: bookingData.treatmentId,
         medium: 'IN_PERSON',
         notes: '',
-        center: bookingData.centerId,
+        center: resolvedCenterId,
         category: 'WEBSITE',
         status: 'BOOKED',
         visitType: 'FOLLOW_UP',

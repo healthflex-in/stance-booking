@@ -14,6 +14,7 @@ import { BookingAnalytics } from '@/services/booking-analytics';
 import { StanceHealthLoader } from '@/components/loader/StanceHealthLoader';
 import { isParamFromUrl } from '@/utils/booking-params';
 import { bookingStorage } from '@/utils/booking-storage';
+import { getBookingCookies } from '@/utils/booking-cookies';
 
 interface BookingData {
   sessionType: 'in-person';
@@ -171,13 +172,23 @@ export default function NewUserOfflinePaymentConfirmation({
         console.log('✅ Stored token amount and service ID for payment:', paymentAmount, bookingData.treatmentId);
       }
       
+      const resolvedCenterId =
+        bookingData.centerId ||
+        getBookingCookies().centerId ||
+        bookingStorage.getItem('centerId') ||
+        centersData?.centers?.[0]?._id;
+
+      if (!resolvedCenterId) {
+        throw new Error('Center ID is required to create an appointment');
+      }
+
       // Create appointment with appropriate status
       const appointmentResult = await createAppointment({
         variables: {
           input: {
             patient: bookingData.patientId,
             consultant: bookingData.consultantId,
-            center: bookingData.centerId,
+            center: resolvedCenterId,
             treatment: bookingData.treatmentId,
             medium: 'IN_PERSON',
             visitType: 'FIRST_VISIT',

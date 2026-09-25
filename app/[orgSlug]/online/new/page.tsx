@@ -79,6 +79,10 @@ export default function NewOnlinePage() {
     
     // Track flow start
     if (cookies.organizationId) {
+      const initialCenterId = cookies.centerId || bookingStorage.getItem('centerId') || undefined;
+      if (initialCenterId) {
+        updateBookingData({ centerId: initialCenterId });
+      }
       analytics.trackFlowStart(cookies.organizationId, cookies.centerId || undefined);
     }
   }, [orgSlug, router, analytics]);

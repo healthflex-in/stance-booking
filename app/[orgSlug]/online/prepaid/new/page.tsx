@@ -129,13 +129,22 @@ export default function PrepaidNewPage() {
     
     setIsCreatingAppointment(true);
     try {
+      const resolvedCenterId =
+        bookingData.centerId ||
+        getBookingCookies().centerId ||
+        bookingStorage.getItem('centerId');
+
+      if (!resolvedCenterId) {
+        throw new Error('Center ID is required to create an appointment');
+      }
+
       const input = {
         patient: bookingData.patientId,
         consultant: bookingData.consultantId || null,
         treatment: bookingData.treatmentId,
         medium: 'ONLINE',
         notes: 'Prepaid appointment',
-        center: bookingData.centerId,
+        center: resolvedCenterId,
         category: 'WEBSITE',
         status: 'PRE_PAID',
         visitType: 'FIRST_VISIT',
