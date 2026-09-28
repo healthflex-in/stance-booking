@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useQuery, useMutation } from '@apollo/client';
 import { useRouter, useParams } from 'next/navigation';
 import { MapPin, AlertCircle } from 'lucide-react';
@@ -47,6 +47,7 @@ export default function RepeatUserOnlinePaymentConfirmation({
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [isCreatingAppointment, setIsCreatingAppointment] = useState(false);
+  const resolvedCenterIdRef = useRef<string>('');
 
   const { data: centersData, loading: centersLoading } = useQuery(GET_CENTERS);
   const { data: servicesData, loading: servicesLoading } = useQuery(GET_SERVICES, {
@@ -112,6 +113,9 @@ export default function RepeatUserOnlinePaymentConfirmation({
       if (!resolvedCenterId) {
         throw new Error('Center ID is required to create an appointment');
       }
+
+      // Store resolved center ID for payment processing
+      resolvedCenterIdRef.current = resolvedCenterId;
 
       // Add center to patient's centers array if not already present (non-blocking)
       const existingCenters = patient?.profileData?.centers || [];
@@ -242,7 +246,7 @@ export default function RepeatUserOnlinePaymentConfirmation({
         amount={bookingData.treatmentPrice}
         patientDetails={patientDetails}
         patientId={bookingData.patientId}
-        centerId={bookingData.centerId || ''}
+        centerId={resolvedCenterIdRef.current || bookingData.centerId || ''}
         consultantId={bookingData.consultantId}
         treatmentId={bookingData.treatmentId}
         onPaymentSuccess={handlePaymentSuccess}
