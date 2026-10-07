@@ -29,6 +29,7 @@ const SESSION_TTL = 30 * 60 * 1000;   // 30 minutes — must match stance-health
 export const TRACKED_PARAMS = [
   // UTMs
   'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content',
+  'utm_referer',
   'utm_adgroup', 'utm_matchtype', 'utm_device', 'utm_network',
   // Placement / creative
   'placement', 'asset_id',
