@@ -89,7 +89,7 @@ export default function EmailCollectionModal({
       <div className="bg-white rounded-2xl max-w-md w-full p-6 max-h-[90vh] overflow-y-auto border-8 border-red-500">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-xl font-semibold text-red-900">
-            {currentEmail ? 'Update Email [NEW VERSION]' : 'Email Required [NEW VERSION]'}
+            {currentEmail ? 'Update Email' : 'Email Required'}
           </h3>
           <button
             onClick={onClose}
