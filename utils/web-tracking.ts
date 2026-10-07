@@ -16,7 +16,6 @@ import { getTrackingData } from '@/lib/tracking';
 import { getBookingParamsFromSession, getBookingLandingUrl } from './booking-params';
 
 export interface WebTrackingInput {
-<<<<<<< HEAD
   anonymousId?:   string;
   sessionId?:     string;
   gaClientId?:    string;
@@ -36,26 +35,10 @@ export interface WebTrackingInput {
   utmMatchtype?:  string;
   utmDevice?:     string;
   utmNetwork?:    string;
+  /** Last Stance page before booking, e.g. "/" or "/services". */
+  utmReferer?:    string;
   placement?:     string;
   assetId?:       string;
-=======
-  anonymousId?: string;
-  sessionId?:   string;
-  gaClientId?:  string;
-  fbp?:         string;
-  fbc?:         string;
-  gclAu?:       string;
-  gclid?:       string;
-  landingPage?: string;
-  referrer?:    string;
-  utmSource?:   string;
-  utmMedium?:   string;
-  utmCampaign?: string;
-  utmContent?:  string;
-  utmTerm?:     string;
-  /** Last Stance page before booking, e.g. "/" or "/services". */
-  utmReferer?:  string;
->>>>>>> 8f94642 (made utm dynamic)
 }
 
 export function getWebTrackingForBooking(): WebTrackingInput | null {
@@ -71,7 +54,6 @@ export function getWebTrackingForBooking(): WebTrackingInput | null {
 
   const result: WebTrackingInput = {
     anonymousId,
-<<<<<<< HEAD
     sessionId:   ls.session_id    || session.session_id,
     gaClientId:  ls.ga_client_id  || session.ga_client_id,
     fbp:         ls.fbp            || session.fbp,
@@ -93,25 +75,9 @@ export function getWebTrackingForBooking(): WebTrackingInput | null {
     utmMatchtype: ls.utm_matchtype,
     utmDevice:   ls.utm_device,
     utmNetwork:  ls.utm_network,
+    utmReferer:  ls.utm_referer,
     placement:   ls.placement,
     assetId:     ls.asset_id,
-=======
-    sessionId:  ls.session_id   || session.session_id,
-    gaClientId: ls.ga_client_id || session.ga_client_id,
-    fbp:        ls.fbp           || session.fbp,
-    fbc:        ls.fbc           || session.fbc,
-    gclAu:      ls.gcl_au        || session.gcl_au,
-    gclid:      ls.gclid,
-    landingPage: ls.landing_page,
-    referrer:   ls.referrer,
-    // Current booking source: first-touch campaign, or "website" for a direct visit.
-    utmSource:  ls.utm_source,
-    utmMedium:  ls.utm_medium,
-    utmCampaign: ls.utm_campaign,
-    utmContent: ls.utm_content,
-    utmTerm:    ls.utm_term,
-    utmReferer: ls.utm_referer,
->>>>>>> 8f94642 (made utm dynamic)
   };
 
   // Strip undefined/empty so GraphQL doesn't send null for optional fields
