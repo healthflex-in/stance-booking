@@ -132,7 +132,28 @@ export function captureTrackingParams(): TrackingData {
   // 1. URL params — always win for identity keys; overwrite UTMs when URL has them
   for (const key of TRACKED_PARAMS) {
     const val = url.searchParams.get(key);
-    if (val && (urlHasUtms || !stored[key])) stored[key] = val;
+    if (!val) continue;
+    // A book-button tag must not erase an earlier ad or campaign medium.
+    if (key === 'utm_medium' && val === 'cta' && stored.utm_medium && stored.utm_medium !== 'cta') continue;
+    if (
+      key === 'utm_source' &&
+      (val === 'website' || val === 'blog') &&
+      stored.utm_source &&
+      stored.utm_source !== 'website' &&
+      stored.utm_source !== 'blog'
+    ) continue;
+    if (urlHasUtms || !stored[key]) stored[key] = val;
+  }
+
+  // The website book button tags the visit as cta. A Google click id means
+  // the visit came from an ad, so cta must not replace cpc.
+  const googleClick = Boolean(
+    stored.gclid || stored.gbraid || stored.wbraid ||
+    url.searchParams.get('gclid') || url.searchParams.get('gbraid') || url.searchParams.get('wbraid'),
+  );
+  if (googleClick && stored.utm_medium === 'cta') stored.utm_medium = 'cpc';
+  if (googleClick && (!stored.utm_source || stored.utm_source === 'website' || stored.utm_source === 'blog')) {
+    stored.utm_source = 'google';
   }
   for (const key of IDENTITY_KEYS) {
     const val = url.searchParams.get(key);
