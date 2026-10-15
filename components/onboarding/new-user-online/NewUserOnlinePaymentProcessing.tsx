@@ -156,10 +156,16 @@ export default function NewUserOnlinePaymentProcessing({
 
   const createOrder = async () => {
     try {
+      // Resolve center ID - for online bookings, centerId may be empty
+      const resolvedCenter = centerId || centersData?.centers?.[0]?._id;
+      if (!resolvedCenter) {
+        throw new Error('No center available for order creation');
+      }
+
       let orderInput: any = {
         amount,
         currency: 'INR',
-        center: centerId,
+        center: resolvedCenter,
         patient: patientId,
         type: paymentType === 'invoice' ? 'INVOICE' : 'ADVANCE',
       };

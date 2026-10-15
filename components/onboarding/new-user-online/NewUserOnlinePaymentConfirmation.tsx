@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useQuery, useMutation } from '@apollo/client';
 import { useRouter } from 'next/navigation';
 import { MapPin, AlertCircle } from 'lucide-react';
@@ -48,6 +48,7 @@ export default function NewUserOnlinePaymentConfirmation({
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [isCreatingAppointment, setIsCreatingAppointment] = useState(false);
+  const resolvedCenterIdRef = useRef<string>('');
 
   React.useEffect(() => {
     // Track booking confirmation start
@@ -125,6 +126,9 @@ export default function NewUserOnlinePaymentConfirmation({
       if (!resolvedCenterId) {
         throw new Error('Center ID is required to create an appointment');
       }
+
+      // Store resolved center ID for payment processing
+      resolvedCenterIdRef.current = resolvedCenterId;
 
       // Update patient's center to the selected center
       const updateStart = Date.now();
@@ -220,7 +224,7 @@ export default function NewUserOnlinePaymentConfirmation({
         paymentType="invoice"
         patientDetails={patientDetails}
         patientId={bookingData.patientId}
-        centerId={bookingData.centerId}
+        centerId={resolvedCenterIdRef.current || bookingData.centerId}
         consultantId={bookingData.consultantId}
         treatmentId={bookingData.treatmentId}
         onPaymentSuccess={async (paymentId, invoiceId) => {
