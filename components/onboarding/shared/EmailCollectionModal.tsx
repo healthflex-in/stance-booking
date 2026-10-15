@@ -6,6 +6,7 @@ import { X, Mail } from 'lucide-react';
 import { UPDATE_PATIENT } from '@/gql/queries';
 import { toast } from 'sonner';
 import { useContainerDetection } from '@/hooks/useContainerDetection';
+import { extractErrorMessage } from '@/utils/error-utils';
 
 interface EmailCollectionModalProps {
   isOpen: boolean;
@@ -76,9 +77,9 @@ export default function EmailCollectionModal({
       onClose();
     } catch (err: any) {
       console.error('❌ Error saving email:', err);
-      const errorMessage = err?.message || 'Failed to save email. Please try again.';
-      setError(errorMessage);
-      toast.error(errorMessage);
+      const { message } = extractErrorMessage(err);
+      setError(message);
+      toast.error(message);
     }
   };
 
