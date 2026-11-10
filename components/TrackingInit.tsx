@@ -52,6 +52,11 @@ export default function TrackingInit() {
         if (val) payload[key] = val;
       }
 
+      // Coupon code: tracking storage key is "coupon" but the backend
+      // TrackUserPayload field is "coupon_code" — map explicitly rather
+      // than forwarding 1:1 like the UTM fields above.
+      if (data.coupon) payload.coupon_code = data.coupon;
+
       fetch(TRACK_URL, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },

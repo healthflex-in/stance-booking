@@ -5,13 +5,15 @@ import React, { useState } from 'react';
 import { useQuery, useMutation } from '@apollo/client';
 import { useRouter } from 'next/navigation';
 import { AlertCircle } from 'lucide-react';
-import { GET_CENTERS, GET_SERVICES, GET_USER, CREATE_APPOINTMENT, GET_TOKENS_FOR_SERVICE, PURCHASE_TOKEN } from '@/gql/queries';
+import { GET_CENTERS, GET_SERVICES, GET_USER, CREATE_APPOINTMENT, UPDATE_APPOINTMENT, APPLY_COUPON, GET_TOKENS_FOR_SERVICE, PURCHASE_TOKEN } from '@/gql/queries';
 import NewUserOfflinePaymentProcessing from './NewUserOfflinePaymentProcessing';
 import { getWebTrackingForBooking } from '@/utils/web-tracking';
+import { readStoredParams } from '@/lib/tracking';
 import { useContainerDetection } from '@/hooks/useContainerDetection';
 import { Button } from '@/components/ui-atoms';
 import { BookingAnalytics } from '@/services/booking-analytics';
 import { StanceHealthLoader } from '@/components/loader/StanceHealthLoader';
+import { CouponEntry, type CouponPreview } from '@/components/onboarding/shared';
 import { isParamFromUrl } from '@/utils/booking-params';
 import { bookingStorage } from '@/utils/booking-storage';
 import { getBookingCookies } from '@/utils/booking-cookies';
@@ -47,6 +49,16 @@ export default function NewUserOfflinePaymentConfirmation({
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [isPaymentTypeFromParams, setIsPaymentTypeFromParams] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(true);
+
+  // Coupon: reserved regardless of payment type (so it's attached to the
+  // appointment for the eventual full invoice), but only ever changes the
+  // amount actually charged here when the chosen option is the full payment
+  // — never the booking token (see CouponEntry's discountAppliesNow).
+  const [initialCoupon] = useState<string | undefined>(() => readStoredParams().coupon);
+  const [couponPreview, setCouponPreview] = useState<CouponPreview | null>(null);
+  const [effectiveAmount, setEffectiveAmount] = useState<number | null>(null);
+  const [applyCoupon] = useMutation(APPLY_COUPON);
+  const [updateAppointment] = useMutation(UPDATE_APPOINTMENT);
 
   const { data: centersData, loading: centersLoading } = useQuery(GET_CENTERS);
   const { data: servicesData, loading: servicesLoading } = useQuery(GET_SERVICES, {
@@ -165,6 +177,8 @@ export default function NewUserOfflinePaymentConfirmation({
     setIsCreatingAppointment(true);
     
     try {
+      const webTracking = getWebTrackingForBooking();
+
       // Store the token amount if token payment is selected
       if (isTokenPayment) {
         bookingStorage.setItem('selectedTokenAmount', paymentAmount.toString());
@@ -198,7 +212,7 @@ export default function NewUserOfflinePaymentConfirmation({
               startTime: new Date(bookingData.selectedTimeSlot.startTime).getTime(),
               endTime: new Date(bookingData.selectedTimeSlot.endTime).getTime(),
             },
-            webTracking: getWebTrackingForBooking() ?? undefined,
+            webTracking: webTracking ?? undefined,
           },
         },
       });
@@ -208,10 +222,75 @@ export default function NewUserOfflinePaymentConfirmation({
         throw new Error('Failed to create appointment');
       }
 
-      analytics?.trackPaymentInitiated(paymentAmount, appointmentId);
+      // Coupon: reserve it for real now that an appointmentId exists, and
+      // attach it to the appointment either way. The ₹{token} charge below
+      // only changes when this is actually the full-payment option — a
+      // token payment is never discounted (PRD: token amount is fixed).
+      let finalAmount = paymentAmount;
+      if (couponPreview) {
+        const applyCouponInput = {
+          code: couponPreview.code,
+          patientId: bookingData.patientId,
+          appointmentId,
+          centerId: resolvedCenterId,
+          serviceId: bookingData.treatmentId,
+          invoiceAmountPaise: Math.round(actualPrice * 100),
+          anonymousId: webTracking?.anonymousId,
+          sessionId: webTracking?.sessionId,
+        };
+        console.log('[applyCoupon] CALLING with input:', applyCouponInput);
+        try {
+          const couponResult = await applyCoupon({ variables: { input: applyCouponInput } });
+          console.log('[applyCoupon] RAW RESULT:', JSON.stringify(couponResult?.data, null, 2));
+          const reservation = couponResult?.data?.applyCoupon;
+          console.log('[applyCoupon] reservation:', {
+            ok: reservation?.ok,
+            rejectReason: reservation?.rejectReason,
+            message: reservation?.message,
+            usageId: reservation?.usage?._id,
+            usageStatus: reservation?.usage?.status,
+            discountPaise: reservation?.usage?.quote?.discountPaise,
+            netPaise: reservation?.usage?.quote?.netPaise,
+            campaign: reservation?.usage?.campaign,
+          });
+          if (reservation?.ok && reservation.usage) {
+            const promotionInput = {
+              code: couponPreview.code,
+              applicationId: reservation.usage._id,
+              campaignId: reservation.usage.campaign,
+              discountPaise: Math.round(reservation.usage.quote?.discountPaise ?? 0),
+            };
+            console.log('[updateAppointment] CALLING to stamp promotion:', {
+              appointmentId,
+              promotion: promotionInput,
+            });
+            try {
+              const updateResult = await updateAppointment({
+                variables: {
+                  id: appointmentId,
+                  input: { promotion: promotionInput },
+                },
+              });
+              console.log('[updateAppointment] RESULT:', JSON.stringify(updateResult?.data, null, 2));
+            } catch (linkError) {
+              console.error('⚠️ Failed to attach promotion to appointment:', linkError);
+            }
+            if (isFullPayment && reservation.usage.quote?.netPaise != null) {
+              finalAmount = reservation.usage.quote.netPaise / 100;
+            }
+          } else {
+            console.warn('⚠️ Coupon could not be reserved at payment time — reservation:', reservation);
+          }
+        } catch (couponError) {
+          console.error('⚠️ applyCoupon failed — continuing without a discount:', couponError);
+        }
+      }
+      setEffectiveAmount(finalAmount);
+
+      analytics?.trackPaymentInitiated(finalAmount, appointmentId);
       bookingStorage.setItem('appointmentId', appointmentId);
       bookingStorage.setItem('paymentType', isFullPayment ? 'invoice' : 'token');
-      bookingStorage.setItem('paymentAmount', paymentAmount.toString());
+      bookingStorage.setItem('paymentAmount', finalAmount.toString());
       
       setIsCreatingAppointment(false);
       setIsProcessingPayment(true);
@@ -241,10 +320,11 @@ export default function NewUserOfflinePaymentConfirmation({
 
   if (isProcessingPayment) {
     const isFullPayment = paymentAmount === actualPrice;
+    const chargedAmount = effectiveAmount ?? paymentAmount!;
 
     return (
       <NewUserOfflinePaymentProcessing
-        amount={paymentAmount!}
+        amount={chargedAmount}
         paymentType={isFullPayment ? 'invoice' : 'package'}
         patientDetails={patientDetails}
         patientId={bookingData.patientId}
@@ -253,7 +333,7 @@ export default function NewUserOfflinePaymentConfirmation({
         treatmentId={bookingData.treatmentId}
         onPaymentSuccess={async (paymentId, invoiceId) => {
           const appointmentId = bookingStorage.getItem('appointmentId') || '';
-          analytics?.trackPaymentSuccess(paymentId, paymentAmount!, appointmentId);
+          analytics?.trackPaymentSuccess(paymentId, chargedAmount, appointmentId);
           bookingStorage.removeItem('appointmentId');
           bookingStorage.removeItem('paymentType');
           bookingStorage.removeItem('paymentAmount');
@@ -320,6 +400,18 @@ export default function NewUserOfflinePaymentConfirmation({
               </div>
             </div>
           </div>
+
+          {/* Coupon Code */}
+          <CouponEntry
+            initialCode={initialCoupon}
+            patientId={bookingData.patientId}
+            centerId={bookingData.centerId}
+            serviceId={bookingData.treatmentId}
+            invoiceAmountPaise={Math.round(actualPrice * 100)}
+            onPreviewChange={setCouponPreview}
+            disabled={isCreatingAppointment || isProcessingPayment}
+            discountAppliesNow={isFullPayment}
+          />
 
           <div className="bg-white rounded-2xl border border-gray-200 p-4 mb-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Select Payment Option</h3>

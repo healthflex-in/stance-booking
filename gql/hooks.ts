@@ -119,9 +119,14 @@ export enum Action {
   Create = 'CREATE',
   Delete = 'DELETE',
   Edit = 'EDIT',
+  Export = 'EXPORT',
   Invite = 'INVITE',
   Manage = 'MANAGE',
+  /** Toggle automated WhatsApp sendMessage on a patient profile */
+  ManageMessaging = 'MANAGE_MESSAGING',
+  MaskPii = 'MASK_PII',
   Reject = 'REJECT',
+  SendLink = 'SEND_LINK',
   View = 'VIEW',
   Waive = 'WAIVE'
 }
@@ -193,6 +198,10 @@ export type Advance = BaseAdvance & DataRow & {
   receipt?: Maybe<Receipt>;
   total: Scalars['Float']['output'];
   updatedAt: Scalars['Timestamp']['output'];
+  /** Set on the new advance. Points at the package advance this one replaced. */
+  upgradedFrom?: Maybe<Advance>;
+  /** Set on the old advance once an upgrade has been committed. */
+  upgradedTo?: Maybe<Advance>;
   version: Scalars['Int']['output'];
 };
 
@@ -223,6 +232,8 @@ export type AdvanceItemBalance = {
   description?: Maybe<Scalars['String']['output']>;
   item?: Maybe<Package>;
   packageName?: Maybe<Scalars['String']['output']>;
+  /** Remaining sessions for the package owner. */
+  sessionBalance?: Maybe<Scalars['Int']['output']>;
   /** Sessions included in this package (enriched from live Package data) */
   sessionCount?: Maybe<Scalars['Int']['output']>;
   /** Price per session (enriched from live Package data) */
@@ -235,6 +246,36 @@ export type AdvanceItemWithBalance = {
   __typename?: 'AdvanceItemWithBalance';
   advanceItem?: Maybe<AdvanceItemBalance>;
   currentBalance: Scalars['Float']['output'];
+};
+
+/**
+ * Live status of a pending package/advance "Pay by Link" purchase. The
+ * dashboard subscribes to this while waiting for the patient to pay. Keyed by
+ * the PaymentLink id rather than an advance id — no Advance exists until the
+ * link is paid.
+ */
+export type AdvancePaymentWatch = {
+  __typename?: 'AdvancePaymentWatch';
+  /** Set once payment succeeds and the Advance has actually been created. */
+  advanceId?: Maybe<Scalars['ObjectID']['output']>;
+  amount?: Maybe<Scalars['Float']['output']>;
+  /**
+   * True when Razorpay captured the payment but the Advance could not be
+   * created automatically (e.g. a patient control or credit balance changed
+   * between sending the link and it being paid). The money is with Razorpay —
+   * a human has to create the advance by hand and reconcile.
+   */
+  needsReconciliation?: Maybe<Scalars['Boolean']['output']>;
+  paymentLinkId: Scalars['ObjectID']['output'];
+  /**
+   * Set when the Advance was created but its preferred-timing slot could not
+   * be (e.g. a genuine duplicate by the time payment landed). Non-fatal — the
+   * package is still granted; staff add the slot by hand.
+   */
+  preferredTimingError?: Maybe<Scalars['String']['output']>;
+  settlementError?: Maybe<Scalars['String']['output']>;
+  shortUrl?: Maybe<Scalars['String']['output']>;
+  status: PaymentLinkStatus;
 };
 
 export enum AdvanceSortField {
@@ -564,6 +605,18 @@ export type AppVersionInfo = {
   updateUrl: Scalars['String']['output'];
 };
 
+export type ApplyCouponInput = {
+  anonymousId?: InputMaybe<Scalars['String']['input']>;
+  appointmentId: Scalars['ObjectID']['input'];
+  centerId?: InputMaybe<Scalars['ObjectID']['input']>;
+  code: Scalars['String']['input'];
+  /** Price of the eligible line, in paise — used to compute the quote. */
+  invoiceAmountPaise?: InputMaybe<Scalars['Float']['input']>;
+  patientId: Scalars['ObjectID']['input'];
+  serviceId?: InputMaybe<Scalars['ObjectID']['input']>;
+  sessionId?: InputMaybe<Scalars['String']['input']>;
+};
+
 export type ApplyPatientControlInput = {
   /** Optional epoch ms. Omit or null for a permanent control. */
   expiresAt?: InputMaybe<Scalars['Timestamp']['input']>;
@@ -599,6 +652,7 @@ export type Appointment = DataRow & {
   meetingLink?: Maybe<Scalars['String']['output']>;
   notes?: Maybe<Scalars['String']['output']>;
   patient: User;
+  promotion?: Maybe<AppointmentPromotion>;
   report?: Maybe<Report>;
   rescheduledFrom?: Maybe<Array<Appointment>>;
   rescheduledTo?: Maybe<Appointment>;
@@ -655,6 +709,23 @@ export enum AppointmentMedium {
   Online = 'ONLINE'
 }
 
+export type AppointmentPromotion = {
+  __typename?: 'AppointmentPromotion';
+  applicationId?: Maybe<Scalars['ObjectID']['output']>;
+  campaignId?: Maybe<Scalars['ObjectID']['output']>;
+  campaignVersion?: Maybe<Scalars['Int']['output']>;
+  code?: Maybe<Scalars['String']['output']>;
+  discountPaise?: Maybe<Scalars['Int']['output']>;
+};
+
+export type AppointmentPromotionInput = {
+  applicationId?: InputMaybe<Scalars['ObjectID']['input']>;
+  campaignId?: InputMaybe<Scalars['ObjectID']['input']>;
+  campaignVersion?: InputMaybe<Scalars['Int']['input']>;
+  code: Scalars['String']['input'];
+  discountPaise?: InputMaybe<Scalars['Int']['input']>;
+};
+
 export enum AppointmentStatus {
   Booked = 'BOOKED',
   CancellationFeePaid = 'CANCELLATION_FEE_PAID',
@@ -678,6 +749,11 @@ export enum AssessmentGoalType {
   Subjective = 'SUBJECTIVE'
 }
 
+export type AssignCouponCodeInput = {
+  couponCodeId: Scalars['ObjectID']['input'];
+  patientId: Scalars['ObjectID']['input'];
+};
+
 export type AssignPermissionInput = {
   permissions: Array<PermissionInput>;
   scope: Scalars['ObjectID']['input'];
@@ -697,6 +773,8 @@ export type AssociatedPatientWithBalance = {
   amount: Scalars['Float']['output'];
   currentBalance: Scalars['Float']['output'];
   patient: User;
+  /** Remaining sessions for this associated patient. */
+  sessionBalance?: Maybe<Scalars['Int']['output']>;
 };
 
 export type AssociatedPatients = {
@@ -954,6 +1032,17 @@ export type BaseEvent = {
   version: Scalars['Int']['output'];
 };
 
+export enum BenefitMechanism {
+  AttributionOnly = 'ATTRIBUTION_ONLY',
+  BonusSessions = 'BONUS_SESSIONS',
+  BuyXGetY = 'BUY_X_GET_Y',
+  DualSidedReferral = 'DUAL_SIDED_REFERRAL',
+  FixedPromotionalPrice = 'FIXED_PROMOTIONAL_PRICE',
+  FlatDiscount = 'FLAT_DISCOUNT',
+  FutureCredit = 'FUTURE_CREDIT',
+  PercentageDiscount = 'PERCENTAGE_DISCOUNT'
+}
+
 export enum BookedByRole {
   Patient = 'PATIENT',
   Receptionist = 'RECEPTIONIST'
@@ -993,10 +1082,58 @@ export enum CalculationType {
   Sum = 'SUM'
 }
 
+/**
+ * One campaign -> exactly one benefit mechanism; many codes.
+ * `benefit` shape depends on `mechanism` (see docs/coupon-campaign-architecture.md).
+ */
+export type Campaign = {
+  __typename?: 'Campaign';
+  _id: Scalars['ObjectID']['output'];
+  benefit: Scalars['JSON']['output'];
+  benefitHistory?: Maybe<Array<CampaignBenefitVersion>>;
+  centers?: Maybe<Array<Scalars['ObjectID']['output']>>;
+  createdAt: Scalars['DateTime']['output'];
+  description?: Maybe<Scalars['String']['output']>;
+  distribution: CampaignDistribution;
+  eligibility: CampaignEligibility;
+  endDate?: Maybe<Scalars['DateTime']['output']>;
+  excludedServices?: Maybe<Array<Scalars['ObjectID']['output']>>;
+  isActive: Scalars['Boolean']['output'];
+  limits?: Maybe<CampaignLimits>;
+  mechanism: BenefitMechanism;
+  name: Scalars['String']['output'];
+  notes?: Maybe<Scalars['String']['output']>;
+  objective: CampaignObjective;
+  organization: Scalars['ObjectID']['output'];
+  pausedAt?: Maybe<Scalars['DateTime']['output']>;
+  pausedBy?: Maybe<Scalars['ObjectID']['output']>;
+  publishedAt?: Maybe<Scalars['DateTime']['output']>;
+  publishedBy?: Maybe<Scalars['ObjectID']['output']>;
+  seqNo: Scalars['String']['output'];
+  services?: Maybe<Array<Scalars['ObjectID']['output']>>;
+  slug?: Maybe<Scalars['String']['output']>;
+  stackingAllowed: Scalars['Boolean']['output'];
+  startDate?: Maybe<Scalars['DateTime']['output']>;
+  status: CampaignStatus;
+  termsVersion: Scalars['Int']['output'];
+  updatedAt: Scalars['DateTime']['output'];
+  version?: Maybe<Scalars['Int']['output']>;
+};
+
+export type CampaignBenefitVersion = {
+  __typename?: 'CampaignBenefitVersion';
+  benefit: Scalars['JSON']['output'];
+  mechanism: BenefitMechanism;
+  replacedAt: Scalars['DateTime']['output'];
+  version: Scalars['Int']['output'];
+};
+
 export type CampaignData = {
   __typename?: 'CampaignData';
   assetId?: Maybe<Scalars['String']['output']>;
   placement?: Maybe<Scalars['String']['output']>;
+  /** Marketing source from before this website booking, when one existed */
+  prevUtmSource?: Maybe<Scalars['String']['output']>;
   utmAdgroup?: Maybe<Scalars['String']['output']>;
   utmCampaign?: Maybe<Scalars['String']['output']>;
   utmContent?: Maybe<Scalars['String']['output']>;
@@ -1005,9 +1142,84 @@ export type CampaignData = {
   utmMatchtype?: Maybe<Scalars['String']['output']>;
   utmMedium?: Maybe<Scalars['String']['output']>;
   utmNetwork?: Maybe<Scalars['String']['output']>;
+  /** Last Stance page before this booking, e.g. "/" or "/services". */
+  utmReferer?: Maybe<Scalars['String']['output']>;
   utmSource?: Maybe<Scalars['String']['output']>;
   utmTerm?: Maybe<Scalars['String']['output']>;
 };
+
+export type CampaignDistribution = {
+  __typename?: 'CampaignDistribution';
+  autoGenerateOnRegistration?: Maybe<Scalars['Boolean']['output']>;
+  codeModes: Array<CodeMode>;
+  codePrefix?: Maybe<Scalars['String']['output']>;
+};
+
+export type CampaignDistributionInput = {
+  autoGenerateOnRegistration?: InputMaybe<Scalars['Boolean']['input']>;
+  codeModes: Array<CodeMode>;
+  codePrefix?: InputMaybe<Scalars['String']['input']>;
+};
+
+export type CampaignEligibility = {
+  __typename?: 'CampaignEligibility';
+  cohortId?: Maybe<Scalars['String']['output']>;
+  patientIds?: Maybe<Array<Scalars['ObjectID']['output']>>;
+  rule: EligibilityRule;
+};
+
+export type CampaignEligibilityInput = {
+  cohortId?: InputMaybe<Scalars['String']['input']>;
+  patientIds?: InputMaybe<Array<Scalars['ObjectID']['input']>>;
+  rule: EligibilityRule;
+};
+
+export type CampaignFilterInput = {
+  centerId?: InputMaybe<Scalars['ObjectID']['input']>;
+  mechanism?: InputMaybe<BenefitMechanism>;
+  objective?: InputMaybe<CampaignObjective>;
+  search?: InputMaybe<Scalars['String']['input']>;
+  status?: InputMaybe<CampaignStatus>;
+};
+
+export type CampaignLimits = {
+  __typename?: 'CampaignLimits';
+  budgetCapPaise?: Maybe<Scalars['Float']['output']>;
+  currentCommittedBudgetPaise: Scalars['Float']['output'];
+  currentRedemptionsCount: Scalars['Int']['output'];
+  currentReservedCount: Scalars['Int']['output'];
+  maxRedemptionsPerCode?: Maybe<Scalars['Int']['output']>;
+  maxRedemptionsPerPatient?: Maybe<Scalars['Int']['output']>;
+  maxRedemptionsTotal?: Maybe<Scalars['Int']['output']>;
+  reservationTtlMinutes: Scalars['Int']['output'];
+};
+
+export type CampaignLimitsInput = {
+  budgetCapPaise?: InputMaybe<Scalars['Float']['input']>;
+  maxRedemptionsPerCode?: InputMaybe<Scalars['Int']['input']>;
+  maxRedemptionsPerPatient?: InputMaybe<Scalars['Int']['input']>;
+  maxRedemptionsTotal?: InputMaybe<Scalars['Int']['input']>;
+  reservationTtlMinutes?: InputMaybe<Scalars['Int']['input']>;
+};
+
+export enum CampaignObjective {
+  Corporate = 'CORPORATE',
+  CustomerReferral = 'CUSTOMER_REFERRAL',
+  DoctorReferral = 'DOCTOR_REFERRAL',
+  Influencer = 'INFLUENCER',
+  Other = 'OTHER',
+  Retention = 'RETENTION',
+  RunClub = 'RUN_CLUB',
+  Seasonal = 'SEASONAL'
+}
+
+export enum CampaignStatus {
+  Archived = 'ARCHIVED',
+  Draft = 'DRAFT',
+  Paused = 'PAUSED',
+  Published = 'PUBLISHED',
+  Scheduled = 'SCHEDULED'
+}
 
 export type CancellationDetails = {
   __typename?: 'CancellationDetails';
@@ -1118,6 +1330,25 @@ export type ClinicalRecordInput = {
   nprs?: InputMaybe<Scalars['Int']['input']>;
 };
 
+export enum CodeMode {
+  PublicShareable = 'PUBLIC_SHAREABLE',
+  RecipientBound = 'RECIPIENT_BOUND',
+  ReferrerOwnedShareable = 'REFERRER_OWNED_SHAREABLE'
+}
+
+export enum CodeSource {
+  AutoIssue = 'AUTO_ISSUE',
+  Bulk = 'BULK',
+  Csv = 'CSV',
+  Manual = 'MANUAL'
+}
+
+/** ACTIVE/INACTIVE only — never the usage lifecycle. */
+export enum CodeStatus {
+  Active = 'ACTIVE',
+  Inactive = 'INACTIVE'
+}
+
 export type ConsentOtpChallenge = {
   __typename?: 'ConsentOTPChallenge';
   expiresIn: Scalars['Int']['output'];
@@ -1224,6 +1455,96 @@ export enum ControlType {
   Suspend = 'SUSPEND'
 }
 
+export type CouponCode = {
+  __typename?: 'CouponCode';
+  _id: Scalars['ObjectID']['output'];
+  batchId?: Maybe<Scalars['String']['output']>;
+  campaign: Scalars['ObjectID']['output'];
+  campaignVersion: Scalars['Int']['output'];
+  code: Scalars['String']['output'];
+  createdAt: Scalars['DateTime']['output'];
+  isActive: Scalars['Boolean']['output'];
+  maxUses?: Maybe<Scalars['Int']['output']>;
+  mode: CodeMode;
+  organization: Scalars['ObjectID']['output'];
+  ownerPatient?: Maybe<Scalars['ObjectID']['output']>;
+  recipientPatient?: Maybe<Scalars['ObjectID']['output']>;
+  redemptionCount: Scalars['Int']['output'];
+  source: CodeSource;
+  status: CodeStatus;
+  updatedAt: Scalars['DateTime']['output'];
+  version?: Maybe<Scalars['Int']['output']>;
+};
+
+export type CouponCodeFilterInput = {
+  mode?: InputMaybe<CodeMode>;
+  search?: InputMaybe<Scalars['String']['input']>;
+  status?: InputMaybe<CodeStatus>;
+};
+
+export type CouponQuote = {
+  __typename?: 'CouponQuote';
+  discountPaise: Scalars['Float']['output'];
+  mechanism: BenefitMechanism;
+  netPaise?: Maybe<Scalars['Float']['output']>;
+  originalPaise?: Maybe<Scalars['Float']['output']>;
+};
+
+export type CouponReservationResult = {
+  __typename?: 'CouponReservationResult';
+  message?: Maybe<Scalars['String']['output']>;
+  ok: Scalars['Boolean']['output'];
+  rejectReason?: Maybe<RejectReason>;
+  usage?: Maybe<CouponUsage>;
+};
+
+/**
+ * One patient's journey with one code — capture, hold, redeem, reward — as a
+ * single append-only record. First declared here (M3) because this is the
+ * first submodule that exposes it over the API; M4/M5/M6 reuse this type.
+ */
+export type CouponUsage = {
+  __typename?: 'CouponUsage';
+  _id: Scalars['ObjectID']['output'];
+  appointment?: Maybe<Scalars['ObjectID']['output']>;
+  campaign: Scalars['ObjectID']['output'];
+  center?: Maybe<Scalars['ObjectID']['output']>;
+  code: Scalars['String']['output'];
+  committedAt?: Maybe<Scalars['DateTime']['output']>;
+  couponCode: Scalars['ObjectID']['output'];
+  createdAt: Scalars['DateTime']['output'];
+  expiresAt?: Maybe<Scalars['DateTime']['output']>;
+  invoice?: Maybe<Scalars['ObjectID']['output']>;
+  patient?: Maybe<Scalars['ObjectID']['output']>;
+  quote?: Maybe<CouponUsageQuote>;
+  rejectReason?: Maybe<RejectReason>;
+  releasedAt?: Maybe<Scalars['DateTime']['output']>;
+  reservedAt?: Maybe<Scalars['DateTime']['output']>;
+  reversedAt?: Maybe<Scalars['DateTime']['output']>;
+  service?: Maybe<Scalars['ObjectID']['output']>;
+  status: UsageStatus;
+  updatedAt: Scalars['DateTime']['output'];
+};
+
+export type CouponUsageQuote = {
+  __typename?: 'CouponUsageQuote';
+  discountPaise?: Maybe<Scalars['Float']['output']>;
+  netPaise?: Maybe<Scalars['Float']['output']>;
+  originalPaise?: Maybe<Scalars['Float']['output']>;
+  /** The ₹100 booking token — always this value, never discounted. */
+  tokenPaise: Scalars['Float']['output'];
+};
+
+export type CouponValidationResult = {
+  __typename?: 'CouponValidationResult';
+  campaign?: Maybe<Campaign>;
+  couponCode?: Maybe<CouponCode>;
+  message?: Maybe<Scalars['String']['output']>;
+  quote?: Maybe<CouponQuote>;
+  rejectReason?: Maybe<RejectReason>;
+  valid: Scalars['Boolean']['output'];
+};
+
 export type CreateAdvanceInput = {
   center: Scalars['ObjectID']['input'];
   /**
@@ -1268,6 +1589,27 @@ export type CreateAdvancePaymentInput = {
   payments?: InputMaybe<Array<CreatePaymentInput>>;
 };
 
+export type CreateAdvancePaymentLinkInput = {
+  /**
+   * The full advance/package purchase, exactly as it would be sent to
+   * Mutation.createAdvance. Nothing is created yet — no Advance, Payment, or
+   * ledger entry — until the patient actually pays; this payload is stored
+   * and replayed through createAdvance for the first time once the link is paid.
+   */
+  advance: CreateAdvanceInput;
+  /** Have Razorpay email the link to the patient. Defaults to true. */
+  notifyByEmail?: InputMaybe<Scalars['Boolean']['input']>;
+  /** Have Razorpay SMS the link to the patient. Defaults to false. */
+  notifyBySms?: InputMaybe<Scalars['Boolean']['input']>;
+  /**
+   * Optional preferred-timing slot for this package, exactly as it would be
+   * sent to Mutation.createPreferredTiming. Like `advance`, nothing is created
+   * until the link is paid — it is created alongside the Advance so an
+   * abandoned or retried link never leaves an orphaned slot behind.
+   */
+  preferredTiming?: InputMaybe<CreatePreferredTimingInput>;
+};
+
 /** Agent Report Input Types and Mutations */
 export type CreateAgentReportInput = {
   appointment: Scalars['ObjectID']['input'];
@@ -1302,6 +1644,7 @@ export type CreateAppointmentInput = {
   meetingLink?: InputMaybe<Scalars['String']['input']>;
   notes?: InputMaybe<Scalars['String']['input']>;
   patient: Scalars['ObjectID']['input'];
+  promotion?: InputMaybe<AppointmentPromotionInput>;
   rescheduledFrom?: InputMaybe<Array<Scalars['ObjectID']['input']>>;
   status?: InputMaybe<AppointmentStatus>;
   treatment?: InputMaybe<Scalars['ObjectID']['input']>;
@@ -1337,6 +1680,26 @@ export type CreateAvailabilityEventInput = {
   isAvailable: Scalars['Boolean']['input'];
   /** Start time of the event. */
   startTime: Scalars['Time']['input'];
+};
+
+export type CreateCampaignInput = {
+  benefit: Scalars['JSON']['input'];
+  centers?: InputMaybe<Array<Scalars['ObjectID']['input']>>;
+  description?: InputMaybe<Scalars['String']['input']>;
+  distribution: CampaignDistributionInput;
+  eligibility: CampaignEligibilityInput;
+  endDate?: InputMaybe<Scalars['DateTime']['input']>;
+  excludedServices?: InputMaybe<Array<Scalars['ObjectID']['input']>>;
+  limits?: InputMaybe<CampaignLimitsInput>;
+  mechanism: BenefitMechanism;
+  name: Scalars['String']['input'];
+  notes?: InputMaybe<Scalars['String']['input']>;
+  objective: CampaignObjective;
+  organizationId: Scalars['ObjectID']['input'];
+  services?: InputMaybe<Array<Scalars['ObjectID']['input']>>;
+  slug?: InputMaybe<Scalars['String']['input']>;
+  stackingAllowed?: InputMaybe<Scalars['Boolean']['input']>;
+  startDate?: InputMaybe<Scalars['DateTime']['input']>;
 };
 
 export type CreateCenterInput = {
@@ -1400,12 +1763,14 @@ export type CreateExternalUserInput = {
   centers: Array<Scalars['ObjectID']['input']>;
   city?: InputMaybe<Scalars['String']['input']>;
   dob?: InputMaybe<Scalars['Timestamp']['input']>;
+  doctorId?: InputMaybe<Scalars['ObjectID']['input']>;
+  doctorName?: InputMaybe<Scalars['String']['input']>;
   email: Scalars['String']['input'];
   externalType: ExternalType;
   firstName: Scalars['String']['input'];
   gender?: InputMaybe<Gender>;
   internalNotes?: InputMaybe<Scalars['String']['input']>;
-  lastName: Scalars['String']['input'];
+  lastName?: InputMaybe<Scalars['String']['input']>;
   licenseNo?: InputMaybe<Scalars['String']['input']>;
   linkedPatients?: InputMaybe<Array<Scalars['ObjectID']['input']>>;
   organisationName?: InputMaybe<Scalars['String']['input']>;
@@ -1470,6 +1835,7 @@ export type CreateInvoiceInput = {
   notes?: InputMaybe<Scalars['String']['input']>;
   patient?: InputMaybe<Scalars['ObjectID']['input']>;
   payment?: InputMaybe<PaymentFieldInput>;
+  promotion?: InputMaybe<InvoicePromotionInput>;
   staff?: InputMaybe<Scalars['ObjectID']['input']>;
   subheading?: InputMaybe<Scalars['String']['input']>;
   tokenAdvanceId?: InputMaybe<Scalars['ObjectID']['input']>;
@@ -1482,6 +1848,19 @@ export type CreateInvoiceItemInput = {
   item: Scalars['ObjectID']['input'];
   price: Scalars['Float']['input'];
   quantity: Scalars['Int']['input'];
+};
+
+export type CreateInvoicePaymentLinkInput = {
+  /**
+   * Amount to collect in rupees. Defaults to the invoice's outstanding balance,
+   * and may not exceed it.
+   */
+  amount?: InputMaybe<Scalars['Float']['input']>;
+  invoiceId: Scalars['ObjectID']['input'];
+  /** Have Razorpay email the link to the patient. Defaults to true. */
+  notifyByEmail?: InputMaybe<Scalars['Boolean']['input']>;
+  /** Have Razorpay SMS the link to the patient. Defaults to false. */
+  notifyBySms?: InputMaybe<Scalars['Boolean']['input']>;
 };
 
 export type CreateLedgerInput = {
@@ -1499,6 +1878,22 @@ export type CreateMessageTemplateInput = {
   name: Scalars['String']['input'];
   placeholders?: InputMaybe<Array<Scalars['String']['input']>>;
   type: MessageTemplateType;
+};
+
+export type CreateMultiBookingInput = {
+  centerId: Scalars['ObjectID']['input'];
+  consultantId?: InputMaybe<Scalars['ObjectID']['input']>;
+  medium?: InputMaybe<AppointmentMedium>;
+  patientId: Scalars['ObjectID']['input'];
+  preferredTimingDaysOfWeek?: InputMaybe<Array<Scalars['Int']['input']>>;
+  preferredTimingEndDate?: InputMaybe<Scalars['Timestamp']['input']>;
+  preferredTimingEndTime?: InputMaybe<Scalars['Int']['input']>;
+  preferredTimingId?: InputMaybe<Scalars['ObjectID']['input']>;
+  preferredTimingStartDate?: InputMaybe<Scalars['Timestamp']['input']>;
+  preferredTimingStartTime?: InputMaybe<Scalars['Int']['input']>;
+  saveAsPreferredTiming?: InputMaybe<Scalars['Boolean']['input']>;
+  selectedSlots: Array<MultiBookingSlotInput>;
+  serviceId: Scalars['ObjectID']['input'];
 };
 
 export type CreateOrderInput = {
@@ -1702,6 +2097,7 @@ export enum CreditTarget {
 }
 
 export enum CreditType {
+  FirstAssessment = 'FIRST_ASSESSMENT',
   HappyHour = 'HAPPY_HOUR',
   Referral = 'REFERRAL',
   Refund = 'REFUND'
@@ -1799,8 +2195,14 @@ export type DeviceToken = {
   createdAt: Scalars['Timestamp']['output'];
   deviceId: Scalars['String']['output'];
   isActive: Scalars['Boolean']['output'];
+  /** Start of the current open app session; null when no session is open. */
+  loginTime?: Maybe<Scalars['Timestamp']['output']>;
   patient: User;
   platform: PushPlatform;
+  /** When the last completed app session ended. */
+  sessionEndedAt?: Maybe<Scalars['Timestamp']['output']>;
+  /** Duration in milliseconds of the last completed app session. */
+  sessionTime?: Maybe<Scalars['Float']['output']>;
   token: Scalars['String']['output'];
   updatedAt: Scalars['Timestamp']['output'];
 };
@@ -1873,10 +2275,26 @@ export type DuplicateGoalSetInput = {
   sourceGoalSetId: Scalars['ObjectID']['input'];
 };
 
+export enum EligibilityRule {
+  All = 'ALL',
+  FirstCompletedVisit = 'FIRST_COMPLETED_VISIT',
+  FirstPaidAssessment = 'FIRST_PAID_ASSESSMENT',
+  HadPackageBefore = 'HAD_PACKAGE_BEFORE',
+  ImportedCohort = 'IMPORTED_COHORT',
+  LapsedPatient = 'LAPSED_PATIENT',
+  SelectedPatientIds = 'SELECTED_PATIENT_IDS'
+}
+
 export type EmailResponse = {
   __typename?: 'EmailResponse';
   message: Scalars['String']['output'];
   success: Scalars['Boolean']['output'];
+};
+
+export type EndAppSessionInput = {
+  deviceId: Scalars['String']['input'];
+  /** Optional client-supplied end time (ISO / epoch ms) for offline flush. */
+  endedAt?: InputMaybe<Scalars['Timestamp']['input']>;
 };
 
 export type Event = AppointmentEvent | AvailabilityEvent;
@@ -1885,10 +2303,12 @@ export type Event = AppointmentEvent | AvailabilityEvent;
 export type EventFilter = {
   appointmentFilter?: InputMaybe<AppointmentFilter>;
   attendees?: InputMaybe<Array<Scalars['ObjectID']['input']>>;
+  center?: InputMaybe<Array<Scalars['ObjectID']['input']>>;
   endDate?: InputMaybe<Scalars['Timestamp']['input']>;
   eventType?: InputMaybe<EventType>;
   host?: InputMaybe<Scalars['ObjectID']['input']>;
   hostType?: InputMaybe<EventHostType>;
+  recurrenceActiveOnDate?: InputMaybe<Scalars['Timestamp']['input']>;
   startDate?: InputMaybe<Scalars['Timestamp']['input']>;
 };
 
@@ -2027,6 +2447,8 @@ export type External = {
   centers: Array<Center>;
   city?: Maybe<Scalars['String']['output']>;
   dob?: Maybe<Scalars['Timestamp']['output']>;
+  doctorId?: Maybe<Scalars['ObjectID']['output']>;
+  doctorName?: Maybe<Scalars['String']['output']>;
   externalType: ExternalType;
   firstName: Scalars['String']['output'];
   gender?: Maybe<Gender>;
@@ -2045,7 +2467,12 @@ export type External = {
 
 /** Sub-category for EXTERNAL users. More types added in Phase 2. */
 export enum ExternalType {
+  Academics = 'ACADEMICS',
+  Consultant = 'CONSULTANT',
+  Corporate = 'CORPORATE',
+  Doctor = 'DOCTOR',
   GymTrainer = 'GYM_TRAINER',
+  Partnership = 'PARTNERSHIP',
   ReferringDoctorGp = 'REFERRING_DOCTOR_GP'
 }
 
@@ -2117,6 +2544,17 @@ export enum Gender {
   Female = 'FEMALE',
   Male = 'MALE'
 }
+
+export type GenerateCouponCodesInput = {
+  campaignId: Scalars['ObjectID']['input'];
+  count?: InputMaybe<Scalars['Int']['input']>;
+  customCode?: InputMaybe<Scalars['String']['input']>;
+  maxUses?: InputMaybe<Scalars['Int']['input']>;
+  mode: CodeMode;
+  ownerPatientId?: InputMaybe<Scalars['ObjectID']['input']>;
+  prefix?: InputMaybe<Scalars['String']['input']>;
+  recipientPatientId?: InputMaybe<Scalars['ObjectID']['input']>;
+};
 
 export type GenerateOnboardingLinkInput = {
   assessmentType?: InputMaybe<Scalars['String']['input']>;
@@ -2269,6 +2707,26 @@ export type GoalsDataStatus = {
   totalGoals: Scalars['Int']['output'];
 };
 
+export type ImportCodeItemInput = {
+  code: Scalars['String']['input'];
+  maxUses?: InputMaybe<Scalars['Int']['input']>;
+  recipientPatientId?: InputMaybe<Scalars['ObjectID']['input']>;
+};
+
+export type ImportCouponCodesInput = {
+  campaignId: Scalars['ObjectID']['input'];
+  codes: Array<ImportCodeItemInput>;
+  mode: CodeMode;
+};
+
+export type ImportCouponCodesResult = {
+  __typename?: 'ImportCouponCodesResult';
+  codes: Array<CouponCode>;
+  errors?: Maybe<Array<Scalars['String']['output']>>;
+  failedCount: Scalars['Int']['output'];
+  importedCount: Scalars['Int']['output'];
+};
+
 export type InAppNotification = {
   __typename?: 'InAppNotification';
   _id: Scalars['ObjectID']['output'];
@@ -2300,6 +2758,7 @@ export type Invoice = DataRow & {
   patient: User;
   payment?: Maybe<PaymentField>;
   pdfUrl?: Maybe<Scalars['String']['output']>;
+  promotion?: Maybe<InvoicePromotion>;
   seqNo?: Maybe<Scalars['String']['output']>;
   staff?: Maybe<User>;
   status: InvoiceStatus;
@@ -2334,6 +2793,40 @@ export type InvoiceItem = {
   item: Service;
   price: Scalars['Float']['output'];
   quantity: Scalars['Int']['output'];
+};
+
+/**
+ * Live status of the latest payment link on an invoice.
+ * The dashboard subscribes to this while it waits for the patient to pay.
+ */
+export type InvoicePaymentWatch = {
+  __typename?: 'InvoicePaymentWatch';
+  amount?: Maybe<Scalars['Float']['output']>;
+  invoiceId: Scalars['ObjectID']['output'];
+  /**
+   * True when Razorpay captured this link after the invoice was already settled
+   * another way. The money needs a refund in Razorpay.
+   */
+  needsReconciliation?: Maybe<Scalars['Boolean']['output']>;
+  shortUrl?: Maybe<Scalars['String']['output']>;
+  status: PaymentLinkStatus;
+};
+
+export type InvoicePromotion = {
+  __typename?: 'InvoicePromotion';
+  code?: Maybe<Scalars['String']['output']>;
+  discountPaise?: Maybe<Scalars['Int']['output']>;
+  netAmount?: Maybe<Scalars['Float']['output']>;
+  originalAmount?: Maybe<Scalars['Float']['output']>;
+  redemptionId?: Maybe<Scalars['ObjectID']['output']>;
+};
+
+export type InvoicePromotionInput = {
+  code: Scalars['String']['input'];
+  discountPaise: Scalars['Int']['input'];
+  netAmount?: InputMaybe<Scalars['Float']['input']>;
+  originalAmount?: InputMaybe<Scalars['Float']['input']>;
+  redemptionId?: InputMaybe<Scalars['ObjectID']['input']>;
 };
 
 export enum InvoiceSortField {
@@ -2589,9 +3082,20 @@ export type MessageTemplateFilter = {
 
 export enum MessageTemplateType {
   AdvanceReceipt = 'ADVANCE_RECEIPT',
+  AppointmentCancellation = 'APPOINTMENT_CANCELLATION',
   AppointmentConfirmation = 'APPOINTMENT_CONFIRMATION',
+  AppointmentConfirmationCa = 'APPOINTMENT_CONFIRMATION_CA',
   AppointmentReminder = 'APPOINTMENT_REMINDER',
+  AppointmentReminderFirstVisit = 'APPOINTMENT_REMINDER_FIRST_VISIT',
+  FirstSessionFeedback = 'FIRST_SESSION_FEEDBACK',
+  IntakeFormReminder = 'INTAKE_FORM_REMINDER',
   Invoice = 'INVOICE',
+  InvoiceReceipt = 'INVOICE_RECEIPT',
+  PaymentLink = 'PAYMENT_LINK',
+  RetentionDay0 = 'RETENTION_DAY0',
+  RetentionDay1 = 'RETENTION_DAY1',
+  RetentionDay3 = 'RETENTION_DAY3',
+  RetentionDay7 = 'RETENTION_DAY7',
   Waitlist = 'WAITLIST'
 }
 
@@ -2607,6 +3111,62 @@ export type MetricDetail = {
   showOnDesktop?: Maybe<Scalars['Boolean']['output']>;
   showOnMobile?: Maybe<Scalars['Boolean']['output']>;
   unit: Scalars['String']['output'];
+};
+
+export type MultiBookingFailure = {
+  __typename?: 'MultiBookingFailure';
+  date: Scalars['String']['output'];
+  reason: Scalars['String']['output'];
+};
+
+export type MultiBookingResult = {
+  __typename?: 'MultiBookingResult';
+  batchId: Scalars['ObjectID']['output'];
+  createdAppointments: Array<Appointment>;
+  failures: Array<MultiBookingFailure>;
+  totalCreated: Scalars['Int']['output'];
+  totalFailed: Scalars['Int']['output'];
+  totalRequested: Scalars['Int']['output'];
+};
+
+export type MultiBookingScanInput = {
+  centerId: Scalars['ObjectID']['input'];
+  consultantId?: InputMaybe<Scalars['ObjectID']['input']>;
+  daysOfWeek: Array<Scalars['Int']['input']>;
+  endTime: Scalars['Int']['input'];
+  patientId: Scalars['ObjectID']['input'];
+  serviceId: Scalars['ObjectID']['input'];
+  startDate?: InputMaybe<Scalars['Timestamp']['input']>;
+  startTime: Scalars['Int']['input'];
+};
+
+export type MultiBookingScanResult = {
+  __typename?: 'MultiBookingScanResult';
+  availableCount: Scalars['Int']['output'];
+  candidates: Array<MultiBookingSlotCandidate>;
+  totalDaysScanned: Scalars['Int']['output'];
+  unavailableCount: Scalars['Int']['output'];
+};
+
+export type MultiBookingSlotCandidate = {
+  __typename?: 'MultiBookingSlotCandidate';
+  consultantId?: Maybe<Scalars['ObjectID']['output']>;
+  consultantName?: Maybe<Scalars['String']['output']>;
+  date: Scalars['String']['output'];
+  dateTimestamp: Scalars['Timestamp']['output'];
+  endTime: Scalars['Timestamp']['output'];
+  endTimeHHMM: Scalars['Int']['output'];
+  isAvailable: Scalars['Boolean']['output'];
+  startTime: Scalars['Timestamp']['output'];
+  startTimeHHMM: Scalars['Int']['output'];
+  unavailabilityReason?: Maybe<Scalars['String']['output']>;
+};
+
+export type MultiBookingSlotInput = {
+  consultantId?: InputMaybe<Scalars['ObjectID']['input']>;
+  date: Scalars['String']['input'];
+  endTime: Scalars['Timestamp']['input'];
+  startTime: Scalars['Timestamp']['input'];
 };
 
 export enum MuscleGroup {
@@ -2652,17 +3212,36 @@ export type Mutation = {
   /** Add records to a report */
   addRecords: AddRecordsResult;
   addSubjectiveRecord: SubjectiveRecord;
+  /**
+   * Reserves the benefit against a booking, atomically, so two requests
+   * racing for the last slot or the last of the budget can't both win.
+   * Returns a reservation with an expiry; re-calling with the same code on
+   * the same booking is idempotent.
+   */
+  applyCoupon: CouponReservationResult;
   /** Apply a control restriction to a patient. Admin only. */
   applyPatientControl: Array<PatientControl>;
   /** Approve an account deletion request (sets target user isActive: false). */
   approveAccountDeletionRequest: AccountDeletionRequest;
+  archiveCampaign: Campaign;
+  assignCouponCode: CouponCode;
   /** Create or update permissions for a user in a specific scope */
   assignPermissions: UserPermissions;
   /** Create or update permissions for a user in a specific scope */
   assignRole: UserPermissions;
+  /** Cancel an unpaid link so it can no longer be paid. */
+  cancelPaymentLink: PaymentLink;
   /** clear consultant and center caches (temporary fix for center tagging revert) */
   clearConsultantCaches: Scalars['Boolean']['output'];
   createAdvance: Advance;
+  /**
+   * Create a Razorpay Payment Link for a package/advance purchase bought with
+   * Pay-by-Link mode. Nothing is created yet — no Advance, Payment, or ledger
+   * entry — until the patient actually pays; poll or subscribe to
+   * advancePaymentWatch/advancePaymentUpdated (keyed by this link's _id) to
+   * find out when the Advance has been created.
+   */
+  createAdvancePaymentLink: PaymentLink;
   createAgentReport: AgentReport;
   createApiKey: ApiKeyResponse;
   /** Create a new appointment */
@@ -2672,6 +3251,7 @@ export type Mutation = {
   createAutomationRule: AutomationRule;
   /** Create a new availability event. */
   createAvailabilityEvent: AvailabilityEvent;
+  createCampaign: Campaign;
   /** Create a new center */
   createCenter: Center;
   createConsultant: User;
@@ -2685,9 +3265,16 @@ export type Mutation = {
   /** create a goal */
   createGoals: Array<Goal>;
   createInvoice: Invoice;
+  /**
+   * Create a Razorpay Payment Link for an invoice's outstanding balance.
+   * Reuses an existing unpaid link for the same amount rather than issuing a
+   * duplicate, so the patient is never sent two links for one invoice.
+   */
+  createInvoicePaymentLink: PaymentLink;
   createLedger: Ledger;
   /** Create a new message template */
   createMessageTemplate: MessageTemplate;
+  createMultiBooking: MultiBookingResult;
   /** Create a new ObjectiveCollection entry */
   createObjectiveCollectionEntry: ObjectiveCollectionEntry;
   createOrder: Order;
@@ -2751,6 +3338,8 @@ export type Mutation = {
   deletePatientForm: PatientForm;
   /** Delete a preferred timing slot (soft delete) */
   deletePreferredTiming: Scalars['Boolean']['output'];
+  /** Discard the current user's draft for a report. */
+  deleteReportDraft: Scalars['Boolean']['output'];
   /** Delete a role */
   deleteRole: Role;
   deleteRule: Scalars['Boolean']['output'];
@@ -2764,6 +3353,8 @@ export type Mutation = {
   deregisterDeviceToken: Scalars['Boolean']['output'];
   /** Duplicate entire goalset with all goals */
   duplicateGoalSet: GoalSet;
+  /** End the open app session and store sessionTime (login → close duration in ms). */
+  endAppSession?: Maybe<DeviceToken>;
   exportAdvancesAsPDF: ExportAdvancesAsPdfResponse;
   exportInvoicesAsPDF: ExportInvoicesAsPdfResponse;
   /** Export VALD data as PDF */
@@ -2773,10 +3364,12 @@ export type Mutation = {
    * Returns a URL: consent.stance.health/[patientId]
    */
   generateConsentLink: Scalars['String']['output'];
+  generateCouponCodes: Array<CouponCode>;
   generateOnboardingLink: OnboardingLink;
   /** Get a list of available slots for a given host. */
   getAvailableSlots: Array<Maybe<TimeSlot>>;
   handleRazorpayWebhook: WebhookResponse;
+  importCouponCodes: ImportCouponCodesResult;
   /**
    * Auto-send OTP to the patient's email on page load. Returns masked email + token.
    * Public — no auth needed.
@@ -2822,7 +3415,9 @@ export type Mutation = {
    * yet expired.
    */
   pauseAdvance: PauseHistory;
+  pauseCampaign: Campaign;
   pong: Ping;
+  publishCampaign: Campaign;
   /** Admin: publish a new or updated policy clause. */
   publishPolicy: Policy;
   /** Re-activate a deactivated user account (sets target user isActive: true). */
@@ -2839,8 +3434,12 @@ export type Mutation = {
   registerDeviceToken: DeviceToken;
   /** Reject an account deletion request. */
   rejectAccountDeletionRequest: AccountDeletionRequest;
+  /** Releases a held reservation. The count goes back; the history stays. */
+  removeCoupon?: Maybe<CouponUsage>;
   /** Submit an account deletion request for the authenticated user. */
   requestAccountDeletion: AccountDeletionRequest;
+  /** Re-send an unpaid link over Razorpay's email or SMS. */
+  resendPaymentLink: Scalars['Boolean']['output'];
   /** Reset a user's password (sends OTP and resets password) */
   resetPassword: Scalars['Boolean']['output'];
   /**
@@ -2855,6 +3454,7 @@ export type Mutation = {
    * available as carryover for the next package purchase.
    */
   resumeAdvance: PauseHistory;
+  resumeCampaign: Campaign;
   /** Log out from all sessions except the current one */
   revokeAllOtherSessions: Scalars['Int']['output'];
   /** Log out from a specific session */
@@ -2888,6 +3488,17 @@ export type Mutation = {
    * phone (SMS). Used by the in-app Settings → Password flow.
    */
   sendPasswordResetOTPForCurrentUser: PasswordResetChallenge;
+  /**
+   * Send a plan_validity_ending WhatsApp message to the patient via Interakt API.
+   * Notifies the patient that their package is about to expire.
+   * Returns true if the message was sent successfully.
+   */
+  sendPlanValidityReminder: Scalars['Boolean']['output'];
+  setCampaignActive: Campaign;
+  setCouponCodeActive: CouponCode;
+  setCouponCodeStatus: CouponCode;
+  /** Mark the start of an app session on an existing device token (sets loginTime). */
+  startAppSession?: Maybe<DeviceToken>;
   toggleAutomationRule: AutomationRule;
   toggleRule: Rule;
   triggerPaymentReconciliation: ReconciliationResponse;
@@ -2900,6 +3511,7 @@ export type Mutation = {
   updateAutomationRule: AutomationRule;
   /** Update an availability event. */
   updateAvailabilityEvent: AvailabilityEvent;
+  updateCampaign: Campaign;
   /** Update a center */
   updateCenter: Center;
   updateConsultant: User;
@@ -2929,6 +3541,8 @@ export type Mutation = {
   /** Update an existing patient form */
   updatePatientForm: PatientForm;
   updatePatientRecommendations: User;
+  /** Turn automated WhatsApp on or off for a patient. Admin only. */
+  updatePatientSendMessage: User;
   /** Update an existing preferred timing slot */
   updatePreferredTiming: PreferredTimingSlot;
   /** Update records of a report */
@@ -2951,9 +3565,16 @@ export type Mutation = {
   updateStatusEditPermission: StatusEditPermission;
   /** Update token definition */
   updateToken: Token;
+  /**
+   * Create a new package advance for a larger package, move unused balances,
+   * and credit the session-price gap on sessions already used.
+   */
+  upgradeAdvancePackage: Advance;
   uploadFile: File;
   /** Create or update a match record */
   upsertMatch: Match;
+  /** Create or update the current user's draft for a report (debounced autosave). */
+  upsertReportDraft: ReportDraft;
   /** Verify the consent OTP without requiring the frontend to know the real email. */
   verifyConsentOTP: Scalars['Boolean']['output'];
   verifyEmailOTP: AuthenticatedSession;
@@ -3030,6 +3651,11 @@ export type MutationAddSubjectiveRecordArgs = {
 };
 
 
+export type MutationApplyCouponArgs = {
+  input: ApplyCouponInput;
+};
+
+
 export type MutationApplyPatientControlArgs = {
   input: ApplyPatientControlInput;
 };
@@ -3037,6 +3663,16 @@ export type MutationApplyPatientControlArgs = {
 
 export type MutationApproveAccountDeletionRequestArgs = {
   requestId: Scalars['ObjectID']['input'];
+};
+
+
+export type MutationArchiveCampaignArgs = {
+  id: Scalars['ObjectID']['input'];
+};
+
+
+export type MutationAssignCouponCodeArgs = {
+  input: AssignCouponCodeInput;
 };
 
 
@@ -3050,8 +3686,18 @@ export type MutationAssignRoleArgs = {
 };
 
 
+export type MutationCancelPaymentLinkArgs = {
+  paymentLinkId: Scalars['ObjectID']['input'];
+};
+
+
 export type MutationCreateAdvanceArgs = {
   input: CreateAdvanceInput;
+};
+
+
+export type MutationCreateAdvancePaymentLinkArgs = {
+  input: CreateAdvancePaymentLinkInput;
 };
 
 
@@ -3083,6 +3729,11 @@ export type MutationCreateAutomationRuleArgs = {
 export type MutationCreateAvailabilityEventArgs = {
   availability: CreateAvailabilityEventInput;
   event: CreateEventInput;
+};
+
+
+export type MutationCreateCampaignArgs = {
+  input: CreateCampaignInput;
 };
 
 
@@ -3127,6 +3778,11 @@ export type MutationCreateInvoiceArgs = {
 };
 
 
+export type MutationCreateInvoicePaymentLinkArgs = {
+  input: CreateInvoicePaymentLinkInput;
+};
+
+
 export type MutationCreateLedgerArgs = {
   input: CreateLedgerInput;
 };
@@ -3134,6 +3790,11 @@ export type MutationCreateLedgerArgs = {
 
 export type MutationCreateMessageTemplateArgs = {
   input: CreateMessageTemplateInput;
+};
+
+
+export type MutationCreateMultiBookingArgs = {
+  input: CreateMultiBookingInput;
 };
 
 
@@ -3310,6 +3971,11 @@ export type MutationDeletePreferredTimingArgs = {
 };
 
 
+export type MutationDeleteReportDraftArgs = {
+  reportId: Scalars['ObjectID']['input'];
+};
+
+
 export type MutationDeleteRoleArgs = {
   id: Scalars['ObjectID']['input'];
 };
@@ -3345,6 +4011,11 @@ export type MutationDuplicateGoalSetArgs = {
 };
 
 
+export type MutationEndAppSessionArgs = {
+  input: EndAppSessionInput;
+};
+
+
 export type MutationExportAdvancesAsPdfArgs = {
   advanceIds: Array<Scalars['ObjectID']['input']>;
 };
@@ -3366,6 +4037,11 @@ export type MutationGenerateConsentLinkArgs = {
 };
 
 
+export type MutationGenerateCouponCodesArgs = {
+  input: GenerateCouponCodesInput;
+};
+
+
 export type MutationGenerateOnboardingLinkArgs = {
   input: GenerateOnboardingLinkInput;
 };
@@ -3379,6 +4055,11 @@ export type MutationGetAvailableSlotsArgs = {
 export type MutationHandleRazorpayWebhookArgs = {
   payload: Scalars['JSON']['input'];
   signature: Scalars['String']['input'];
+};
+
+
+export type MutationImportCouponCodesArgs = {
+  input: ImportCouponCodesInput;
 };
 
 
@@ -3441,8 +4122,18 @@ export type MutationPauseAdvanceArgs = {
 };
 
 
+export type MutationPauseCampaignArgs = {
+  id: Scalars['ObjectID']['input'];
+};
+
+
 export type MutationPongArgs = {
   input: PongInput;
+};
+
+
+export type MutationPublishCampaignArgs = {
+  id: Scalars['ObjectID']['input'];
 };
 
 
@@ -3483,8 +4174,19 @@ export type MutationRejectAccountDeletionRequestArgs = {
 };
 
 
+export type MutationRemoveCouponArgs = {
+  usageId: Scalars['ObjectID']['input'];
+};
+
+
 export type MutationRequestAccountDeletionArgs = {
   reason?: InputMaybe<Scalars['String']['input']>;
+};
+
+
+export type MutationResendPaymentLinkArgs = {
+  medium: Scalars['String']['input'];
+  paymentLinkId: Scalars['ObjectID']['input'];
 };
 
 
@@ -3506,6 +4208,11 @@ export type MutationResolveAlertArgs = {
 
 export type MutationResumeAdvanceArgs = {
   pauseId: Scalars['ObjectID']['input'];
+};
+
+
+export type MutationResumeCampaignArgs = {
+  id: Scalars['ObjectID']['input'];
 };
 
 
@@ -3554,6 +4261,34 @@ export type MutationSendPasswordResetOtpArgs = {
 };
 
 
+export type MutationSendPlanValidityReminderArgs = {
+  patientId: Scalars['ObjectID']['input'];
+};
+
+
+export type MutationSetCampaignActiveArgs = {
+  id: Scalars['ObjectID']['input'];
+  isActive: Scalars['Boolean']['input'];
+};
+
+
+export type MutationSetCouponCodeActiveArgs = {
+  id: Scalars['ObjectID']['input'];
+  isActive: Scalars['Boolean']['input'];
+};
+
+
+export type MutationSetCouponCodeStatusArgs = {
+  id: Scalars['ObjectID']['input'];
+  status: CodeStatus;
+};
+
+
+export type MutationStartAppSessionArgs = {
+  deviceId: Scalars['String']['input'];
+};
+
+
 export type MutationToggleAutomationRuleArgs = {
   id: Scalars['ObjectID']['input'];
 };
@@ -3597,6 +4332,12 @@ export type MutationUpdateAvailabilityEventArgs = {
   availability?: InputMaybe<UpdateAvailabilityEventInput>;
   event?: InputMaybe<UpdateEventInput>;
   id: Scalars['ObjectID']['input'];
+};
+
+
+export type MutationUpdateCampaignArgs = {
+  id: Scalars['ObjectID']['input'];
+  input: UpdateCampaignInput;
 };
 
 
@@ -3701,6 +4442,12 @@ export type MutationUpdatePatientRecommendationsArgs = {
 };
 
 
+export type MutationUpdatePatientSendMessageArgs = {
+  patientId: Scalars['ObjectID']['input'];
+  sendMessage: Scalars['Boolean']['input'];
+};
+
+
 export type MutationUpdatePreferredTimingArgs = {
   id: Scalars['ObjectID']['input'];
   input: UpdatePreferredTimingInput;
@@ -3763,6 +4510,12 @@ export type MutationUpdateTokenArgs = {
 };
 
 
+export type MutationUpgradeAdvancePackageArgs = {
+  advanceId: Scalars['ObjectID']['input'];
+  input: UpgradeAdvancePackageInput;
+};
+
+
 export type MutationUploadFileArgs = {
   input: FileUploadInput;
 };
@@ -3770,6 +4523,14 @@ export type MutationUploadFileArgs = {
 
 export type MutationUpsertMatchArgs = {
   input: UpsertMatchInput;
+};
+
+
+export type MutationUpsertReportDraftArgs = {
+  formSource?: InputMaybe<Scalars['String']['input']>;
+  input: RecordsInput;
+  patientId?: InputMaybe<Scalars['ObjectID']['input']>;
+  reportId: Scalars['ObjectID']['input'];
 };
 
 
@@ -3850,6 +4611,7 @@ export type ObjectiveCollectionEntry = {
   __typename?: 'ObjectiveCollectionEntry';
   _id: Scalars['ObjectID']['output'];
   calculationType?: Maybe<Scalars['String']['output']>;
+  category?: Maybe<TestCategory>;
   createdAt?: Maybe<Scalars['Timestamp']['output']>;
   dataType?: Maybe<Scalars['String']['output']>;
   normativeRangeMax?: Maybe<Scalars['Float']['output']>;
@@ -3863,6 +4625,7 @@ export type ObjectiveCollectionEntry = {
 
 export type ObjectiveCollectionEntryInput = {
   calculationType: Scalars['String']['input'];
+  category?: InputMaybe<TestCategory>;
   dataType: Scalars['String']['input'];
   normativeRangeMax: Scalars['Float']['input'];
   normativeRangeMin: Scalars['Float']['input'];
@@ -3901,6 +4664,7 @@ export type ObjectiveGoalRecordInput = {
 export type ObjectiveTest = {
   __typename?: 'ObjectiveTest';
   calculationType?: Maybe<CalculationType>;
+  category?: Maybe<TestCategory>;
   comments?: Maybe<Scalars['String']['output']>;
   dataType?: Maybe<Scalars['String']['output']>;
   exerciseId?: Maybe<Scalars['String']['output']>;
@@ -3919,6 +4683,7 @@ export type ObjectiveTest = {
 
 export type ObjectiveTestInput = {
   calculationType?: InputMaybe<CalculationType>;
+  category?: InputMaybe<TestCategory>;
   comments?: InputMaybe<Scalars['String']['input']>;
   dataType?: InputMaybe<Scalars['String']['input']>;
   exerciseId?: InputMaybe<Scalars['String']['input']>;
@@ -4117,6 +4882,40 @@ export enum PackageLedgerPatientRole {
   PackageOwner = 'PACKAGE_OWNER'
 }
 
+export type PackageUpgradePerson = {
+  __typename?: 'PackageUpgradePerson';
+  patientId: Scalars['ObjectID']['output'];
+  role: Scalars['String']['output'];
+  rupeeBalance: Scalars['Float']['output'];
+  rupeesMoved: Scalars['Float']['output'];
+  sessionsGranted: Scalars['Int']['output'];
+  sessionsLeft: Scalars['Int']['output'];
+  sessionsOnNewAdvance: Scalars['Int']['output'];
+  sessionsUsed: Scalars['Int']['output'];
+};
+
+export type PackageUpgradeQuote = {
+  __typename?: 'PackageUpgradeQuote';
+  allowed: Scalars['Boolean']['output'];
+  amountDue: Scalars['Float']['output'];
+  code?: Maybe<Scalars['String']['output']>;
+  /** Cost of sessionsPending at the new session price. */
+  idealBalance: Scalars['Float']['output'];
+  message?: Maybe<Scalars['String']['output']>;
+  newPackagePrice: Scalars['Float']['output'];
+  newSessionCount: Scalars['Int']['output'];
+  newSessionPrice: Scalars['Float']['output'];
+  oldPackagePrice: Scalars['Float']['output'];
+  oldSessionCount: Scalars['Int']['output'];
+  oldSessionPrice: Scalars['Float']['output'];
+  people: Array<PackageUpgradePerson>;
+  rateCredit: Scalars['Float']['output'];
+  /** Sessions that will be granted on the new advance. */
+  sessionsPending: Scalars['Int']['output'];
+  totalConsumed: Scalars['Int']['output'];
+  transferredBalances: Scalars['Float']['output'];
+};
+
 export type PaginatedAdvances = {
   __typename?: 'PaginatedAdvances';
   data: Array<AdvanceWithBalance>;
@@ -4204,6 +5003,8 @@ export type Patient = {
   referral?: Maybe<Referral>;
   /** Epoch ms scheduled resume date — stored when transitioning to PAUSED */
   scheduledResumeDate?: Maybe<Scalars['Timestamp']['output']>;
+  /** When false, automated WhatsApp to this patient is skipped. Missing means on. */
+  sendMessage?: Maybe<Scalars['Boolean']['output']>;
   status?: Maybe<PatientStatus>;
   /** Web attribution data stamped at first booking */
   webAnalytics?: Maybe<PatientWebAnalytics>;
@@ -4328,6 +5129,21 @@ export type PatientGoalsInput = {
   shortTermGoals?: InputMaybe<Array<InputMaybe<PatientGoalEntryInput>>>;
 };
 
+export type PatientPackageBalance = {
+  __typename?: 'PatientPackageBalance';
+  _id: Scalars['ObjectID']['output'];
+  advance: Scalars['ObjectID']['output'];
+  advanceSeqNo?: Maybe<Scalars['String']['output']>;
+  advanceType?: Maybe<Scalars['String']['output']>;
+  balance: Scalars['Float']['output'];
+  balanceUpdatedAt: Scalars['Timestamp']['output'];
+  center: Scalars['ObjectID']['output'];
+  packageName: Scalars['String']['output'];
+  patient: Scalars['ObjectID']['output'];
+  sessionBalance?: Maybe<Scalars['Int']['output']>;
+  sessions?: Maybe<Scalars['Int']['output']>;
+};
+
 export type PatientPhaseAnalysis = {
   __typename?: 'PatientPhaseAnalysis';
   _id: Scalars['ObjectID']['output'];
@@ -4429,6 +5245,8 @@ export type PatientWebAnalytics = {
   fbc?: Maybe<Scalars['String']['output']>;
   /** Meta browser ID (_fbp cookie) */
   fbp?: Maybe<Scalars['String']['output']>;
+  /** First coupon/referral code ever associated with this visitor — set once, never overwritten */
+  firstCouponCode?: Maybe<Scalars['String']['output']>;
   /** Epoch ms — when we first saw this browser */
   firstTouchAt?: Maybe<Scalars['Timestamp']['output']>;
   /** Google Ads conversion linker */
@@ -4437,12 +5255,16 @@ export type PatientWebAnalytics = {
   gclid?: Maybe<Scalars['String']['output']>;
   /** First landing page path the visitor hit on the booking site */
   landingPage?: Maybe<Scalars['String']['output']>;
+  /** Most recent coupon touch — overwritten on every new touch, independent of the first-touch code */
+  lastCouponCode?: Maybe<Scalars['String']['output']>;
   /** Epoch ms — most recent tracking event */
   lastTouchAt?: Maybe<Scalars['Timestamp']['output']>;
   /** Ad placement */
   placement?: Maybe<Scalars['String']['output']>;
   /** HTTP referrer at registration time */
   referrer?: Maybe<Scalars['String']['output']>;
+  /** Coupon present at the moment this patient registered — written once, kept separate from later touches */
+  registrationCoupon?: Maybe<Scalars['String']['output']>;
   /** Total unique sessions across all visits */
   totalSessions?: Maybe<Scalars['Int']['output']>;
   /** Total page-loads tracked */
@@ -4461,6 +5283,8 @@ export type PatientWebAnalytics = {
   utmMedium?: Maybe<Scalars['String']['output']>;
   /** Last-touch UTM network */
   utmNetwork?: Maybe<Scalars['String']['output']>;
+  /** Last Stance page before booking, e.g. "/" for home or "/services". */
+  utmReferer?: Maybe<Scalars['String']['output']>;
   /** Last-touch UTM source (e.g. google, facebook) */
   utmSource?: Maybe<Scalars['String']['output']>;
   /** Last-touch UTM term (keyword) */
@@ -4523,6 +5347,68 @@ export type PaymentFieldInput = {
   payments?: InputMaybe<Array<CreatePaymentInput>>;
 };
 
+/**
+ * A Razorpay Payment Link raised against an invoice. The patient opens `shortUrl`
+ * and pays; a `payment_link.paid` webhook then settles the invoice.
+ */
+export type PaymentLink = DataRow & {
+  __typename?: 'PaymentLink';
+  _id: Scalars['ObjectID']['output'];
+  /**
+   * Set once a pending package/advance purchase link is paid and the Advance
+   * has actually been created. Null while the link is still unpaid — see
+   * Mutation.createAdvancePaymentLink.
+   */
+  advance?: Maybe<Advance>;
+  /** Amount requested, in rupees */
+  amount: Scalars['Float']['output'];
+  /** Amount received so far, in rupees */
+  amountPaid?: Maybe<Scalars['Float']['output']>;
+  center?: Maybe<Center>;
+  createdAt: Scalars['Timestamp']['output'];
+  /** Unix ms after which the link stops accepting payment */
+  expiresAt?: Maybe<Scalars['Timestamp']['output']>;
+  /** Set when this link settles an existing Invoice. */
+  invoice?: Maybe<Invoice>;
+  isActive: Scalars['Boolean']['output'];
+  needsReconciliation?: Maybe<Scalars['Boolean']['output']>;
+  /** Channels this link was dispatched on */
+  notifiedVia?: Maybe<Array<PaymentLinkChannel>>;
+  organization?: Maybe<Organization>;
+  patient?: Maybe<User>;
+  /** Razorpay payment id once paid, e.g. pay_... */
+  razorpayPaymentId?: Maybe<Scalars['String']['output']>;
+  /** Razorpay identifier, e.g. plink_ERgihyaAAC0VNW */
+  razorpayPaymentLinkId: Scalars['String']['output'];
+  /**
+   * Set when the link was paid but the invoice could not be settled — the money
+   * is with Razorpay and the record needs manual attention.
+   */
+  settlementError?: Maybe<Scalars['String']['output']>;
+  /** The URL to give the patient */
+  shortUrl: Scalars['String']['output'];
+  status: PaymentLinkStatus;
+  updatedAt: Scalars['Timestamp']['output'];
+  version: Scalars['Int']['output'];
+};
+
+/** Channel a payment link was delivered on. */
+export enum PaymentLinkChannel {
+  Email = 'EMAIL',
+  Manual = 'MANUAL',
+  Sms = 'SMS',
+  Whatsapp = 'WHATSAPP'
+}
+
+/** Lifecycle of a Razorpay Payment Link. Mirrors Razorpay's own status values. */
+export enum PaymentLinkStatus {
+  Cancelled = 'CANCELLED',
+  Created = 'CREATED',
+  Expired = 'EXPIRED',
+  Paid = 'PAID',
+  PartiallyPaid = 'PARTIALLY_PAID'
+}
+
 export enum PaymentMode {
   BankTransfer = 'BANK_TRANSFER',
   Card = 'CARD',
@@ -4531,6 +5417,7 @@ export enum PaymentMode {
   Cod = 'COD',
   Credit = 'CREDIT',
   Emi = 'EMI',
+  MultiMode = 'MULTI_MODE',
   Nach = 'NACH',
   Netbanking = 'NETBANKING',
   Offline = 'OFFLINE',
@@ -4538,6 +5425,7 @@ export enum PaymentMode {
   Paylater = 'PAYLATER',
   Paypal = 'PAYPAL',
   Razorpay = 'RAZORPAY',
+  RazorpayLink = 'RAZORPAY_LINK',
   Token = 'TOKEN',
   Upi = 'UPI',
   UpiQr = 'UPI_QR',
@@ -4814,6 +5702,12 @@ export type Query = {
   /** Get all active sessions for the current user */
   activeSessions: Array<Session>;
   advance: Advance;
+  /**
+   * Latest status for a pending package/advance "Pay by Link" purchase. Asks
+   * Razorpay while still unpaid, and creates the Advance for the first time if
+   * Razorpay already has the money.
+   */
+  advancePaymentWatch?: Maybe<AdvancePaymentWatch>;
   advances: PaginatedAdvances;
   agentReport: AgentReport;
   /**
@@ -4840,6 +5734,8 @@ export type Query = {
   auditLogs: AuditLogPage;
   /** Admin-only: last-24h security event summary (PRD §8.7). */
   auditSecuritySummary: AuditSecuritySummary;
+  campaign?: Maybe<Campaign>;
+  campaigns: Array<Campaign>;
   /** Get centre by id */
   center: Center;
   /** Get centres */
@@ -4857,6 +5753,9 @@ export type Query = {
   checkReportDataFilled: ReportDataStatus;
   /** Get full consent history for a user (audit trail) */
   consentHistory: Array<ConsentRecord>;
+  couponCode?: Maybe<CouponCode>;
+  couponCodeByCode?: Maybe<CouponCode>;
+  couponCodes: Array<CouponCode>;
   /** get current session */
   currentSession: AuthenticatedSession;
   /** Get the latest customer info form for a patient */
@@ -4937,6 +5836,13 @@ export type Query = {
   /** Check whether a user has accepted all currently active policy versions */
   hasUserAcceptedPolicies: Scalars['Boolean']['output'];
   invoice: Invoice;
+  /** Payment links raised against an invoice, newest first. */
+  invoicePaymentLinks: Array<PaymentLink>;
+  /**
+   * Latest payment-link status for an invoice. Asks Razorpay when the local
+   * record is still unpaid, and settles the invoice if Razorpay already has the money.
+   */
+  invoicePaymentWatch?: Maybe<InvoicePaymentWatch>;
   invoices: PaginatedInvoices;
   /**
    * Soft check for staff UIs (WhatsApp share, slot pickers).
@@ -4960,6 +5866,11 @@ export type Query = {
   messageTemplates: Array<MessageTemplate>;
   /** Fetch current account deletion request status for the authenticated user. */
   myAccountDeletionRequest?: Maybe<AccountDeletionRequest>;
+  myReferralCode?: Maybe<CouponCode>;
+  /** Earned vs available — deliberately two different numbers. */
+  myReferralSummary: ReferralSummary;
+  /** Every referral the current patient has made as the referrer, newest first. */
+  myReferrals: Array<ReferralConversion>;
   newSummaries?: Maybe<Array<NewSummary>>;
   /** Get organization by id */
   organization: Organization;
@@ -4994,6 +5905,11 @@ export type Query = {
   patientForms: Array<PatientForm>;
   /** Get forms for a patient filtered by type */
   patientFormsByType: Array<PatientForm>;
+  /**
+   * Current package and advance balances for one patient.
+   * Read from the snapshot written with each ledger entry.
+   */
+  patientPackageBalances: Array<PatientPackageBalance>;
   patientPhaseAnalyses?: Maybe<Array<PatientPhaseAnalysis>>;
   patientStats: PatientStats;
   /** System patient status catalog (labels, priorities, UI flags). */
@@ -5010,11 +5926,23 @@ export type Query = {
   preferredTiming: PreferredTimingSlot;
   /** Get all preferred timing slots for a user */
   preferredTimings: Array<PreferredTimingSlot>;
+  /**
+   * Read-only quote for moving a package advance onto a larger package.
+   * Returns allowed: false and a code when the upgrade cannot be done.
+   */
+  previewAdvancePackageUpgrade: PackageUpgradeQuote;
   prognoses?: Maybe<Array<Prognosis>>;
   /** Admin-only: full chronological history of one record. */
   recordHistory: Array<AuditLogEntry>;
+  /**
+   * Patients and consultants in this organization, across every center.
+   * The referral picker uses this so a referrer at another center can be chosen.
+   */
+  referralUsers: PaginatedUsers;
   /** Get a report */
   report: Report;
+  /** Fetch the current user's unsaved draft for a report, if any. */
+  reportDraft?: Maybe<ReportDraft>;
   /** Get list of reports */
   reports: Array<Report>;
   /** Get a role by id */
@@ -5025,6 +5953,7 @@ export type Query = {
   rolePermissionsByRole: Array<RolePermission>;
   /** Get all roles */
   roles: Array<Role>;
+  scanMultiBookingSlots: MultiBookingScanResult;
   /** Search user-timeline reports by service/treatment name, consultant name, or exercise name under plans */
   searchReports: Array<Report>;
   /** Search tests by name */
@@ -5038,6 +5967,11 @@ export type Query = {
    * purchasableOnly is currently ignored (isPurchasable filter disabled).
    * Pass false/true either way — all active services are returned.
    * Re-enable filtering later when sales-only service lists are needed.
+   *
+   * When patientId is provided, filters by isNewUserService using appointment
+   * history (not patient status):
+   * - TOKEN_PAID / PAID / PRE_PAID / VISITED / INVOICE_GENERATED → repeat services
+   * - no appointments, or only BOOKED / CANCELLED / TOKEN_PENDING → new-user services
    */
   services: Array<Service>;
   stats: Stats;
@@ -5064,6 +5998,13 @@ export type Query = {
   valdExerciseMetadata: Array<ValdExerciseMetadata>;
   /** Get all exercise names for a patient */
   valdExerciseNames: Array<Scalars['String']['output']>;
+  /**
+   * Checks a code against live server data — never trusts a discount computed
+   * on the client. Safe to call for an unauthenticated visitor on the booking
+   * site; an invalid code must never block the page (see Mutation.applyCoupon
+   * for the same contract on the write side).
+   */
+  validateCoupon: CouponValidationResult;
   validateOnboardingToken: OnboardingData;
   /** Admin-only: tamper-evidence check over a date range (PRD §6.3). */
   verifyAuditIntegrity: AuditIntegrityResult;
@@ -5080,8 +6021,9 @@ export type Query = {
   whatsappInboundMessages: Array<WhatsAppInboundMessage>;
   /**
    * Inbound-only unread count for the Messages tab badge (per logged-in user —
-   * staff or consultant). Messages with receivedAt after lastOpenedAt.
-   * Returns 0 if this user has never marked messages read for this patient.
+   * staff or consultant).
+   * No read cursor yet → all inbound messages count as unread.
+   * With lastOpenedAt → messages with receivedAt after that cursor.
    */
   whatsappInboundUnreadCount: Scalars['Int']['output'];
   /** Batch unread counts for the patients list dashboard. */
@@ -5100,6 +6042,11 @@ export type QueryAccountDeletionRequestsArgs = {
 
 export type QueryAdvanceArgs = {
   id: Scalars['ObjectID']['input'];
+};
+
+
+export type QueryAdvancePaymentWatchArgs = {
+  paymentLinkId: Scalars['ObjectID']['input'];
 };
 
 
@@ -5156,6 +6103,17 @@ export type QueryAuditLogsArgs = {
 };
 
 
+export type QueryCampaignArgs = {
+  id: Scalars['ObjectID']['input'];
+};
+
+
+export type QueryCampaignsArgs = {
+  filter?: InputMaybe<CampaignFilterInput>;
+  organizationId: Scalars['ObjectID']['input'];
+};
+
+
 export type QueryCenterArgs = {
   id: Scalars['ObjectID']['input'];
 };
@@ -5192,6 +6150,22 @@ export type QueryCheckReportDataFilledArgs = {
 
 export type QueryConsentHistoryArgs = {
   userId: Scalars['ObjectID']['input'];
+};
+
+
+export type QueryCouponCodeArgs = {
+  id: Scalars['ObjectID']['input'];
+};
+
+
+export type QueryCouponCodeByCodeArgs = {
+  code: Scalars['String']['input'];
+};
+
+
+export type QueryCouponCodesArgs = {
+  campaignId: Scalars['ObjectID']['input'];
+  filter?: InputMaybe<CouponCodeFilterInput>;
 };
 
 
@@ -5409,6 +6383,16 @@ export type QueryInvoiceArgs = {
 };
 
 
+export type QueryInvoicePaymentLinksArgs = {
+  invoiceId: Scalars['ObjectID']['input'];
+};
+
+
+export type QueryInvoicePaymentWatchArgs = {
+  invoiceId: Scalars['ObjectID']['input'];
+};
+
+
 export type QueryInvoicesArgs = {
   filter: InvoiceFilter;
   pagination?: InputMaybe<CursorPaginationInput>;
@@ -5452,6 +6436,11 @@ export type QueryMessageTemplateByTypeArgs = {
 
 export type QueryMessageTemplatesArgs = {
   filter?: InputMaybe<MessageTemplateFilter>;
+};
+
+
+export type QueryMyReferralCodeArgs = {
+  campaignId?: InputMaybe<Scalars['ObjectID']['input']>;
 };
 
 
@@ -5546,6 +6535,11 @@ export type QueryPatientFormsByTypeArgs = {
 };
 
 
+export type QueryPatientPackageBalancesArgs = {
+  patientId: Scalars['ObjectID']['input'];
+};
+
+
 export type QueryPatientPhaseAnalysesArgs = {
   patientId: Scalars['ObjectID']['input'];
 };
@@ -5582,6 +6576,12 @@ export type QueryPreferredTimingsArgs = {
 };
 
 
+export type QueryPreviewAdvancePackageUpgradeArgs = {
+  advanceId: Scalars['ObjectID']['input'];
+  newPackageId: Scalars['ObjectID']['input'];
+};
+
+
 export type QueryPrognosesArgs = {
   patientId: Scalars['ObjectID']['input'];
 };
@@ -5593,8 +6593,20 @@ export type QueryRecordHistoryArgs = {
 };
 
 
+export type QueryReferralUsersArgs = {
+  pagination?: InputMaybe<CursorPaginationInput>;
+  search?: InputMaybe<Scalars['String']['input']>;
+  userType?: InputMaybe<UserType>;
+};
+
+
 export type QueryReportArgs = {
   id: Scalars['ObjectID']['input'];
+};
+
+
+export type QueryReportDraftArgs = {
+  reportId: Scalars['ObjectID']['input'];
 };
 
 
@@ -5610,6 +6622,11 @@ export type QueryRoleArgs = {
 
 export type QueryRolePermissionsByRoleArgs = {
   role: Scalars['String']['input'];
+};
+
+
+export type QueryScanMultiBookingSlotsArgs = {
+  input: MultiBookingScanInput;
 };
 
 
@@ -5637,6 +6654,7 @@ export type QueryServicePackageArgs = {
 export type QueryServicesArgs = {
   advanceId?: InputMaybe<Scalars['ObjectID']['input']>;
   centerId?: InputMaybe<Array<Scalars['ObjectID']['input']>>;
+  patientId?: InputMaybe<Scalars['ObjectID']['input']>;
   purchasableOnly?: InputMaybe<Scalars['Boolean']['input']>;
 };
 
@@ -5695,6 +6713,11 @@ export type QueryValdExerciseArgs = {
 
 export type QueryValdExerciseNamesArgs = {
   stanceId: Scalars['String']['input'];
+};
+
+
+export type QueryValidateCouponArgs = {
+  input: ValidateCouponInput;
 };
 
 
@@ -5887,6 +6910,30 @@ export type Referral = {
   user?: Maybe<Scalars['ObjectID']['output']>;
 };
 
+/** Patient-facing "My Referrals" status — a display read of the lifecycle, not a DB enum. */
+export enum ReferralAppStatus {
+  Accepted = 'ACCEPTED',
+  AwaitingPayment = 'AWAITING_PAYMENT',
+  Booked = 'BOOKED',
+  Cancelled = 'CANCELLED',
+  Completed = 'COMPLETED',
+  Credited = 'CREDITED',
+  Ineligible = 'INELIGIBLE'
+}
+
+export type ReferralConversion = {
+  __typename?: 'ReferralConversion';
+  campaignId: Scalars['ObjectID']['output'];
+  completedAt?: Maybe<Scalars['DateTime']['output']>;
+  createdAt: Scalars['DateTime']['output'];
+  creditedAt?: Maybe<Scalars['DateTime']['output']>;
+  paidAt?: Maybe<Scalars['DateTime']['output']>;
+  /** Masked — first name + last initial. Never the referee's full details. */
+  refereeName?: Maybe<Scalars['String']['output']>;
+  status: ReferralAppStatus;
+  usageId: Scalars['ObjectID']['output'];
+};
+
 /** Referral Form S&C content */
 export type ReferralFormSncContent = {
   __typename?: 'ReferralFormSNCContent';
@@ -5919,10 +6966,22 @@ export type ReferralInput = {
   user?: InputMaybe<Scalars['ObjectID']['input']>;
 };
 
+export type ReferralSummary = {
+  __typename?: 'ReferralSummary';
+  /** The real current wallet balance, in paise — a different number from earned. */
+  availablePaise: Scalars['Float']['output'];
+  /** Lifetime sum of posted (credited) reward events, in paise. */
+  earnedPaise: Scalars['Float']['output'];
+};
+
 export enum ReferralType {
+  Academics = 'ACADEMICS',
   Consultant = 'CONSULTANT',
+  Corporate = 'CORPORATE',
   Doctor = 'DOCTOR',
+  External = 'EXTERNAL',
   Other = 'OTHER',
+  Partnership = 'PARTNERSHIP',
   Patient = 'PATIENT'
 }
 
@@ -5935,6 +6994,7 @@ export type RefreshResult = {
 };
 
 export type RegisterDeviceTokenInput = {
+  appVersion?: InputMaybe<Scalars['String']['input']>;
   centerId: Scalars['ObjectID']['input'];
   deviceId: Scalars['String']['input'];
   platform: PushPlatform;
@@ -5943,7 +7003,8 @@ export type RegisterDeviceTokenInput = {
 
 export type RegistrationOtpVerification = {
   __typename?: 'RegistrationOTPVerification';
-  email: Scalars['String']['output'];
+  email?: Maybe<Scalars['String']['output']>;
+  phone?: Maybe<Scalars['String']['output']>;
   /** Unix epoch (ms) at which the postVerifyToken expires. */
   postVerifyExpiresAt: Scalars['Timestamp']['output'];
   /**
@@ -5953,6 +7014,25 @@ export type RegistrationOtpVerification = {
   postVerifyToken: Scalars['String']['output'];
   verified: Scalars['Boolean']['output'];
 };
+
+/**
+ * Why a code was rejected — surfaced to the booking widget so it can show a
+ * specific, honest reason instead of a generic "invalid code".
+ */
+export enum RejectReason {
+  AlreadyRedeemed = 'ALREADY_REDEEMED',
+  AlreadyReserved = 'ALREADY_RESERVED',
+  CampaignInactive = 'CAMPAIGN_INACTIVE',
+  CapExhausted = 'CAP_EXHAUSTED',
+  CodeInactive = 'CODE_INACTIVE',
+  OutsideValidity = 'OUTSIDE_VALIDITY',
+  PatientIneligible = 'PATIENT_INELIGIBLE',
+  SelfReferral = 'SELF_REFERRAL',
+  StackingConflict = 'STACKING_CONFLICT',
+  UnknownCode = 'UNKNOWN_CODE',
+  WrongCenter = 'WRONG_CENTER',
+  WrongService = 'WRONG_SERVICE'
+}
 
 export type RepeatUserSlotsInput = {
   centerId: Scalars['ObjectID']['input'];
@@ -5989,6 +7069,22 @@ export type ReportDataStatus = {
   missingSections: Array<Scalars['String']['output']>;
 };
 
+/**
+ * Server-side draft of a clinical report form (first assessment or follow-up).
+ * Scoped to the authenticated consultant — one draft per user + report.
+ */
+export type ReportDraft = {
+  __typename?: 'ReportDraft';
+  _id: Scalars['ObjectID']['output'];
+  createdAt: Scalars['Timestamp']['output'];
+  formSource?: Maybe<Scalars['String']['output']>;
+  patientId?: Maybe<Scalars['ObjectID']['output']>;
+  /** RecordsInput-shaped JSON blob matching NewReportForm state. */
+  payload: Scalars['JSON']['output'];
+  reportId: Scalars['ObjectID']['output'];
+  updatedAt: Scalars['Timestamp']['output'];
+};
+
 export type ResetPasswordInput = {
   newPassword: Scalars['String']['input'];
   phone: Scalars['String']['input'];
@@ -6015,6 +7111,7 @@ export enum Resource {
   Advance = 'ADVANCE',
   Appointment = 'APPOINTMENT',
   Availability = 'AVAILABILITY',
+  Campaign = 'CAMPAIGN',
   Consultant = 'CONSULTANT',
   Dashboard = 'DASHBOARD',
   Inventory = 'INVENTORY',
@@ -6260,7 +7357,7 @@ export enum SessionTransactionType {
   Cancel = 'CANCEL',
   /** Sessions granted — package purchased or allocation updated */
   Credit = 'CREDIT',
-  /** Session consumed — invoice paid via this package */
+  /** Sessions consumed — invoice quantity paid via this package */
   Debit = 'DEBIT'
 }
 
@@ -6416,8 +7513,27 @@ export type SubjectiveRecord = {
 
 export type Subscription = {
   __typename?: 'Subscription';
+  /** Fires when a pending package/advance payment link is marked paid. */
+  advancePaymentUpdated: AdvancePaymentWatch;
   alertUpdated: PatientAlert;
+  /** Fires when a payment link for this invoice is marked paid. */
+  invoicePaymentUpdated: InvoicePaymentWatch;
 };
+
+
+export type SubscriptionAdvancePaymentUpdatedArgs = {
+  paymentLinkId: Scalars['ObjectID']['input'];
+};
+
+
+export type SubscriptionInvoicePaymentUpdatedArgs = {
+  invoiceId: Scalars['ObjectID']['input'];
+};
+
+export enum TestCategory {
+  Clinical = 'CLINICAL',
+  MobilityFlexibility = 'MOBILITY_FLEXIBILITY'
+}
 
 export type TimeSlot = {
   __typename?: 'TimeSlot';
@@ -6510,6 +7626,7 @@ export type UpdateAppointmentInput = {
   medium?: InputMaybe<AppointmentMedium>;
   meetingLink?: InputMaybe<Scalars['String']['input']>;
   notes?: InputMaybe<Scalars['String']['input']>;
+  promotion?: InputMaybe<AppointmentPromotionInput>;
   rescheduledFrom?: InputMaybe<Array<Scalars['ObjectID']['input']>>;
   rescheduledTo?: InputMaybe<Scalars['ObjectID']['input']>;
   status?: InputMaybe<AppointmentStatus>;
@@ -6531,6 +7648,25 @@ export type UpdateAvailabilityEventInput = {
   endTime?: InputMaybe<Scalars['Time']['input']>;
   isAvailable?: InputMaybe<Scalars['Boolean']['input']>;
   startTime?: InputMaybe<Scalars['Time']['input']>;
+};
+
+export type UpdateCampaignInput = {
+  benefit?: InputMaybe<Scalars['JSON']['input']>;
+  centers?: InputMaybe<Array<Scalars['ObjectID']['input']>>;
+  description?: InputMaybe<Scalars['String']['input']>;
+  distribution?: InputMaybe<CampaignDistributionInput>;
+  eligibility?: InputMaybe<CampaignEligibilityInput>;
+  endDate?: InputMaybe<Scalars['DateTime']['input']>;
+  excludedServices?: InputMaybe<Array<Scalars['ObjectID']['input']>>;
+  limits?: InputMaybe<CampaignLimitsInput>;
+  mechanism?: InputMaybe<BenefitMechanism>;
+  name?: InputMaybe<Scalars['String']['input']>;
+  notes?: InputMaybe<Scalars['String']['input']>;
+  objective?: InputMaybe<CampaignObjective>;
+  services?: InputMaybe<Array<Scalars['ObjectID']['input']>>;
+  slug?: InputMaybe<Scalars['String']['input']>;
+  stackingAllowed?: InputMaybe<Scalars['Boolean']['input']>;
+  startDate?: InputMaybe<Scalars['DateTime']['input']>;
 };
 
 export type UpdateCenterInput = {
@@ -6574,6 +7710,8 @@ export type UpdateExternalUserInput = {
   centers?: InputMaybe<Array<Scalars['ObjectID']['input']>>;
   city?: InputMaybe<Scalars['String']['input']>;
   dob?: InputMaybe<Scalars['Timestamp']['input']>;
+  doctorId?: InputMaybe<Scalars['ObjectID']['input']>;
+  doctorName?: InputMaybe<Scalars['String']['input']>;
   email?: InputMaybe<Scalars['String']['input']>;
   externalType?: InputMaybe<ExternalType>;
   firstName?: InputMaybe<Scalars['String']['input']>;
@@ -6769,6 +7907,17 @@ export type UpdateTokenInput = {
   validityDays?: InputMaybe<Scalars['Int']['input']>;
 };
 
+export type UpgradeAdvancePackageInput = {
+  newPackageId: Scalars['ObjectID']['input'];
+  payment?: InputMaybe<UpgradeAdvancePackagePaymentInput>;
+};
+
+export type UpgradeAdvancePackagePaymentInput = {
+  amount: Scalars['Float']['input'];
+  mode: PaymentMode;
+  transactionId?: InputMaybe<Scalars['String']['input']>;
+};
+
 export type UpsertMatchInput = {
   associatedOutputId?: InputMaybe<Array<Scalars['String']['input']>>;
   associatedRunscribeId?: InputMaybe<Array<Scalars['String']['input']>>;
@@ -6784,6 +7933,19 @@ export type UpsertMatchInput = {
   valdFullName?: InputMaybe<Scalars['String']['input']>;
   valdSyncId?: InputMaybe<Scalars['String']['input']>;
 };
+
+/** On `coupon_usages.status` — the usage lifecycle (capture through reward). */
+export enum UsageStatus {
+  Applied = 'APPLIED',
+  Cancelled = 'CANCELLED',
+  Captured = 'CAPTURED',
+  Expired = 'EXPIRED',
+  Ineligible = 'INELIGIBLE',
+  Redeemed = 'REDEEMED',
+  Released = 'RELEASED',
+  Reversed = 'REVERSED',
+  Rewarded = 'REWARDED'
+}
 
 export type User = DataRow & {
   __typename?: 'User';
@@ -6938,6 +8100,16 @@ export type ValdExerciseMetricData = {
   right?: Maybe<ValdExerciseMetric>;
 };
 
+export type ValidateCouponInput = {
+  appointmentId?: InputMaybe<Scalars['ObjectID']['input']>;
+  centerId?: InputMaybe<Scalars['ObjectID']['input']>;
+  code: Scalars['String']['input'];
+  /** Price of the eligible line, in paise — used to compute the quote. */
+  invoiceAmountPaise?: InputMaybe<Scalars['Float']['input']>;
+  patientId?: InputMaybe<Scalars['ObjectID']['input']>;
+  serviceId?: InputMaybe<Scalars['ObjectID']['input']>;
+};
+
 export type VerifyEmailChangeInput = {
   email: Scalars['String']['input'];
   otp: Scalars['String']['input'];
@@ -7085,6 +8257,8 @@ export type WebTrackingData = {
   utmMedium?: Maybe<Scalars['String']['output']>;
   /** UTM network */
   utmNetwork?: Maybe<Scalars['String']['output']>;
+  /** Last Stance page before this booking, e.g. "/" or "/services". */
+  utmReferer?: Maybe<Scalars['String']['output']>;
   /** UTM source */
   utmSource?: Maybe<Scalars['String']['output']>;
   /** UTM term */
@@ -7113,6 +8287,8 @@ export type WebTrackingInput = {
   utmMatchtype?: InputMaybe<Scalars['String']['input']>;
   utmMedium?: InputMaybe<Scalars['String']['input']>;
   utmNetwork?: InputMaybe<Scalars['String']['input']>;
+  /** Last Stance page before this booking, e.g. "/" or "/services". */
+  utmReferer?: InputMaybe<Scalars['String']['input']>;
   utmSource?: InputMaybe<Scalars['String']['input']>;
   utmTerm?: InputMaybe<Scalars['String']['input']>;
 };

@@ -5,13 +5,14 @@ import { useQuery, useMutation } from '@apollo/client';
 import { useRouter } from 'next/navigation';
 import { MapPin, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
-import { GET_CENTERS, GET_SERVICES, GET_USER, CREATE_APPOINTMENT, UPDATE_PATIENT, SEND_APPOINTMENT_EMAIL } from '@/gql/queries';
+import { GET_CENTERS, GET_SERVICES, GET_USER, CREATE_APPOINTMENT, UPDATE_PATIENT, UPDATE_APPOINTMENT, APPLY_COUPON, SEND_APPOINTMENT_EMAIL } from '@/gql/queries';
 import NewUserOnlinePaymentProcessing from './NewUserOnlinePaymentProcessing';
 import { useContainerDetection } from '@/hooks/useContainerDetection';
 import { getWebTrackingForBooking } from '@/utils/web-tracking';
+import { readStoredParams } from '@/lib/tracking';
 import { Button } from '@/components/ui-atoms';
 import { StanceHealthLoader } from '@/components/loader/StanceHealthLoader';
-import { EmailCollectionModal } from '@/components/onboarding/shared';
+import { EmailCollectionModal, CouponEntry, formatPaiseAsRupees, type CouponPreview } from '@/components/onboarding/shared';
 import { useMobileFlowAnalytics } from '@/services/mobile-analytics';
 import { bookingStorage } from '@/utils/booking-storage';
 import { getBookingCookies } from '@/utils/booking-cookies';
@@ -50,6 +51,14 @@ export default function NewUserOnlinePaymentConfirmation({
   const [isCreatingAppointment, setIsCreatingAppointment] = useState(false);
   const resolvedCenterIdRef = useRef<string>('');
 
+  // Coupon: couponPreview is the live validateCoupon preview shown on this
+  // screen; effectiveAmount is only updated to the authoritative applyCoupon
+  // result once the user actually proceeds to pay (see handleProceedToPayment).
+  const [initialCoupon] = useState<string | undefined>(() => readStoredParams().coupon);
+  const [couponPreview, setCouponPreview] = useState<CouponPreview | null>(null);
+  const [effectiveAmount, setEffectiveAmount] = useState<number>(bookingData.treatmentPrice);
+  const invoiceAmountPaise = Math.round(bookingData.treatmentPrice * 100);
+
   React.useEffect(() => {
     // Track booking confirmation start
     mobileAnalytics.trackBookingConfirmationStart(bookingData);
@@ -67,6 +76,8 @@ export default function NewUserOnlinePaymentConfirmation({
   const [createAppointment, { loading: creatingAppointment }] = useMutation(CREATE_APPOINTMENT);
   const [updatePatient] = useMutation(UPDATE_PATIENT);
   const [sendAppointmentEmail] = useMutation(SEND_APPOINTMENT_EMAIL);
+  const [applyCoupon] = useMutation(APPLY_COUPON);
+  const [updateAppointment] = useMutation(UPDATE_APPOINTMENT);
 
   const currentCenter = centersData?.centers.find((c: any) => c._id === bookingData.centerId);
   const currentService = servicesData?.services.find((s: any) => s._id === bookingData.treatmentId);
@@ -117,6 +128,8 @@ export default function NewUserOnlinePaymentConfirmation({
     try {
       console.log('⏱️ Starting appointment creation...');
 
+      const webTracking = getWebTrackingForBooking();
+
       const resolvedCenterId =
         bookingData.centerId ||
         getBookingCookies().centerId ||
@@ -159,7 +172,7 @@ export default function NewUserOnlinePaymentConfirmation({
               startTime: new Date(bookingData.selectedTimeSlot.startTime).getTime(),
               endTime: new Date(bookingData.selectedTimeSlot.endTime).getTime(),
             },
-            webTracking: getWebTrackingForBooking() ?? undefined,
+            webTracking: webTracking ?? undefined,
           },
         },
       });
@@ -172,11 +185,78 @@ export default function NewUserOnlinePaymentConfirmation({
       }
 
       console.log('✅ Appointment ID:', appointmentId);
+
+      // Coupon: the preview shown on this screen is never trusted as the
+      // final price. Now that a real appointmentId exists, reserve the code
+      // for real and use ITS quote (re-validated server-side) as what gets
+      // charged. If this fails for any reason (race condition, code just
+      // exhausted, etc.) fall back to full price rather than block the booking.
+      let finalAmount = bookingData.treatmentPrice;
+      if (couponPreview) {
+        const applyCouponInput = {
+          code: couponPreview.code,
+          patientId: bookingData.patientId,
+          appointmentId,
+          centerId: resolvedCenterId,
+          serviceId: bookingData.treatmentId,
+          invoiceAmountPaise,
+          anonymousId: webTracking?.anonymousId,
+          sessionId: webTracking?.sessionId,
+        };
+        console.log('[applyCoupon] CALLING with input:', applyCouponInput);
+        try {
+          const couponResult = await applyCoupon({ variables: { input: applyCouponInput } });
+          console.log('[applyCoupon] RAW RESULT:', JSON.stringify(couponResult?.data, null, 2));
+          const reservation = couponResult?.data?.applyCoupon;
+          console.log('[applyCoupon] reservation:', {
+            ok: reservation?.ok,
+            rejectReason: reservation?.rejectReason,
+            message: reservation?.message,
+            usageId: reservation?.usage?._id,
+            usageStatus: reservation?.usage?.status,
+            discountPaise: reservation?.usage?.quote?.discountPaise,
+            netPaise: reservation?.usage?.quote?.netPaise,
+            campaign: reservation?.usage?.campaign,
+          });
+          if (reservation?.ok && reservation.usage?.quote?.netPaise != null) {
+            finalAmount = reservation.usage.quote.netPaise / 100;
+            const promotionInput = {
+              code: couponPreview.code,
+              applicationId: reservation.usage._id,
+              campaignId: reservation.usage.campaign,
+              discountPaise: Math.round(reservation.usage.quote.discountPaise ?? 0),
+            };
+            console.log('[updateAppointment] CALLING to stamp promotion:', {
+              appointmentId,
+              promotion: promotionInput,
+            });
+            try {
+              const updateResult = await updateAppointment({
+                variables: { id: appointmentId, input: { promotion: promotionInput } },
+              });
+              console.log('[updateAppointment] RESULT:', JSON.stringify(updateResult?.data, null, 2));
+            } catch (linkError) {
+              // Non-blocking: the reservation + correct charge already succeeded.
+              console.error('⚠️ Failed to attach promotion to appointment:', linkError);
+            }
+          } else {
+            console.warn('⚠️ Coupon could not be reserved at payment time — reservation:', reservation);
+            toast.info(reservation?.message || "This coupon couldn't be applied — continuing at full price.", {
+              position: 'top-center',
+            });
+          }
+        } catch (couponError) {
+          console.error('⚠️ applyCoupon failed — continuing at full price:', couponError);
+          toast.info("This coupon couldn't be applied — continuing at full price.", { position: 'top-center' });
+        }
+      }
+      setEffectiveAmount(finalAmount);
+
       bookingStorage.setItem('appointmentId', appointmentId);
       bookingStorage.setItem('paymentType', 'invoice');
-      bookingStorage.setItem('paymentAmount', bookingData.treatmentPrice.toString());
+      bookingStorage.setItem('paymentAmount', finalAmount.toString());
       
-      analytics.trackPaymentInitiated(bookingData.treatmentPrice, appointmentId);
+      analytics.trackPaymentInitiated(finalAmount, appointmentId);
       
       // Verify storage was written
       const storedId = bookingStorage.getItem('appointmentId');
@@ -220,7 +300,7 @@ export default function NewUserOnlinePaymentConfirmation({
   if (isProcessingPayment) {
     return (
       <NewUserOnlinePaymentProcessing
-        amount={bookingData.treatmentPrice}
+        amount={effectiveAmount}
         paymentType="invoice"
         patientDetails={patientDetails}
         patientId={bookingData.patientId}
@@ -309,13 +389,41 @@ export default function NewUserOnlinePaymentConfirmation({
             </div>
           </div>
 
+          {/* Coupon Code */}
+          <CouponEntry
+            initialCode={initialCoupon}
+            patientId={bookingData.patientId}
+            centerId={resolvedCenterIdRef.current || bookingData.centerId}
+            serviceId={bookingData.treatmentId}
+            invoiceAmountPaise={invoiceAmountPaise}
+            onPreviewChange={setCouponPreview}
+            disabled={creatingAppointment || isProcessingPayment || isCreatingAppointment}
+          />
+
           {/* Payment Amount */}
           <div className="bg-white rounded-2xl border border-gray-200 p-4 mb-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Payment Amount</h3>
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600 font-medium">Total Amount</span>
-              <span className="text-2xl font-bold text-gray-900">₹{bookingData.treatmentPrice}</span>
-            </div>
+            {couponPreview && couponPreview.discountPaise > 0 ? (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm text-gray-500">
+                  <span>Original Amount</span>
+                  <span>₹{formatPaiseAsRupees(couponPreview.originalPaise)}</span>
+                </div>
+                <div className="flex items-center justify-between text-sm text-green-700">
+                  <span>Coupon Discount ({couponPreview.code})</span>
+                  <span>-₹{formatPaiseAsRupees(couponPreview.discountPaise)}</span>
+                </div>
+                <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+                  <span className="text-sm text-gray-600 font-medium">Total Amount</span>
+                  <span className="text-2xl font-bold text-gray-900">₹{formatPaiseAsRupees(couponPreview.netPaise)}</span>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600 font-medium">Total Amount</span>
+                <span className="text-2xl font-bold text-gray-900">₹{bookingData.treatmentPrice}</span>
+              </div>
+            )}
             <div className="mt-4 p-3 rounded-xl bg-green-50 border border-green-200">
               <div className="flex items-start space-x-2">
                 <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5 text-green-600" />
@@ -362,7 +470,9 @@ export default function NewUserOnlinePaymentConfirmation({
           variant="primary"
           size="lg"
         >
-          {creatingAppointment || isProcessingPayment || isCreatingAppointment ? 'Creating Appointment...' : `Pay ₹${bookingData.treatmentPrice}`}
+          {creatingAppointment || isProcessingPayment || isCreatingAppointment
+            ? 'Creating Appointment...'
+            : `Pay ₹${couponPreview ? formatPaiseAsRupees(couponPreview.netPaise) : bookingData.treatmentPrice}`}
         </Button>
       </div>
 
