@@ -16,6 +16,7 @@ import CrossOrgModal from './CrossOrgModal';
 import NewUserServiceModal from './NewUserServiceModal';
 import EmailOTPModal from './EmailOTPModal';
 import { tabStorage } from '@/utils/tab-storage';
+import { extractErrorMessage } from '@/utils/error-utils';
 
 interface SimplifiedPatientOnboardingProps {
   centerId: string;
@@ -334,8 +335,12 @@ export default function SimplifiedPatientOnboarding({
     } catch (err: any) {
       console.error('❌ Error sending OTP:', err);
       console.error('❌ Error message:', err?.message);
-      setOtpError('Failed to send OTP. Please try again.');
-      toast.error('Failed to send OTP. Please try again.');
+      const { message, field } = extractErrorMessage(err);
+      if (field && field !== 'general') {
+        setFormErrors((prev: any) => ({ ...prev, [field]: message }));
+      }
+      setOtpError(message);
+      toast.error(message);
     } finally {
       setIsSendingOTP(false);
     }
@@ -618,7 +623,11 @@ export default function SimplifiedPatientOnboarding({
         }
       } catch (error: any) {
         console.error('Error updating patient:', error);
-        toast.error(error.message || 'Failed to update profile. Please try again.');
+        const { message, field } = extractErrorMessage(error);
+        if (field && field !== 'general') {
+          setFormErrors((prev: any) => ({ ...prev, [field]: message }));
+        }
+        toast.error(message);
       }
       return;
     }
@@ -655,7 +664,11 @@ export default function SimplifiedPatientOnboarding({
       }
     } catch (error) {
       console.error('Error creating patient:', error);
-      toast.error('Failed to create patient. Please try again.');
+      const { message, field } = extractErrorMessage(error);
+      if (field && field !== 'general') {
+        setFormErrors((prev: any) => ({ ...prev, [field]: message }));
+      }
+      toast.error(message);
     }
   };
 

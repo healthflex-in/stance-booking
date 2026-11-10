@@ -20,6 +20,7 @@ import NewUserServiceModal from './shared/NewUserServiceModal';
 import EmailOTPModal from './shared/EmailOTPModal';
 import { useContainerDetection } from '@/hooks/useContainerDetection';
 import { useMobileFlowAnalytics } from '@/services/mobile-analytics';
+import { extractErrorMessage } from '@/utils/error-utils';
 
 interface OnlineOnboardingProps {
   organizationId: string;
@@ -94,7 +95,11 @@ export default function OnlineOnboarding({ organizationId, onComplete }: OnlineO
       }
     },
     onError: (error) => {
-      toast.error(error.message || 'Failed to create patient');
+      const { message, field } = extractErrorMessage(error);
+      if (field && field !== 'general') {
+        setFormErrors((prev: any) => ({ ...prev, [field]: message }));
+      }
+      toast.error(message);
     },
   });
 
@@ -328,7 +333,11 @@ export default function OnlineOnboarding({ organizationId, onComplete }: OnlineO
         onComplete(createdPatientId, true);
       } catch (error: any) {
         console.error('Error updating patient:', error);
-        toast.error(error.message || 'Failed to update profile. Please try again.');
+        const { message, field } = extractErrorMessage(error);
+        if (field && field !== 'general') {
+          setFormErrors((prev: any) => ({ ...prev, [field]: message }));
+        }
+        toast.error(message);
       }
       return;
     }

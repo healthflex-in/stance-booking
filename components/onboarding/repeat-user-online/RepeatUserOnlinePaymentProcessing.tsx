@@ -54,6 +54,7 @@ const VERIFY_PAYMENT = gql`
 
 
 
+
 export default function RepeatUserOnlinePaymentProcessing({
   amount,
   patientDetails,
@@ -161,6 +162,11 @@ export default function RepeatUserOnlinePaymentProcessing({
           paymentAmount: bookingStorage.getItem('paymentAmount'),
         });
         throw new Error('Appointment ID not found in session');
+      }
+
+      // Validate center ID - parent should have resolved this
+      if (!centerId) {
+        throw new Error('Center ID is required for order creation');
       }
 
       const orderInput: any = {

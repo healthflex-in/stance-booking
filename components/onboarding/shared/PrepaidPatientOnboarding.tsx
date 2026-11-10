@@ -7,6 +7,7 @@ import { User, X } from 'lucide-react';
 import { StanceHealthLoader } from '@/components/loader/StanceHealthLoader';
 import { CREATE_PATIENT, PATIENT_EXISTS, PATIENT_BY_PHONE, GET_CENTERS, UPDATE_PATIENT } from '@/gql/queries';
 import { useContainerDetection } from '@/hooks/useContainerDetection';
+import { extractErrorMessage } from '@/utils/error-utils';
 
 interface PrepaidPatientOnboardingProps {
   centerId: string;
@@ -97,7 +98,11 @@ export default function PrepaidPatientOnboarding({
       }
     },
     onError: (error) => {
-      toast.error(error.message || 'Failed to create patient');
+      const { message, field } = extractErrorMessage(error);
+      if (field && field !== 'general') {
+        setFormErrors((prev: any) => ({ ...prev, [field]: message }));
+      }
+      toast.error(message);
     },
   });
 
@@ -253,7 +258,11 @@ export default function PrepaidPatientOnboarding({
       }
     } catch (error) {
       console.error('Error creating/updating patient:', error);
-      toast.error('Failed to save patient details. Please try again.');
+      const { message, field } = extractErrorMessage(error);
+      if (field && field !== 'general') {
+        setFormErrors((prev: any) => ({ ...prev, [field]: message }));
+      }
+      toast.error(message);
     }
   };
 
