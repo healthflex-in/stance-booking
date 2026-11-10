@@ -106,11 +106,13 @@ export function storeBookingParamsInSession(params: BookingParams): void {
   captureUTMParams();
 }
 
+
 const UTM_KEYS = [
   'utm_source', 'utm_medium', 'utm_campaign', 'utm_id',
   'utm_term', 'utm_content', 'utm_adgroup', 'utm_matchtype',
-  'utm_device', 'utm_network', 'placement', 'asset_id',
+  'utm_device', 'utm_network', 'placement', 'asset_id', 'utm_referer',
 ] as const;
+
 
 /**
  * Reads UTM params from the current URL and from localStorage ("stance_tracking"),
@@ -122,6 +124,7 @@ export function captureUTMParams(): void {
   if (typeof window === 'undefined') return;
   try {
     const urlParams = new URLSearchParams(window.location.search);
+
 
     // 1. Collect UTMs from the URL
     const fromUrl: Partial<Record<typeof UTM_KEYS[number], string>> = {};

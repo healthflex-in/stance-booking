@@ -35,6 +35,8 @@ export interface WebTrackingInput {
   utmMatchtype?:  string;
   utmDevice?:     string;
   utmNetwork?:    string;
+  /** Last Stance page before booking, e.g. "/" or "/services". */
+  utmReferer?:    string;
   placement?:     string;
   assetId?:       string;
 }
@@ -73,6 +75,7 @@ export function getWebTrackingForBooking(): WebTrackingInput | null {
     utmMatchtype: ls.utm_matchtype,
     utmDevice:   ls.utm_device,
     utmNetwork:  ls.utm_network,
+    utmReferer:  ls.utm_referer,
     placement:   ls.placement,
     assetId:     ls.asset_id,
   };

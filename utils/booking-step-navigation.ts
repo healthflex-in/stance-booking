@@ -153,15 +153,18 @@ export function storeBookingParamsInSession(params: URLBookingParams): void {
 
   // Persist UTM params and original landing URL before they get stripped from the URL
   const urlParams = new URLSearchParams(window.location.search);
-  const utmKeys = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_id', 'utm_term', 'utm_content'];
-  const utmParts: string[] = [];
+  const utmKeys = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_id', 'utm_term', 'utm_content', 'utm_referer'];
+  const existing = new URLSearchParams(sessionStorage.getItem('utm_params') || '');
+  let changed = false;
   for (const key of utmKeys) {
     const val = urlParams.get(key);
-    if (val) utmParts.push(`${key}=${encodeURIComponent(val)}`);
+    if (val && !existing.get(key)) {
+      existing.set(key, val);
+      changed = true;
+    }
   }
-  if (utmParts.length > 0) {
-    // Only overwrite if we have fresh UTM data (don't wipe a previously captured value)
-    sessionStorage.setItem('utm_params', utmParts.join('&'));
+  if (changed) {
+    sessionStorage.setItem('utm_params', existing.toString());
   }
   // Always capture the original full landing URL once (first write wins)
   if (!sessionStorage.getItem('booking_landing_url')) {
