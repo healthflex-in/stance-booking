@@ -2689,3 +2689,55 @@ export const PURCHASE_TOKEN = gql`
 `;
 
 
+
+// ─── Coupon Engine ──────────────────────────────────────────────────────────
+// Preview-only check against live server data. Safe to call for an
+// unauthenticated visitor; never trusts a discount computed on the client.
+export const VALIDATE_COUPON = gql`
+  query ValidateCoupon($input: ValidateCouponInput!) {
+    validateCoupon(input: $input) {
+      valid
+      rejectReason
+      message
+      quote {
+        mechanism
+        discountPaise
+        originalPaise
+        netPaise
+      }
+    }
+  }
+`;
+
+// Reserves the benefit against a booking. Requires a real appointmentId —
+// call only after createAppointment has succeeded.
+export const APPLY_COUPON = gql`
+  mutation ApplyCoupon($input: ApplyCouponInput!) {
+    applyCoupon(input: $input) {
+      ok
+      rejectReason
+      message
+      usage {
+        _id
+        status
+        campaign
+        code
+        quote {
+          tokenPaise
+          originalPaise
+          discountPaise
+          netPaise
+        }
+      }
+    }
+  }
+`;
+
+export const REMOVE_COUPON = gql`
+  mutation RemoveCoupon($usageId: ObjectID!) {
+    removeCoupon(usageId: $usageId) {
+      _id
+      status
+    }
+  }
+`;

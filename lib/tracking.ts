@@ -37,6 +37,9 @@ export const TRACKED_PARAMS = [
   'gclid', 'fbclid', 'gbraid', 'wbraid', 'ttclid', 'msclkid', 'twclid',
   // Internal
   'ref', 'affiliate_id',
+  // Coupon code — captured from URL (?coupon=...), persisted, and forwarded
+  // to the track-user endpoint as coupon_code (see TrackingInit.tsx).
+  'coupon',
 ] as const;
 
 // Identity + derived keys forwarded from stance-health

@@ -13,3 +13,5 @@ export { default as SimplifiedPatientOnboarding } from './SimplifiedPatientOnboa
 export { default as PrepaidPatientOnboarding } from './PrepaidPatientOnboarding';
 export { default as EmailCollectionModal } from './EmailCollectionModal';
 export { default as CrossOrgModal } from './CrossOrgModal';
+export { default as CouponEntry, formatPaiseAsRupees } from './CouponEntry';
+export type { CouponPreview, BenefitMechanism } from './CouponEntry';
